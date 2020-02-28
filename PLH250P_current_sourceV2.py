@@ -8,9 +8,13 @@ from qcodes import (Instrument, VisaInstrument,
 					validators as vals)
 from qcodes.instrument.channel import InstrumentChannel
 
-
+import serial
+import time
+ser = serial.Serial('COM4', 9600, timeout=2)
+oldstate = 'off'
 
 class TTi(VisaInstrument): 
+	
 	"""
 	QCoDeS driver for the TTi PLH250-P power supply
 	"""
@@ -60,7 +64,7 @@ class TTi(VisaInstrument):
 							set_parser =self.current_up_down
 							)
 
-		self.add_parameter( name = 'current_set',  
+		self.add_parameter( name = 'current',  
 							label = 'Set output currents in mA.',
 							vals = vals.Numbers(-100,100),
 							unit   = 'mA',
@@ -106,10 +110,15 @@ class TTi(VisaInstrument):
 		return ret
 
 	def mA_to_A(self, I):
+		if I<0:
+			setstate('neg')
+			I=-I
+		else:
+			setstate('pos')
 		return I*1e-3
 
 	def A_to_mA(self, I):
-		I=I[8:]
+		I=I[3:]
 		return float(I)*1e3
 
 	def current_up_down(self,delta):
@@ -118,3 +127,37 @@ class TTi(VisaInstrument):
 		elif delta=='down':
 			ret = 'DECI1'
 		return ret
+
+
+
+
+def setstate(newstate):
+	global oldstate,ser
+	if newstate != oldstate:
+		if newstate=='neg':
+			repeat = True
+			while repeat:
+				time.sleep(1)
+				ser.write('2'.encode())
+				read=ser.read(1)
+				if read==b'2':
+					repeat=False
+			oldstate=='neg'
+		if newstate=='pos':
+			repeat = True
+			while repeat:
+				time.sleep(1)
+				ser.write('1'.encode())
+				read=ser.read(1)
+				if read==b'1':
+					repeat=False
+			oldstate=='pos'
+	if newstate=='off':
+		repeat = True
+		while repeat:
+			time.sleep(1)
+			ser.write('0'.encode())
+			read=ser.read(1)
+			if read==b'0':
+				repeat=False
+		oldstate=='off'

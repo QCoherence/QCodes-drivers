@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # This is a Qcodes driver for Redpitaya card SCPI IQ server 
-# written by Martina Esposito and Arpit Ranadive, 2019
+# written by Martina Esposito and Arpit Ranadive, 2019/2020
 # This driver is a Qcodes version of the qtlab driver 'redpitaya_qtlab.py' written by Sebastian
 #
 
@@ -31,7 +31,7 @@ class Redpitaya(VisaInstrument):
         self.add_parameter( name = 'freq_filter',  
                             #frequency of the low pass filter
                             label = 'Low pass filter cut-off freq',
-                            vals = vals.Numbers(10e3,62.5e6),
+                            vals = vals.Numbers(10e3,62.5e6),      
                             unit   = 'Hz',
                             set_cmd='FILTER:FREQ ' + '{:.12f}',
                             get_cmd='FILTER:FREQ?',
@@ -49,10 +49,10 @@ class Redpitaya(VisaInstrument):
                             )
 
         self.add_parameter( name = 'start_ADC',  
-                            # Starting point of the aquisition
+                            # Starting point of the ADC aquisition in second
                             label = 'Acquisition starting time',
                             unit   = 's',
-                            vals = vals.Numbers(0,8191*8e-9),
+                            vals = vals.Numbers(0,8191*8e-9),  #8192 is the maximum number of samples that can be generated (65 us)
                             set_cmd='ADC:STARTPOS '  + '{}',
                             get_cmd='ADC:STARTPOS?',
                             set_parser = self.get_samples_from_sec,
@@ -63,7 +63,7 @@ class Redpitaya(VisaInstrument):
                             #stopping point of the aquisition 
                             label = 'Acquisition stopping time',
                             unit   = 's',
-                            vals = vals.Numbers(0,8191*8e-9),
+                            vals = vals.Numbers(0,8191*8e-9),  #8192 is the maximum number of samples that can be generated (65 us)
                             set_cmd='ADC:STOPPOS ' + '{:.12f}',
                             get_cmd='ADC:STOPPOS?',
                             set_parser = self.get_samples_from_sec,
@@ -74,7 +74,7 @@ class Redpitaya(VisaInstrument):
                             #stopping point of the LUT (Look-Up Table) 
                             label = 'Stopping time of the LUT ',
                             unit   = 's',
-                            vals = vals.Numbers(0,8192*8e-9),
+                            vals = vals.Numbers(0,8192*8e-9),   #8192 is the maximum number of samples that can be generated (65 us)
                             set_cmd='DAC:STOPPOS ' + '{:.12f}',
                             get_cmd='DAC:STOPPOS?',
                             set_parser = self.get_samples_from_sec,
@@ -92,32 +92,46 @@ class Redpitaya(VisaInstrument):
                             get_parser=self.get_sec_from_samples
                             )
   
-        self.add_parameter( name = 'mode_output',  
+        self.add_parameter( name = 'mode_output', 
                             # Mode(string) : 
-                                        #'ADC': you get the rough uptput of the ADC , 
-                                        #'IQCH1',
-                                        #'IQCH2', 
-                                        #'IQLP1' 
-                                        #'IQINT'
+                                        #'ADC': you get the rough uptput of the ADC: the entire trace
+                                        #'IQCH1', you get I and Q from channel 1
+                                        #'IQCH2', you get I and Q from channel 2
+                                        #'IQLP1' you get I and Q after the low pass filter
+                                        #'IQINT' you get I and Q after the integration
+                                        #we can use either IQLP1 or IQINT for the low pass filtering
                             label = 'Output mode',
                             vals = vals.Enum('ADC', 'IQCH1', 'IQCH2', 'IQLP1', 'IQINT'),
                             set_cmd='OUTPUT:SELECT ' + '{}',
-                            get_cmd='OUTPUT:SELECT?',
+                            get_cmd='OUTPUT:SELECT?'
                             #get_parser=float
                             )
         # The get command doesn't work, not clear why
-        self.add_parameter( name = 'format_output',
+        self.add_parameter( name = 'format_output', # This is not working
                             #Format(string) : 'BIN' or 'ASCII' 
                             label='Output format',
                             vals = vals.Enum('ASCII','BIN'),
                             set_cmd='OUTPUT:FORMAT ' + '{}',
                             get_cmd='OUTPUT:FORMAT?',
-                            #get_parser=str
+                            get_parser=str
                             )
 
+
+
+######################################################################Not sure about this
         self.add_parameter('status',
                            set_cmd='{}',
                            vals=vals.Enum('start', 'stop'))
+
+        self.add_parameter('data_size',
+                           get_cmd='OUTPUT:DATASIZE?')
+
+
+        self.add_parameter('data_output',
+         					get_cmd='OUTPUT:DATA?')
+
+
+
 
         # good idea to call connect_message at the end of your constructor.
         # this calls the 'IDN' parameter that the base Instrument class creates 
@@ -128,7 +142,7 @@ class Redpitaya(VisaInstrument):
 
 # ----------------------------------------------------- Methods -------------------------------------------------- #
 
-#-----From seconds to samples and viceversa------
+#---------------------------------------------------------------------From seconds to samples and viceversa------
 
     def get_samples_from_sec(self, sec):
         samples=sec/8e-9
@@ -139,7 +153,7 @@ class Redpitaya(VisaInstrument):
         sec=float(samples)*8.0e-9
         return sec
 
-#-----Look-Up-Table (LUT) menagement ---------
+#-------------------------------------------------------------------Look-Up-Table (LUT) menagement ---------
 
     def start(self): 
         """
@@ -163,7 +177,7 @@ class Redpitaya(VisaInstrument):
         Input:
                 function(string): name of the function
                 parameters(float): vector of parameters characterizing the function:
-                 freq, Amplitude, pulse_duration, delay
+                freq (Hz), Amplitude (from 0 to 1), pulse_duration (s), delay (s)
         Output: 
                 the table (int) 
         """
@@ -174,7 +188,7 @@ class Redpitaya(VisaInstrument):
             else: 
                 N_point = int(round(pulse_duration/8e-9))
                 n_oscillation = freq*pulse_duration
-                Amp_bit = Amplitude*8192
+                Amp_bit = Amplitude*8192                           ######### the DAC is 14 bit 8192 . The maximum aplitude will be (2^14)/2
                 t = np.linspace(0, 2 * np.pi,N_point)
                 return Amp_bit*np.concatenate((np.zeros(int(round(delay/8e-9))), np.sin(n_oscillation*t)))
 
@@ -281,7 +295,7 @@ class Redpitaya(VisaInstrument):
                 
     def send_IQ_LUT(self, table, channel, quadrature): 
         """
-        Send a LUT to one of the IQ channel 
+        Send a LUT to one of the IQ channel  (I and Q will be multiplied by the ADC input)
         Input: 
             - table (float): table to be sent 
             - channel(string): channel in which to table in sent 
@@ -319,7 +333,7 @@ class Redpitaya(VisaInstrument):
         self.send_IQ_LUT(empty_table,'CH2','I')
         self.send_IQ_LUT(empty_table,'CH2','Q')
 
-#-----Output Data----
+#--------------------------------------------------------------------------Output Data----
 
     def data_size(self):
         """
@@ -406,7 +420,48 @@ class Redpitaya(VisaInstrument):
 
 
 
-        
+    def get_data_binary(self, mode, nb_measure):
+
+        t = 0 
+        self.set_mode_output(mode)
+        self.set_format_output('BIN')
+        self.start()
+        signal = np.array([], dtype='int32')
+        t0 = time.time()
+        while t < nb_measure:
+            try:
+                rep = self.data_output_bin()
+                if rep[0] != 0:
+                    print ('Memory problem %s' %rep[0])
+                    self.stop()
+                    self.start()
+                else: 
+                    signal = np.concatenate((signal,rep[1:]))
+                    if mode == ('ADC' or 'IQCH1' or 'IQCH2'): 
+                        t = len(signal)/2
+                    else: 
+                        t = len(signal)/4
+                t1 = time.time()
+                print (t1 - t0, t)
+                t0 = t1
+            except: 
+                t=t
+
+
+        self.stop()
+        trash = self.data_output()
+            
+        if mode == ('ADC' or 'IQCH1' or 'IQCH2'):
+            data_1 = signal[::2][:nb_measure]/(4*8192.)
+            data_2 = signal[1::2][:nb_measure]/(4*8192.)
+            return data_1, data_2
+
+        else:
+            ICH1 = signal[::4][:nb_measure]/(4*8192.)
+            QCH1 = signal[1::4][:nb_measure]/(4*8192.)
+            ICH2 = signal[2::4][:nb_measure]/(4*8192.)
+            QCH2 = signal[3::4][:nb_measure]/(4*8192.)
+            return ICH1, QCH1, ICH2, QCH2     
     
     
         
