@@ -71,7 +71,7 @@ class TTi(VisaInstrument):
 							set_cmd='I1 ' + '{:.12f}',
 							get_cmd='I1?',
 							set_parser =self.mA_to_A,
-							get_parser=self.A_to_mA
+							get_parser=self.A_to_mA_with_parity
 							)
 
 		# good idea to call connect_message at the end of your constructor.
@@ -121,6 +121,13 @@ class TTi(VisaInstrument):
 		I=I[3:]
 		return float(I)*1e3
 
+	def A_to_mA_with_parity(self, I):
+		I=I[3:]
+		I=float(I)*1e3
+		if oldstate=='neg':
+			I=-1*I
+		return I
+
 	def current_up_down(self,delta):
 		if delta=='up':
 			ret = 'INCI1'
@@ -142,7 +149,7 @@ def setstate(newstate):
 				read=ser.read(1)
 				if read==b'2':
 					repeat=False
-			oldstate=='neg'
+			oldstate='neg'
 		if newstate=='pos':
 			repeat = True
 			while repeat:
@@ -151,7 +158,7 @@ def setstate(newstate):
 				read=ser.read(1)
 				if read==b'1':
 					repeat=False
-			oldstate=='pos'
+			oldstate='pos'
 	if newstate=='off':
 		repeat = True
 		while repeat:
@@ -160,4 +167,10 @@ def setstate(newstate):
 			read=ser.read(1)
 			if read==b'0':
 				repeat=False
-		oldstate=='off'
+		oldstate='off'
+
+
+
+
+def parity():
+	return oldstate
