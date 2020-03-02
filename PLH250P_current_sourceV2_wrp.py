@@ -8,7 +8,7 @@ def current_set(current_source, I):
 	steps=int(abs(I_0-I))*10
 	for i in range(0,steps):
 		current_source.current(I_0+1.0*(I-I_0)*i/steps)
-		sleep(0.001)
+		sleep(0.1)
 	current_source.current(I)
 	# return steps
 
