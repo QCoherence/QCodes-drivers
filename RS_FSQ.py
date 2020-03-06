@@ -1,4 +1,7 @@
-# Last updated on 3 Mar 2020
+#
+# *** Warning: Alpha version driver with functionalities under development.
+#
+# Last updated on 6 Mar 2020
 #                     -- Arpit
 
 
@@ -7,10 +10,59 @@ from qcodes import (Instrument, VisaInstrument,
 					ManualParameter, MultiParameter,
 					validators as vals)
 from qcodes.instrument.channel import InstrumentChannel
-
+from qcodes.instrument.parameter import ParameterWithSetpoints, Parameter
+from qcodes.utils.validators import Numbers, Arrays
 
 
 from time import sleep
+import numpy as np
+
+
+
+
+
+
+
+class GeneratedSetPoints(Parameter):
+    """
+    A parameter that generates a setpoint array from start, stop and num points
+    parameters.
+    """
+    def __init__(self, startparam, stopparam, numpointsparam, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._startparam = startparam
+        self._stopparam = stopparam
+        self._numpointsparam = numpointsparam
+
+    def get_raw(self):
+        return np.linspace(self._startparam(), self._stopparam(),
+                              self._numpointsparam())
+
+class SpectrumTrace(ParameterWithSetpoints):
+
+    def get_raw(self):
+        data = self._instrument.get_trace()
+        return data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -22,7 +74,7 @@ class RS_FSQ(VisaInstrument):
 	sense_num=1
 	
 	"""
-	QCoDeS driver for the R&S FSQ Signal Analyser
+	QCoDeS driver for the R&S FSQ Signal Analyzer
 	"""
 	
 	# all instrument constructors should accept **kwargs and pass them on to
@@ -102,14 +154,14 @@ class RS_FSQ(VisaInstrument):
 							# get_parser=self.
 							)
 
-		self.add_parameter( name = 'num_points',  
-							label = '',
+		self.add_parameter( name = 'n_points',  
+							label = 'Number of points in trace',
 							vals = vals.Numbers(20,26.5e9),
 							unit   = '',
 							set_cmd='SENSe'+str(self.sense_num)+':SWEep:POINts ' + '{:.12f}',
-							get_cmd='SENSe'+str(self.sense_num)+':SWEep:POINts?'
+							get_cmd='SENSe'+str(self.sense_num)+':SWEep:POINts?',
 							# set_parser =self.,
-							# get_parser=self.
+							get_parser=int
 							)
 
 		self.add_parameter( name = 'span',  
@@ -132,7 +184,47 @@ class RS_FSQ(VisaInstrument):
 							# get_parser=self.
 							)
 
+		self.add_parameter( name = 'f_start',  
+							label = 'Start frequency',
+							vals = vals.Numbers(20,26.5e9),
+							unit   = 'Hz',
+							set_cmd='SENSe'+str(self.sense_num)+':FREQuency:STARt ' + '{:.12f}',
+							get_cmd='SENSe'+str(self.sense_num)+':FREQuency:STARt?',
+							# set_parser =self.,
+							get_parser=float
+							)
+
+		self.add_parameter( name = 'f_stop',  
+							label = 'Stop frequency',
+							vals = vals.Numbers(20,26.5e9),
+							unit   = 'Hz',
+							set_cmd='SENSe'+str(self.sense_num)+':FREQuency:STOP ' + '{:.12f}',
+							get_cmd='SENSe'+str(self.sense_num)+':FREQuency:STOP?',
+							# set_parser =self.,
+							get_parser=float
+							)
+
+
+
+		self.add_parameter('freq_axis',
+							unit='Hz',
+							label='Freq Axis',
+							parameter_class=GeneratedSetPoints,
+							startparam=self.f_start,
+							stopparam=self.f_stop,
+							numpointsparam=self.n_points,
+							vals=Arrays(shape=(self.n_points.get_latest,)))
+
+		self.add_parameter('spectrum',
+							unit='dBm',
+							setpoints=(self.freq_axis,),
+							label='Spectrum',
+							parameter_class=SpectrumTrace,
+							vals=Arrays(shape=(self.n_points.get_latest,)))
+
 		self.connect_message()
+
+
 
 	def get_trace(self):
 		self.write('*CLS')
@@ -145,6 +237,7 @@ class RS_FSQ(VisaInstrument):
 		dataflt = []
 		for val in datalist:
 		    dataflt.append(float(val))
+		dataflt=np.array(dataflt)
 		return dataflt
 
 	def caps(string):
@@ -154,7 +247,7 @@ class RS_FSQ(VisaInstrument):
 		return string.lower()
 
 
-	# Functions fordebugging
+	# Functions for debugging
 	def deb_ask(self,question):
 		ret = self.ask(question)
 		return ret
