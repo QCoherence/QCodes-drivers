@@ -106,6 +106,7 @@ class Redpitaya(VisaInstrument):
                             vals = vals.Enum('ADC', 'IQCH1', 'IQCH2', 'IQLP1', 'IQINT'),
                             set_cmd='OUTPUT:SELECT ' + '{}',
                             get_cmd='OUTPUT:SELECT?'
+                            
                             #get_parser=float
                             )
         # The get command doesn't work, not clear why
@@ -130,7 +131,8 @@ class Redpitaya(VisaInstrument):
 
 
         self.add_parameter('data_output',
-         					get_cmd='OUTPUT:DATA?')
+         					#get_cmd='OUTPUT:DATA?'
+                            get_cmd = self.get_single_pulse)
 
 
 
@@ -421,26 +423,21 @@ class Redpitaya(VisaInstrument):
         t0 = time.time()
 
         while t < nb_measure:
-            print(1,t)
+            
             try:
                 rep = self.data_output()
                 if rep[1] != '0' or len(rep)<=2:
                     print ('Memory problem %s' %rep[1])
-                    print(2,t)
+                    #print(2,t)
                     self.status('stop')
-                    print(3,t)
+                    #print(3,t)
                     self.status('start')
                 else: 
                     # signal.append( rep[3:-1] + ',')
                     rep = eval( '[' + rep[3:-1] + ']' )
-                    print(4,t)
                     signal = np.concatenate((signal,rep))
-                    print(signal)
-                    print(5,t)
                     tick = np.bitwise_and(rep,3) # extraction du debut de l'aquisition: LSB = 3
-                    print(6,t)
                     t += len(np.where(tick[1:] - tick[:-1])[0])+1 # idex of the tick   
-                    print(7,t)
                     # print t 
                     t1 = time.time()
                     print (t1 - t0, t)
@@ -478,6 +475,46 @@ class Redpitaya(VisaInstrument):
             QCH2 = signal[3::4]/(4*8192.)
             return ICH1, QCH1, ICH2, QCH2
             
+    def get_single_pulse(self):
+        #self.mode_output(mode)
+        self.format_output('ASCII')
+        self.status('start')
+        signal = np.array([], dtype ='int32')
+
+        #Some sleep needed otherwise the data acquisition is too fast.
+        time.sleep(0.5)
+        rep = self.ask('OUTPUT:DATA?')
+        if rep[1] != '0' or len(rep)<=2:
+            print ('Memory problem %s' %rep[1])
+            #print(2,t)
+            self.status('stop')
+            #print(3,t)
+            self.status('start')
+        else: 
+            # signal.append( rep[3:-1] + ',')
+            rep = eval( '[' + rep[3:-1] + ']' )
+            signal = np.concatenate((signal,rep))
+            tick = np.bitwise_and(rep,3) # extraction du debut de l'aquisition: LSB = 3
+        self.status('stop')
+        jump_tick = np.where(tick[1:] - tick[:-1])[0]
+        len_data_block = jump_tick[1] - jump_tick[0]
+        signal = signal[:len_data_block]
+
+        if self.mode_output == ('ADC' or 'IQCH1' or 'IQCH2'):
+            data_1 = signal[::2]/(4*8192.)
+            data_2 = signal[1::2]/(4*8192.)
+            return data_1, data_2
+        else: 
+            ICH1 = signal[::4]/(4*8192.)
+            QCH1 = signal[1::4]/(4*8192.)
+            ICH2 = signal[2::4]/(4*8192.)
+            QCH2 = signal[3::4]/(4*8192.)
+            return ICH1, QCH1, ICH2, QCH2
+
+
+
+
+
 
     def get_data_binary(self, mode, nb_measure):
 
