@@ -204,6 +204,16 @@ class RS_FSQ(VisaInstrument):
 							get_parser=float
 							)
 
+		self.add_parameter( name = 'ref_level',  
+							label = 'Reference level(AMPT)',
+							vals = vals.Numbers(-130,30),
+							unit   = 'dBm',
+							set_cmd=':DISP:WIND:TRAC:Y:RLEV  ' + '{:.12f}'+'dBm',
+							get_cmd=':DISP:WIND:TRAC:Y:RLEV?',
+							# set_parser =self.,
+							get_parser=float
+							)
+
 
 
 		self.add_parameter('freq_axis',

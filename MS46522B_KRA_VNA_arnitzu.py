@@ -424,7 +424,7 @@ class AnritsuChannel(InstrumentChannel):
 
             # time.sleep(1)
 
-            print('Creating sweeps. Waiting till the averaging are done!')
+            # print('Creating sweeps. Waiting till the averaging are done!')
             while self.avgcount()<self.avg():
                 time.sleep(0.1)
                 # print(self.avgcount())
