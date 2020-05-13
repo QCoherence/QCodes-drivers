@@ -12,7 +12,7 @@ ser = serial.Serial('COM4', 9600, timeout=2)
 
 
 def serial_write(num):
-	print('num is:',num)
+	# print('num is:',num)
 	repeat=True
 	while repeat:
 		time.sleep(0.5)
@@ -20,7 +20,7 @@ def serial_write(num):
 		ser.write(str(num).encode())
 		# print('r2')
 		read=ser.read(1)
-		print('read: ',read.decode('ascii'))#,toBinary(str(num)))
+		# print('read: ',read.decode('ascii'))#,toBinary(str(num)))
 		# print('r3')
 		if read.decode('ascii')==str(num):
 			repeat=False
