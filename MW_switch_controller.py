@@ -7,9 +7,9 @@ from Arduino import serial_write
 
 
 def set_rt_switch(pos):
-	if pos==1:
+	if pos=='NC':
 		serial_write(6)
-	elif pos==2:
+	elif pos=='NO':
 		serial_write(7)
 	else:
 		print('### ERROR: Room temperature switch input error.')
