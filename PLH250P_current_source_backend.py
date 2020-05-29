@@ -9,7 +9,8 @@ from qcodes import (Instrument, VisaInstrument,
 					validators as vals)
 from qcodes.instrument.channel import InstrumentChannel
 
-from Arduino import serial_write
+# from Arduino import serial_write
+from Serial_TCP_client_functions import serial_write
 
 oldstate = 'off'
 

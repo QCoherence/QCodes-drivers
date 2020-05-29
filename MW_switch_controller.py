@@ -2,7 +2,8 @@
 # needs COM module.
 #                                             -- Arpit
 
-from Arduino import serial_write
+# from Arduino import serial_write
+from Serial_TCP_client_functions import serial_write
 
 
 
