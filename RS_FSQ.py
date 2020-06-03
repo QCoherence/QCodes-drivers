@@ -82,7 +82,14 @@ class RS_FSQ(VisaInstrument):
 
 	def __init__(self, name, address, **kwargs):
 		# supplying the terminator means you don't need to remove it from every response
-		super().__init__(name, address, terminator='\n', **kwargs)
+		super().__init__(name, address, terminator='\n', timeout=5, **kwargs)
+
+		# self.add_parameter('timeout',
+		# 					get_cmd=self._get_visa_timeout,
+		# 					set_cmd=self._set_visa_timeout,
+		# 					unit='s',
+		# 					vals=vals.MultiType(vals.Numbers(min_value=0),vals.Enum(None))
+		# 					)
 
 		self.add_parameter( name = 'res_BW',  
 							label = 'Resolution bandwidth',
@@ -104,15 +111,15 @@ class RS_FSQ(VisaInstrument):
 							# get_parser=self.
 							)
 
-		# self.add_parameter( name = 'sweep_time',  
-		# 					label = 'Sweep time',
-		# 					vals = vals.Numbers(1e-6,16e3),
-		# 					unit   = 's',
-		# 					set_cmd='SENSe'+str(self.sense_num)+'SWEep:TIME ' + '{:.12f}',
-		# 					get_cmd='SENSe'+str(self.sense_num)+'SWEep:TIME?'
-		# 					# set_parser =self.,
-		# 					# get_parser=self.
-		# 					)
+		self.add_parameter( name = 'sweep_time',  
+							label = 'Sweep time',
+							vals = vals.Numbers(1e-6,16e3),
+							unit   = 's',
+							set_cmd='SENSe'+str(self.sense_num)+'SWEep:TIME ' + '{:.12f}',
+							get_cmd='SENSe'+str(self.sense_num)+'SWEep:TIME?'
+							# set_parser =self.,
+							# get_parser=self.
+							)
 
 		self.add_parameter( name = 'input_att',  
 							label = 'Input attenuation',
@@ -156,11 +163,11 @@ class RS_FSQ(VisaInstrument):
 
 		self.add_parameter( name = 'n_points',  
 							label = 'Number of points in trace',
-							vals = vals.Numbers(20,26.5e9),
+							vals = vals.Numbers(155,30001),
 							unit   = '',
 							set_cmd='SENSe'+str(self.sense_num)+':SWEep:POINts ' + '{:.12f}',
 							get_cmd='SENSe'+str(self.sense_num)+':SWEep:POINts?',
-							# set_parser =self.,
+							set_parser =self.sweep_point_check,
 							get_parser=int
 							)
 
@@ -250,11 +257,44 @@ class RS_FSQ(VisaInstrument):
 		dataflt=np.array(dataflt)
 		return dataflt
 
+	def sweep_point_check(self, points):
+		if points<701:
+			valid_values=np.array([155, 201, 301, 313, 401, 501, 601, 625])
+			if points in valid_values:
+				points_checked=points
+			else:
+				points_checked=valid_values[(np.abs(valid_values-points)).argmin()]
+				print('### Warning: Invalid sweep points, set to '+str(points_checked))
+		else:
+			if (points-1)%100==0:
+				points_checked=points
+			else:
+				points_checked=round(points/100,0)*100+1
+				print('### Warning: Invalid sweep points, set to '+str(points_checked))
+		return int(points_checked)
+
 	def caps(string):
 		return string.upper()
 
 	def caps_dag(string):
 		return string.lower()
+
+	# def _set_visa_timeout(self, timeout) -> None:
+
+	# 	if timeout is None:
+	# 		self.visa_handle.timeout = None
+	# 	else:
+	# 		# pyvisa uses milliseconds but we use seconds
+	# 		self.visa_handle.timeout = timeout * 1000.0
+
+	# def _get_visa_timeout(self):
+
+	# 	timeout_ms = self.visa_handle.timeout
+	# 	if timeout_ms is None:
+	# 		return None
+	# 	else:
+	# 		# pyvisa uses milliseconds but we use seconds
+	# 		return timeout_ms / 1000
 
 
 	# Functions for debugging

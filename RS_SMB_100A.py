@@ -34,10 +34,11 @@ class SMB100A(VisaInstrument):
 
 		self.add_parameter( name = 'power',  
 							label = 'Output power in dBm',
-							vals = vals.Numbers(-120,16),
+							vals = vals.Numbers(-120,30),
 							unit   = 'dBm',
 							set_cmd='power ' + '{:.12f}',
-							get_cmd='power?'
+							get_cmd='power?',
+							set_parser =self.warn_over_range
 							)
 
 		self.add_parameter( name = 'phase',  
@@ -87,3 +88,8 @@ class SMB100A(VisaInstrument):
 		elif(status=='0'):
 			ret='off'
 		return ret
+
+	def warn_over_range(self, power):
+		if power>16:
+			print('### Warning: Power over range (limit to 16 dBm).')
+		return power
