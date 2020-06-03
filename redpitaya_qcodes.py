@@ -16,6 +16,105 @@ from qcodes import (Instrument, VisaInstrument,
                     validators as vals)
 from qcodes.instrument.channel import InstrumentChannel
 import matplotlib.pyplot as plt
+from qcodes.instrument.parameter import ParameterWithSetpoints, Parameter
+from qcodes.utils.validators import Numbers, Arrays
+
+
+
+
+class GeneratedSetPoints(Parameter):
+    """
+    A parameter that generates a setpoint array from start, stop and num points
+    parameters.
+    """
+    def __init__(self, startparam, stopparam, numpointsparam, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._startparam = startparam
+        self._stopparam = stopparam
+        self._numpointsparam = numpointsparam
+
+    def get_raw(self):
+        return np.linspace(self._startparam(), self._stopparam(),
+                              self._numpointsparam())
+
+
+class IQ_INT(ParameterWithSetpoints):
+
+    def __init__(self, channel, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._channel = channel
+
+    def get_raw(self):
+        time.sleep(0.2)
+        data = self._instrument.get_data()
+        if self._channel == 'I1':
+            data_ret = data[0]
+        elif self._channel == 'Q1':
+            data_ret = data[1]
+        elif self._channel == 'I2':
+            data_ret = data[2]
+        else:
+            data_ret = data[3]
+        return data_ret
+
+
+
+class IQ_CH1(ParameterWithSetpoints):
+
+    def __init__(self, channel, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._channel = channel
+
+    def get_raw(self):
+        time.sleep(0.2)
+        data = self._instrument.get_data()
+        if self._channel == 'I1':
+            data_ret = data[0]
+        elif self._channel == 'Q1':
+            data_ret = data[1]
+        else:
+            print('Wrong parameter.')
+        return data_ret
+
+
+
+class IQ_CH2(ParameterWithSetpoints):
+
+    def __init__(self, channel, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._channel = channel
+
+    def get_raw(self):
+        time.sleep(0.2)
+        data = self._instrument.get_data()
+        if self._channel == 'I2':
+            data_ret = data[0]
+        elif self._channel == 'Q2':
+            data_ret = data[1]
+        else:
+            print('Wrong parameter.')
+        return data_ret
+
+
+
+class ADC(ParameterWithSetpoints):
+
+    def __init__(self, channel, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._channel = channel
+
+    def get_raw(self):
+        time.sleep(0.2)
+        data = self._instrument.get_data()
+        if self._channel == 'CH1':
+            data_ret = data[0]
+        elif self._channel == 'CH2':
+            data_ret = data[1]
+        else:
+            print('Wrong parameter.')
+        return data_ret
+
+
 
 
 class Redpitaya(VisaInstrument): 
@@ -138,8 +237,128 @@ class Redpitaya(VisaInstrument):
                             get_cmd = self.get_data)
                             #get_cmd = self.get_single_pulse)
 
-        self.add_parameter('data_output_raw',
-                             get_cmd='OUTPUT:DATA?')
+        # self.add_parameter('data_output_raw',
+        #                      get_cmd='OUTPUT:DATA?')
+
+
+        self.add_parameter('pulse_zero',
+                            set_cmd='{}',
+                            get_parser =  int)
+
+        self.add_parameter('length_time',
+                            set_cmd='{}',
+                            get_parser =  int)
+
+
+        self.add_parameter('pulse_axis',
+                            unit='NA',
+                            label='Pulse number axis',
+                            parameter_class=GeneratedSetPoints,
+                            startparam=self.pulse_zero,
+                            stopparam=self.nb_measure,
+                            numpointsparam=self.nb_measure,
+                            vals=Arrays(shape=(self.nb_measure.get_latest,)))
+
+        self.add_parameter('time_axis',
+                            unit='s',
+                            label='Time',
+                            parameter_class=GeneratedSetPoints,
+                            startparam=self.pulse_zero,
+                            stopparam=self.length_time,
+                            numpointsparam=self.length_time,
+                            vals=Arrays(shape=(self.length_time.get_latest,)))#Maybe change the name to something understandable
+
+        
+        # ADC1/2 calls the class ADC which returns the signal either in channel 1 or channel 2.
+        self.add_parameter('ADC1',
+                            unit='V',
+                            setpoints=(self.time_axis,),
+                            label='Channel 1',
+                            channel='CH1',
+                            parameter_class=ADC,
+                            vals=Arrays(shape=(self.length_time.get_latest,)))
+
+        self.add_parameter('ADC2',
+                            unit='V',
+                            setpoints=(self.time_axis,),
+                            label='Channel 2',
+                            channel='CH2',
+                            parameter_class=ADC,
+                            vals=Arrays(shape=(self.length_time.get_latest,)))
+
+
+        #I1/Q1/I2/Q2 calls the class ADC which returns the I/Q signal either in channel 1 or channel 2.
+        self.add_parameter('I1',
+                            unit='V',
+                            setpoints=(self.time_axis,),
+                            label='Raw I1',
+                            channel='I1',
+                            parameter_class=IQ_CH1,
+                            vals=Arrays(shape=(self.length_time.get_latest,)))
+
+        self.add_parameter('Q1',
+                            unit='V',
+                            setpoints=(self.time_axis,),
+                            label='Raw Q1',
+                            channel='Q1',
+                            parameter_class=IQ_CH1,
+                            vals=Arrays(shape=(self.length_time.get_latest,)))
+
+        self.add_parameter('I2',
+                            unit='V',
+                            setpoints=(self.time_axis,),
+                            label='Raw I2',
+                            channel='I2',
+                            parameter_class=IQ_CH2,
+                            vals=Arrays(shape=(self.length_time.get_latest,)))
+
+        self.add_parameter('Q2',
+                            unit='V',
+                            setpoints=(self.time_axis,),
+                            label='Raw Q2',
+                            channel='Q2',
+                            parameter_class=IQ_CH2,
+                            vals=Arrays(shape=(self.length_time.get_latest,)))
+
+
+
+        #I1_INT/Q1_INT/I2_INT/Q2_INT calls the class ADC which returns the I_INT/Q_INT signal either in channel 1 or channel 2.
+
+        self.add_parameter('I1_INT',
+                            unit='V',
+                            setpoints=(self.pulse_axis,),
+                            label='Integrated I',
+                            channel='I1',
+                            parameter_class=IQ_INT,
+                            vals=Arrays(shape=(self.nb_measure.get_latest,)))
+
+        self.add_parameter('Q1_INT',
+                            unit='V',
+                            setpoints=(self.pulse_axis,),
+                            label='Integrated I',
+                            channel='Q1',
+                            parameter_class=IQ_INT,
+                            vals=Arrays(shape=(self.nb_measure.get_latest,)))
+
+        self.add_parameter('I2_INT',
+                            unit='V',
+                            setpoints=(self.pulse_axis,),
+                            label='Integrated I',
+                            channel='I2',
+                            parameter_class=IQ_INT,
+                            vals=Arrays(shape=(self.nb_measure.get_latest,)))
+
+        self.add_parameter('Q2_INT',
+                            unit='V',
+                            setpoints=(self.pulse_axis,),
+                            label='Integrated I',
+                            channel='Q2',
+                            parameter_class=IQ_INT,
+                            vals=Arrays(shape=(self.nb_measure.get_latest,)))
+
+        #It's a useful parameter to check the "ERR!" type errors.
+        self.add_parameter('RESET',
+                            get_cmd=self.reset)
 
 
         # good idea to call connect_message at the end of your constructor.
@@ -168,6 +387,10 @@ class Redpitaya(VisaInstrument):
     def set_mode(self, mode):
         time.sleep(0.2)
         return mode
+
+#------------------------------------------------------------Reset data output
+    def reset(self):
+        return self.ask('OUTPUT:DATA?')
 
 
 #-------------------------------------------------------------------Look-Up-Table (LUT) menagement ---------
@@ -351,7 +574,7 @@ class Redpitaya(VisaInstrument):
 
         while t < nb_measure:
             try:
-                time.sleep(0.2)
+                #time.sleep(0.2)
                 rep = self.ask('OUTPUT:DATA?')
                 #print(rep)
                 #rep = self.data_output_raw()
@@ -374,8 +597,9 @@ class Redpitaya(VisaInstrument):
             except: 
                 t=t
         self.status('stop')
-        time.sleep(2)
+        #time.sleep(1)
         trash = self.ask('OUTPUT:DATA?')
+        #time.sleep(1)
         #print(mode)
         if t > nb_measure: 
             jump_tick = np.where(tick[1:] - tick[:-1])[0]
