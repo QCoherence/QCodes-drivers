@@ -1,5 +1,5 @@
 # This is backend driver without jump protection, 
-# use wrapper to control the instrument.
+# use TCP wrapper to control the instrument.
 #                                        -- Arpit
 
 

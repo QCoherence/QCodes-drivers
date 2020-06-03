@@ -24,6 +24,14 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 # Bind the socket to the port
 server_address = ('localhost', 10000)
+header='\n\n\n'
+header+='############################################\n'
+header+='#                                          #\n'
+header+='#       TCP server for arduino @ COM4      #\n'
+header+='#                                          #\n'
+header+='############################################\n'
+header+='\n\n\n'
+print(header)
 print('Starting up server on {} port {}'.format(*server_address))
 sock.bind(server_address)
 
