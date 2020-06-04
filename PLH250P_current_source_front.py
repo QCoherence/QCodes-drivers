@@ -1,5 +1,6 @@
 # This is wrapper driver with jump protection, and
-# should be used to control the instrument.
+# can be used to control the instrument, however for 
+# simultaneous connections use TCP wrapper.
 #                                        -- Arpit
 
 from PLH250P_current_source_backend import setstate
