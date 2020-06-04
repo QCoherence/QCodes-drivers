@@ -9,6 +9,8 @@ import socket
 
 import numpy as np
 
+from time import sleep
+
 
 
 
@@ -40,7 +42,8 @@ while True:
 			data = connection.recv(16)
 			# print('\nreceived {!r}'.format(data).decode('ascii'))
 			data = data.decode('ascii')
-
+			# sleep(0.1)
+			
 			if len(data)>0:
 				option = data[0]
 				if option == '0':
