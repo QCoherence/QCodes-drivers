@@ -104,7 +104,7 @@ class ADC(ParameterWithSetpoints):
         self._channel = channel
 
     def get_raw(self):
-        time.sleep(0.3)
+        time.sleep(0.2)
         data = self._instrument.get_data()
         if self._channel == 'CH1':
             data_ret = data[0]
@@ -571,13 +571,13 @@ class Redpitaya(VisaInstrument):
         print(nb_measure, 'pulses.', 'Mode:',mode)
         self.format_output('ASCII')
         self.status('start')
-        #time.sleep(2) # Timer to change if no time to start
+        time.sleep(2) # Timer to change if no time to start
         signal = np.array([], dtype ='int32')
         t0 = time.time()
 
         while t < nb_measure:
             try:
-                #time.sleep(.02)
+                #time.sleep(0.2)
                 rep = self.ask('OUTPUT:DATA?')
                 #print(rep)
                 #rep = self.data_output_raw()
