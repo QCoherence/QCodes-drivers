@@ -27,7 +27,7 @@ def current_set(I):
 
     try:
 
-        data=str(2)+str(sign)+str(abs(I))
+        data=str(2)+str(sign)+str(round(abs(I),2))
         # Send data
         message = data.encode()
         sock.sendall(message)

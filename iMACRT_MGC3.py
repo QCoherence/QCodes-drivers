@@ -102,7 +102,7 @@ class iMACRT_MGC3(Instrument):
 		do = 'nothing'
 
 	def _set_resistance(self, resistance):
-		self._serial_send_only(8,resistance*1e-6)
+		self._serial_send_only(8,resistance)
 
 	def _get_resistance(self):
 		# get not working 
