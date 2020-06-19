@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # This is a Qcodes driver for Redpitaya card SCPI IQ server 
 # written by Martina Esposito and Arpit Ranadive, 2019/2020
+# last modifications have been made by Vincent Jouanny (M2 intern) in Arpril-May 2020
 # This driver is a Qcodes version of the qtlab driver 'redpitaya_qtlab.py' written by Sebastian
 #
 
@@ -287,6 +288,9 @@ class Redpitaya(VisaInstrument):
                             vals=Arrays(shape=(self.length_time.get_latest,)))
 
 
+        
+
+
         #I1/Q1/I2/Q2 calls the class ADC which returns the I/Q signal either in channel 1 or channel 2.
         self.add_parameter('I1',
                             unit='V',
@@ -373,7 +377,7 @@ class Redpitaya(VisaInstrument):
 #---------------------------------------------------------------------From seconds to samples and viceversa------
 
     def get_samples_from_sec(self, sec):
-        samples=sec/8e-9
+        samples=sec/8.0e-9
         samples=int(round(samples))
         time.sleep(0.1)
         return samples
@@ -565,7 +569,7 @@ class Redpitaya(VisaInstrument):
         t = 0 
         nb_measure = self.nb_measure()
         mode = self.mode_output()
-        print(nb_measure, 'pulses.', 'Mode:',mode)
+        print(nb_measure, 'traces.', 'Mode:',mode)
         self.format_output('ASCII')
         self.status('start')
         time.sleep(2) # Timer to change if no time to start

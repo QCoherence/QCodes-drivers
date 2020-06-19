@@ -287,9 +287,6 @@ class Redpitaya(VisaInstrument):
                             vals=Arrays(shape=(self.length_time.get_latest,)))
 
 
-        
-
-
         #I1/Q1/I2/Q2 calls the class ADC which returns the I/Q signal either in channel 1 or channel 2.
         self.add_parameter('I1',
                             unit='V',
