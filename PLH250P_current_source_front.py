@@ -3,7 +3,7 @@
 # simultaneous connections use TCP wrapper.
 #                                        -- Arpit
 
-from PLH250P_current_source_backend import setstate
+from PLH250P_current_source_backend import setstate,parity
 from time import sleep
 
 
@@ -20,9 +20,10 @@ def current_set(current_source, I):
 
 def power_up(current_source):
 	current_source.current_range('low')
-	current_set(current_source, 0)
-	current_source.status('on')
-	setstate('pos')
+	if current_source.status() == 'off'
+		current_source.status('on')
+		current_set(current_source, 0)
+		setstate('pos')
 
 
 def power_down(current_source):

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 # This is a Qcodes driver for Redpitaya card SCPI IQ server 
 # written by Martina Esposito and Arpit Ranadive, 2019/2020
-# last modifications have been made by Vincent Jouanny (M2 intern) in Arpril-May 2020
 # This driver is a Qcodes version of the qtlab driver 'redpitaya_qtlab.py' written by Sebastian
 #
 
@@ -31,11 +30,11 @@ class GeneratedSetPoints(Parameter):
     def __init__(self, startparam, stopparam, numpointsparam, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._startparam = startparam
-        self._stopparam = stopparam 
+        self._stopparam = stopparam
         self._numpointsparam = numpointsparam
 
     def get_raw(self):
-        return np.linspace(self._startparam(), self._stopparam() -1,
+        return np.linspace(self._startparam(), self._stopparam(),
                               self._numpointsparam())
 
 
@@ -56,26 +55,6 @@ class IQ_INT(ParameterWithSetpoints):
             data_ret = data[2]
         else:
             data_ret = data[3]
-        return data_ret
-
-
-class IQ_INT_AVG(Parameter):
-
-    def __init__(self, channel, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._channel = channel
-
-    def get_raw(self):
-        time.sleep(0.2)
-        data = self._instrument.get_data()
-        if self._channel == 'I1':
-            data_ret = np.mean(data[0])
-        elif self._channel == 'Q1':
-            data_ret = np.mean(data[1])
-        elif self._channel == 'I2':
-            data_ret = np.mean(data[2])
-        else:
-            data_ret = np.mean(data[3])
         return data_ret
 
 
@@ -148,8 +127,6 @@ class Redpitaya(VisaInstrument):
     def __init__(self, name, address, **kwargs):
         # supplying the terminator means you don't need to remove it from every response
         super().__init__(name, address, terminator='\r\n', **kwargs)
-
-        self.dummy_array_size_1 = 0
         
         
         self.add_parameter( name = 'freq_filter',  
@@ -238,14 +215,12 @@ class Redpitaya(VisaInstrument):
                             vals = vals.Enum('ASCII','BIN'),
                             set_cmd='OUTPUT:FORMAT ' + '{}',
                             get_cmd='OUTPUT:FORMAT?',
-                            #snapshot_get  = False,
                             get_parser=str
                             )
 
         self.add_parameter('nb_measure',
                             set_cmd='{}',
-                            get_parser=int,)
-                            #initial_value = int(1) )
+                            get_parser=int )
 
 ######################################################################
         self.add_parameter('status',
@@ -268,31 +243,28 @@ class Redpitaya(VisaInstrument):
 
         self.add_parameter('pulse_zero',
                             set_cmd='{}',
-                            #initial_value = int(0),
                             get_parser =  int)
 
-        self.add_parameter('length_time', # total number of data points
+        self.add_parameter('length_time',
                             set_cmd='{}',
-                            get_parser =  int,)
-                            #initial_value = int(0))
+                            get_parser =  int)
 
 
         self.add_parameter('pulse_axis',
-                            unit='trace index',
-                            label='Pulse-trace index axis',
+                            unit='NA',
+                            label='Pulse number axis',
                             parameter_class=GeneratedSetPoints,
-                            startparam = self.pulse_zero,
+                            startparam=self.pulse_zero,
                             stopparam=self.nb_measure,
                             numpointsparam=self.nb_measure,
                             vals=Arrays(shape=(self.nb_measure.get_latest,)))
-
 
         self.add_parameter('time_axis',
                             unit='s',
                             label='Time',
                             parameter_class=GeneratedSetPoints,
                             startparam=self.pulse_zero,
-                            stopparam=self.length_time,#*8*1e-9,
+                            stopparam=self.length_time,
                             numpointsparam=self.length_time,
                             vals=Arrays(shape=(self.length_time.get_latest,)))#Maybe change the name to something understandable
 
@@ -313,7 +285,6 @@ class Redpitaya(VisaInstrument):
                             channel='CH2',
                             parameter_class=ADC,
                             vals=Arrays(shape=(self.length_time.get_latest,)))
- 
 
 
         #I1/Q1/I2/Q2 calls the class ADC which returns the I/Q signal either in channel 1 or channel 2.
@@ -385,41 +356,6 @@ class Redpitaya(VisaInstrument):
                             parameter_class=IQ_INT,
                             vals=Arrays(shape=(self.nb_measure.get_latest,)))
 
-        ###########################We perform the average over the number of repeated traces
-
-        self.add_parameter('I1_INT_AVG',
-                            unit='V',
-                            # setpoints=(self.nb_measure,),
-                            label='Integrated averaged I',
-                            channel='I1',
-                            parameter_class=IQ_INT_AVG,
-                            #snapshot_get  = False,
-                            vals=Arrays(shape=(self.dummy_array_size_1,)))
-
-        self.add_parameter('Q1_INT_AVG',
-                            unit='V',
-                            label='Integrated averaged Q',
-                            channel='Q1',
-                            parameter_class=IQ_INT_AVG,
-                            #snapshot_get  = False,
-                            vals=Arrays(shape=(self.dummy_array_size_1,)))
-
-        self.add_parameter('I2_INT_AVG',
-                            unit='V',
-                            label='Integrated averaged I',
-                            channel='I2',
-                            parameter_class=IQ_INT_AVG,
-                            #snapshot_get  = False,
-                            vals=Arrays(shape=(self.dummy_array_size_1,)))
-
-        self.add_parameter('Q2_INT_AVG',
-                            unit='V',
-                            label='Integrated averaged Q',
-                            channel='Q2',
-                            parameter_class=IQ_INT_AVG,
-                            #snapshot_get  = False,
-                            vals=Arrays(shape=(self.dummy_array_size_1,)))
-
         #It's a useful parameter to check the "ERR!" type errors.
         self.add_parameter('RESET',
                             get_cmd=self.reset)
@@ -437,7 +373,7 @@ class Redpitaya(VisaInstrument):
 #---------------------------------------------------------------------From seconds to samples and viceversa------
 
     def get_samples_from_sec(self, sec):
-        samples=sec/8.0e-9
+        samples=sec/8e-9
         samples=int(round(samples))
         time.sleep(0.1)
         return samples
@@ -629,27 +565,24 @@ class Redpitaya(VisaInstrument):
         t = 0 
         nb_measure = self.nb_measure()
         mode = self.mode_output()
-        #print(1,t)
-        # print(nb_measure, 'traces.', 'Mode:',mode)
+        print(nb_measure, 'pulses.', 'Mode:',mode)
         self.format_output('ASCII')
         self.status('start')
-        time.sleep(0.5) # Timer to change if no time to start ; changed from 2
+        time.sleep(2) # Timer to change if no time to start
         signal = np.array([], dtype ='int32')
         t0 = time.time()
 
         while t < nb_measure:
             try:
-                time.sleep(0.2)
+                #time.sleep(0.2)
                 rep = self.ask('OUTPUT:DATA?')
                 #print(rep)
                 #rep = self.data_output_raw()
                 if rep[1] != '0' or len(rep)<=2:
                     print ('Memory problem %s' %rep[1])
                     #print(2,t)
-                    #time.sleep(0.2)
                     self.status('stop')
                     #print(3,t)
-                    #time.sleep(0.2)
                     self.status('start')
                 else: 
                     # signal.append( rep[3:-1] + ',')
@@ -679,10 +612,10 @@ class Redpitaya(VisaInstrument):
             data_2 = signal[1::2]/(4*8192.)
             return data_1, data_2
         else: 
-            ICH1 = signal[::4]/(4*8192.)/(self.length_time()/self.nb_measure())
-            QCH1 = signal[1::4]/(4*8192.)/(self.length_time()/self.nb_measure())
-            ICH2 = signal[2::4]/(4*8192.)/(self.length_time()/self.nb_measure())
-            QCH2 = signal[3::4]/(4*8192.)/(self.length_time()/self.nb_measure())
+            ICH1 = signal[::4]/(4*8192.)
+            QCH1 = signal[1::4]/(4*8192.)
+            ICH2 = signal[2::4]/(4*8192.)
+            QCH2 = signal[3::4]/(4*8192.)
             return ICH1, QCH1, ICH2, QCH2
             
     def get_single_pulse(self):
