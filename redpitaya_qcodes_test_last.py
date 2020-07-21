@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-# This is a Qcodes driver for Redpitaya card SCPI IQ server 
+# This is a Qcodes driver for Redpitaya card SCPI IQ server
 # written by Martina Esposito and Arpit Ranadive, 2019/2020
-# This driver is a Qcodes version of the qtlab driver 'redpitaya_qtlab.py' written by Sebastian
+# This driver is a Qcodes version of the qtlab driver ' redpitaya_qtlab.py' written by Sebastian
 #
 
 from time import sleep
-import time 
+import time
 import numpy as np
 #import qt
 #import ctypes  # only for DLL-based instrument
@@ -117,22 +117,22 @@ class ADC(ParameterWithSetpoints):
 
 
 
-class Redpitaya(VisaInstrument): 
+class Redpitaya(VisaInstrument):
     """
     QCoDeS driver for the Redpitaya
     """
-    
+
     # all instrument constructors should accept **kwargs and pass them on to
     # super().__init__
     def __init__(self, name, address, **kwargs):
         # supplying the terminator means you don't need to remove it from every response
         super().__init__(name, address, terminator='\r\n', **kwargs)
-        
-        
-        self.add_parameter( name = 'freq_filter',  
+
+
+        self.add_parameter( name = 'freq_filter',
                             #frequency of the low pass filter
                             label = 'Low pass filter cut-off freq',
-                            vals = vals.Numbers(10e3,62.5e6),      
+                            vals = vals.Numbers(10e3,62.5e6),
                             unit   = 'Hz',
                             set_cmd='FILTER:FREQ ' + '{:.12f}',
                             get_cmd='FILTER:FREQ?',
@@ -140,7 +140,7 @@ class Redpitaya(VisaInstrument):
                             )
 
         self.add_parameter( name = 'decimation_filter',
-                            # number of decimated points  
+                            # number of decimated points
                             label = 'Decimated points',
                             # unit   = 'Hz',
                             vals = vals.Numbers(10,65535),
@@ -149,7 +149,7 @@ class Redpitaya(VisaInstrument):
                             get_parser=int
                             )
 
-        self.add_parameter( name = 'start_ADC',  
+        self.add_parameter( name = 'start_ADC',
                             # Starting point of the ADC aquisition in second
                             label = 'Acquisition starting time',
                             unit   = 's',
@@ -160,8 +160,8 @@ class Redpitaya(VisaInstrument):
                             get_parser=self.get_sec_from_samples
                             )
 
-        self.add_parameter( name = 'stop_ADC', 
-                            #stopping point of the aquisition 
+        self.add_parameter( name = 'stop_ADC',
+                            #stopping point of the aquisition
                             label = 'Acquisition stopping time',
                             unit   = 's',
                             vals = vals.Numbers(0,8191*8e-9),  #8192 is the maximum number of samples that can be generated (65 us)
@@ -171,8 +171,8 @@ class Redpitaya(VisaInstrument):
                             get_parser=self.get_sec_from_samples
                             )
 
-        self.add_parameter( name = 'stop_DAC', 
-                            #stopping point of the LUT (Look-Up Table) 
+        self.add_parameter( name = 'stop_DAC',
+                            #stopping point of the LUT (Look-Up Table)
                             label = 'Stopping time of the LUT ',
                             unit   = 's',
                             vals = vals.Numbers(0,8192*8e-9),   #8192 is the maximum number of samples that can be generated (65 us)
@@ -182,7 +182,7 @@ class Redpitaya(VisaInstrument):
                             get_parser=self.get_sec_from_samples
                             )
 
-        self.add_parameter( name = 'period',  
+        self.add_parameter( name = 'period',
                             #period in second
                             label = 'Period',
                             unit  = 's',
@@ -192,9 +192,9 @@ class Redpitaya(VisaInstrument):
                             set_parser =self.get_samples_from_sec,
                             get_parser=self.get_sec_from_samples
                             )
-  
-        self.add_parameter( name = 'mode_output', 
-                            # Mode(string) : 
+
+        self.add_parameter( name = 'mode_output',
+                            # Mode(string) :
                                         #'ADC': you get the rough uptput of the ADC: the entire trace
                                         #'IQCH1', you get I and Q from channel 1
                                         #'IQCH2', you get I and Q from channel 2
@@ -205,12 +205,12 @@ class Redpitaya(VisaInstrument):
                             vals = vals.Enum('ADC', 'IQCH1', 'IQCH2', 'IQLP1', 'IQINT'),
                             set_cmd='OUTPUT:SELECT ' + '{}',
                             get_cmd='OUTPUT:SELECT?'
-                            
+
                             #get_parser=float
                             )
         # The get command doesn't work, not clear why
-        self.add_parameter( name = 'format_output', 
-                            #Format(string) : 'BIN' or 'ASCII' 
+        self.add_parameter( name = 'format_output',
+                            #Format(string) : 'BIN' or 'ASCII'
                             label='Output format',
                             vals = vals.Enum('ASCII','BIN'),
                             set_cmd='OUTPUT:FORMAT ' + '{}',
@@ -268,7 +268,7 @@ class Redpitaya(VisaInstrument):
                             numpointsparam=self.length_time,
                             vals=Arrays(shape=(self.length_time.get_latest,)))#Maybe change the name to something understandable
 
-        
+
         # ADC1/2 calls the class ADC which returns the signal either in channel 1 or channel 2.
         self.add_parameter('ADC1',
                             unit='V',
@@ -287,7 +287,7 @@ class Redpitaya(VisaInstrument):
                             vals=Arrays(shape=(self.length_time.get_latest,)))
 
 
-        
+
 
 
         #I1/Q1/I2/Q2 calls the class ADC which returns the I/Q signal either in channel 1 or channel 2.
@@ -365,11 +365,11 @@ class Redpitaya(VisaInstrument):
 
 
         # good idea to call connect_message at the end of your constructor.
-        # this calls the 'IDN' parameter that the base Instrument class creates 
+        # this calls the 'IDN' parameter that the base Instrument class creates
         # for every instrument  which serves two purposes:
         # 1) verifies that you are connected to the instrument
         # 2) gets the ID info so it will be included with metadata snapshots later.
-        self.connect_message()    
+        self.connect_message()
 
 # ----------------------------------------------------- Methods -------------------------------------------------- #
 
@@ -380,7 +380,7 @@ class Redpitaya(VisaInstrument):
         samples=int(round(samples))
         time.sleep(0.1)
         return samples
-        
+
     def get_sec_from_samples(self, samples):
         sec=float(samples)*8.0e-9
         time.sleep(0.1)
@@ -398,35 +398,35 @@ class Redpitaya(VisaInstrument):
 
 #-------------------------------------------------------------------Look-Up-Table (LUT) menagement ---------
 
-    def fill_LUT(self, function, parameters): 
+    def fill_LUT(self, function, parameters):
         """
-        Fill a LUT  
+        Fill a LUT
         Input:
                 function(string): name of the function
                 parameters(float): vector of parameters characterizing the function:
                 freq (Hz), Amplitude (from 0 to 1), pulse_duration (s), delay (s)
-        Output: 
-                the table (int) 
+        Output:
+                the table (int)
         """
-        if function == 'SIN': 
+        if function == 'SIN':
             freq, Amplitude, pulse_duration, delay = parameters
-            if freq > 1./8e-9 or Amplitude > 1 or pulse_duration + delay >  8e-9*8192: 
+            if freq > 1./8e-9 or Amplitude > 1 or pulse_duration + delay >  8e-9*8192:
                 raise ValueError('One of the parameters is not correct in the sin LUT')
-            else: 
+            else:
                 N_point = int(round(pulse_duration/8e-9))
                 n_oscillation = freq*pulse_duration
                 Amp_bit = Amplitude*8192                           ######### the DAC is 14 bit 8192 . The maximum aplitude will be (2^14)/2
                 t = np.linspace(0, 2 * np.pi,N_point)
                 return Amp_bit*np.concatenate((np.zeros(int(round(delay/8e-9))), np.sin(n_oscillation*t)))
 
-        elif function == 'COS': 
+        elif function == 'COS':
             freq, Amplitude, pulse_duration, delay = parameters
-            if freq > 1./8e-9 or Amplitude > 1 or pulse_duration + delay > 8e-9*8192: 
+            if freq > 1./8e-9 or Amplitude > 1 or pulse_duration + delay > 8e-9*8192:
                 raise ValueError('One of the parameters is not correct in the cos LUT')
-            else: 
+            else:
                 N_point = int(round(pulse_duration/8e-9))
                 n_oscillation = freq*pulse_duration
-                
+
                 Amp_bit = Amplitude*8192
                 t = np.linspace(0,2*np.pi,N_point)
                 return Amp_bit*np.concatenate((np.zeros(int(round(delay/8e-9))), np.cos(n_oscillation*t)))
@@ -468,86 +468,86 @@ class Redpitaya(VisaInstrument):
                 pi_vec = np.sin(n_oscillation_pi * t_pi)
 
                 return Amp_bit*np.concatenate((delay_vec, pi_2_vec, wait_vec, pi_vec, wait_vec, pi_2_vec))
-                
-        elif function == 'STEP': 
+
+        elif function == 'STEP':
             Amplitude, pulse_duration,t_slope,delay = parameters
-            if Amplitude > 1 or pulse_duration + delay + 2*t_slope > 8e-9 * 8192: 
+            if Amplitude > 1 or pulse_duration + delay + 2*t_slope > 8e-9 * 8192:
                 raise ValueError('One of the parameters is not correct is the STEP LUT')
-            
+
             Amp_bit = Amplitude*8192
             N_point = int(pulse_duration/8e-9)
             N_slope = int(t_slope/8e-9)
             N_delay = int(delay/8e-9)
-            
+
 
             delay_vec = np.zeros(N_delay)
             slope_vec = np.linspace(0,1,N_slope)
             pulse_vec = np.ones(N_point)
-            
+
             return Amp_bit*np.concatenate((delay_vec,slope_vec,pulse_vec,slope_vec[::-1]))
-              
-        else: 
+
+        else:
             raise ValueError('This function is undefined')
 
-    def send_DAC_LUT(self, table, channel, trigger = 'NONE'): 
+    def send_DAC_LUT(self, table, channel, trigger = 'NONE'):
         """
-        Send a LUT to one of the DAC channels 
-        Input: 
-            - table (float): table to be sent 
-            - channel(string): channel to which the table is sent 
-            - trigger(string): send a trigger to the channels or not  
-        Output: 
+        Send a LUT to one of the DAC channels
+        Input:
+            - table (float): table to be sent
+            - channel(string): channel to which the table is sent
+            - trigger(string): send a trigger to the channels or not
+        Output:
             None
         """
         self.log.info(__name__+ ' Send the DAC LUT \n')
-        if trigger == 'NONE': 
-            table_bit = table.astype(int) * 4  
-        elif trigger == 'CH1': 
+        if trigger == 'NONE':
+            table_bit = table.astype(int) * 4
+        elif trigger == 'CH1':
             table_bit = table.astype(int) * 4 + 1
-        elif trigger == 'CH2': 
+        elif trigger == 'CH2':
             table_bit = table.astype(int) * 4 + 2
-        elif trigger == 'BOTH': 
+        elif trigger == 'BOTH':
             table_bit = table.astype(int) * 4 + 3
-        else: 
-            raise ValueError('Wrong trigger value')     
+        else:
+            raise ValueError('Wrong trigger value')
 
         table_bit = table_bit.astype(str)
         separator = ', '
         table_bit = separator.join(table_bit)
-        if channel in ['CH1', 'CH2']: 
+        if channel in ['CH1', 'CH2']:
             time.sleep(0.1)
             #print(table_bit)
             self.write('DAC:' + channel + ' ' + table_bit)
-        else: 
+        else:
             raise ValueError('Wrong channel value')
-                
-    def send_IQ_LUT(self, table, channel, quadrature): 
+
+    def send_IQ_LUT(self, table, channel, quadrature):
         """
         Send a LUT to one of the IQ channel  (I and Q will be multiplied by the ADC input)
-        Input: 
-            - table (float): table to be sent 
-            - channel(string): channel in which to table in sent 
-            - trigger(string): send a trigger in channels or not 
+        Input:
+            - table (float): table to be sent
+            - channel(string): channel in which to table in sent
+            - trigger(string): send a trigger in channels or not
 
         """
         self.log.info(__name__+ ' Send the IQ LUT \n')
-        table_bit = table.astype(int) * 4 
+        table_bit = table.astype(int) * 4
         table_bit = table_bit.astype(str)
         separator = ', '
         table_bit = separator.join(table_bit)
         if quadrature in ['I', 'Q'] and channel in ['CH1', 'CH2']:
             time.sleep(0.1)
             self.write(quadrature + ':' + channel + ' ' + table_bit)
-        else: 
+        else:
             raise ValueError('Wrong quadrature or channel')
 
-    def reset_LUT(self,time = 8192*8e-9): 
+    def reset_LUT(self,time = 8192*8e-9):
         """
-        Reset all the LUT 
-        Input: 
-            time(float): duration of the table to be reset in second. 
-            Default value is the all table 
-        Output: 
+        Reset all the LUT
+        Input:
+            time(float): duration of the table to be reset in second.
+            Default value is the all table
+        Output:
             None
         """
         self.log.info(__name__+' Reset the DAC LUT \n')
@@ -565,21 +565,21 @@ class Redpitaya(VisaInstrument):
 
     def get_data(self):
         time.sleep(0.2)
-        t = 0 
+        t = 0
         nb_measure = self.nb_measure()
         mode = self.mode_output()
-        print(nb_measure, 'pulses.', 'Mode:',mode)
+        print(nb_measure, 'pulse(s).', 'Mode:',mode)
         self.format_output('ASCII')
         self.status('start')
-        time.sleep(2) # Timer to change if no time to start
+        # time.sleep(2) # Timer to change if no time to start
         signal = np.array([], dtype ='int32')
         t0 = time.time()
 
         while t < nb_measure:
             try:
-                #time.sleep(0.2)
+                time.sleep(0.2)
                 rep = self.ask('OUTPUT:DATA?')
-                #print(rep)
+                # print(rep)
                 #rep = self.data_output_raw()
                 if rep[1] != '0' or len(rep)<=2:
                     print ('Memory problem %s' %rep[1])
@@ -587,40 +587,40 @@ class Redpitaya(VisaInstrument):
                     self.status('stop')
                     #print(3,t)
                     self.status('start')
-                else: 
+                else:
                     # signal.append( rep[3:-1] + ',')
                     rep = eval( '[' + rep[3:-1] + ']' )
                     signal = np.concatenate((signal,rep))
                     tick = np.bitwise_and(rep,3) # extraction du debut de l'aquisition: LSB = 3
-                    t += len(np.where(tick[1:] - tick[:-1])[0])+1 # idex of the tick   
+                    t += len(np.where(tick[1:] - tick[:-1])[0])+1 # idex of the tick
                     #print(t)
                     t1 = time.time()
                     #print (t1 - t0, t)
                     t0 = t1
-            except: 
+            except:
                 t=t
         self.status('stop')
         #time.sleep(1)
         trash = self.ask('OUTPUT:DATA?')
         #time.sleep(1)
         #print(mode)
-        if t > nb_measure: 
+        if t > nb_measure:
             jump_tick = np.where(tick[1:] - tick[:-1])[0]
             len_data_block = jump_tick[1] - jump_tick[0]
             signal = signal[:nb_measure*len_data_block]
-            
+
         if (mode == 'ADC' or mode == 'IQCH1' or mode == 'IQCH2'):
             #print(12)
             data_1 = signal[::2]/(4*8192.)
             data_2 = signal[1::2]/(4*8192.)
             return data_1, data_2
-        else: 
+        else:
             ICH1 = signal[::4]/(4*8192.)
             QCH1 = signal[1::4]/(4*8192.)
             ICH2 = signal[2::4]/(4*8192.)
             QCH2 = signal[3::4]/(4*8192.)
             return ICH1, QCH1, ICH2, QCH2
-            
+
     def get_single_pulse(self):
         #self.mode_output(mode)
         self.format_output('ASCII')
@@ -636,7 +636,7 @@ class Redpitaya(VisaInstrument):
             self.status('stop')
             #print(3,t)
             self.status('start')
-        else: 
+        else:
             # signal.append( rep[3:-1] + ',')
             rep = eval( '[' + rep[3:-1] + ']' )
             signal = np.concatenate((signal,rep))
@@ -653,7 +653,7 @@ class Redpitaya(VisaInstrument):
             data_1 = signal[::2]/(4*8192.)
             data_2 = signal[1::2]/(4*8192.)
             return data_1, data_2
-        else: 
+        else:
             ICH1 = signal[::4]/(4*8192.)
             QCH1 = signal[1::4]/(4*8192.)
             ICH2 = signal[2::4]/(4*8192.)
@@ -662,7 +662,7 @@ class Redpitaya(VisaInstrument):
 
     def get_data_binary(self, mode, nb_measure):
 
-        t = 0 
+        t = 0
         self.set_mode_output(mode)
         self.set_format_output('BIN')
         self.start()
@@ -675,22 +675,22 @@ class Redpitaya(VisaInstrument):
                     print ('Memory problem %s' %rep[0])
                     self.stop()
                     self.start()
-                else: 
+                else:
                     signal = np.concatenate((signal,rep[1:]))
-                    if mode == ('ADC' or 'IQCH1' or 'IQCH2'): 
+                    if mode == ('ADC' or 'IQCH1' or 'IQCH2'):
                         t = len(signal)/2
-                    else: 
+                    else:
                         t = len(signal)/4
                 t1 = time.time()
                 print (t1 - t0, t)
                 t0 = t1
-            except: 
+            except:
                 t=t
 
 
         self.stop()
         trash = self.data_output()
-            
+
         if mode == ('ADC' or 'IQCH1' or 'IQCH2'):
             data_1 = signal[::2][:nb_measure]/(4*8192.)
             data_2 = signal[1::2][:nb_measure]/(4*8192.)
@@ -701,28 +701,28 @@ class Redpitaya(VisaInstrument):
             QCH1 = signal[1::4][:nb_measure]/(4*8192.)
             ICH2 = signal[2::4][:nb_measure]/(4*8192.)
             QCH2 = signal[3::4][:nb_measure]/(4*8192.)
-            return ICH1, QCH1, ICH2, QCH2     
-    
+            return ICH1, QCH1, ICH2, QCH2
+
 
 
 
     # def data_size(self):
     #     """
     #         Ask for the data size
-    #     """ 
+    #     """
     #     #sleep(0.1)
     #     self.log.info(__name__ + ' Ask for the data size \n')
     #     #self.query('OUTPUT:DATASIZE?')
     #     self.write('OUTPUT:DATASIZE?')
 
-        
+
     # def data_output(self):
     #     """
-    #         Ask for the output data 
+    #         Ask for the output data
     #         Input:
     #             None
-    #         Output: 
-    #             - data: table of ASCII 
+    #         Output:
+    #             - data: table of ASCII
     #     """
     #     #sleep(0.2)
     #     self.log.info(__name__ + ' Ask for the output data \n')
@@ -732,7 +732,7 @@ class Redpitaya(VisaInstrument):
 
 
     # def get_data(self, mode, nb_measure):
-    #     t = 0 
+    #     t = 0
     #     self.mode_output(mode)
     #     self.format_output('ASCII')
     #     #self.start()
@@ -748,54 +748,47 @@ class Redpitaya(VisaInstrument):
     #                 print ('Memory problem %s' %rep[1])
     #                 self.status('stop')
     #                 self.status('start')
-    #             else: 
+    #             else:
     #                 # signal.append( rep[3:-1] + ',')
     #                 rep = eval( '[' + rep[3:-1] + ']' )
     #                 signal = np.concatenate((signal,rep))
     #                 tick = np.bitwise_and(rep,3) # extraction du debut de l'aquisition: LSB = 3
-    #                 t += len(np.where(tick[1:] - tick[:-1])[0])+1 # idex of the tick   
-    #                 # print t 
+    #                 t += len(np.where(tick[1:] - tick[:-1])[0])+1 # idex of the tick
+    #                 # print t
     #                 t1 = time.time()
     #                 print (t1 - t0, t)
     #                 t0 = t1
-    #         except: 
+    #         except:
     #             t=t
     #     #self.stop()
     #     self.status('stop')
-            
+
     #     trash = self.data_output()
-    #     # except: 
+    #     # except:
     #         # 'no trash'
-    #     # i = 0 
-    #     # while i==0: 
-    #         # try: 
+    #     # i = 0
+    #     # while i==0:
+    #         # try:
     #             # qt.msleep(0.25)
     #             # trash = self.data_output()
     #             # i = i +len(trash)
-    #         # except: 
+    #         # except:
     #             # i = 0
 
 
-    #     if t > nb_measure: 
+    #     if t > nb_measure:
     #         jump_tick = np.where(tick[1:] - tick[:-1])[0]
     #         len_data_block = jump_tick[1] - jump_tick[0]
     #         signal = signal[:nb_measure*len_data_block]
-            
+
     #     if mode == ('ADC' or 'IQCH1' or 'IQCH2'):
     #         data_1 = signal[::2]/(4*8192.)
     #         data_2 = signal[1::2]/(4*8192.)
     #         print('OK')
     #         return data_1, data_2
-    #     else: 
+    #     else:
     #         ICH1 = signal[::4]/(4*8192.)
     #         QCH1 = signal[1::4]/(4*8192.)
     #         ICH2 = signal[2::4]/(4*8192.)
     #         QCH2 = signal[3::4]/(4*8192.)
     #         return ICH1, QCH1, ICH2, QCH2
-
-    
-    
-        
-        
-        
-        
