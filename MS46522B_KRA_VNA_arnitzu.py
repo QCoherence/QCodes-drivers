@@ -421,6 +421,8 @@ class AnritsuChannel(InstrumentChannel):
             self._parent.write(f"CALC{self._instrument_channel}:PAR:SEL '{self._tracename}'")
             # print('Any error here? No')
 
+            # Fix for array shape mismatch issue fixed by QTLab run - Arpit
+            self._parent.write('form:Data real')
 
             # time.sleep(1)
 
