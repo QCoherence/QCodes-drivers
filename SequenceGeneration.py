@@ -19,6 +19,14 @@ class Pulse:
 			return False
 
 	@classmethod
+	def sort_timewise(cls):
+		'''
+			sort ADC and DAC events timewise taking simultaneous events into account
+		'''
+		return cls.objs
+		
+
+	@classmethod
 	def generate_sequence_and_DAC_memory(cls):
 		'''
 		ATM this method doesnt account for simultaneous events
@@ -27,7 +35,7 @@ class Pulse:
 
 		last_DAC_channel_event=[None,None,None,None,None,None,None,None]
 
-		for obj in cls.objs:
+		for obj in cls.sort_timewise():
 
 			print(last_DAC_channel_event)
 
@@ -36,7 +44,7 @@ class Pulse:
 
 			ctrl_dac_adc=DAC_status([int(obj.channel[2])])
 
-			if type(obj)==PulseGeneration:	
+			if type(obj)==PulseGeneration:
 
 				if last_DAC_channel_event[int(obj.channel[2])-1]==None:
 
@@ -49,7 +57,7 @@ class Pulse:
 						scpi_str=scpi_str+'4096,{},1,{},'.format(ctrl_dac_adc,N_duration)
 
 					obj._DAC_2D_memory=obj.send_DAC_2D_memory()
-				
+
 
 				else :
 
@@ -70,8 +78,8 @@ class Pulse:
 
 				last_DAC_channel_event[int(obj.channel[2])-1]=obj
 
-	
-					
+
+
 
 			if type(obj)==PulseReadout:
 
@@ -85,7 +93,7 @@ class Pulse:
 		return scpi_str+'3,1'
 
 
-		
+
 class PulseGeneration(Pulse):
 
 	objs=[]
