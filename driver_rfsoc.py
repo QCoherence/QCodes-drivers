@@ -11,16 +11,6 @@ from qcodes.instrument.parameter import ParameterWithSetpoints, Parameter
 
 import SequenceGeneration as sqg
 
-# VisaInstrument is a class used for most instruments that communicate over a
-#  text channel (ethernet for ex). In QCoDeS it is best to use this class
-
-#  A QCoDeS instrument driver is nothing but an object and has some sub-objects
-# (or parameters) that represent the state of the physical instrument
-
-# A parameter represents a single value of a single feature of an instrument
-# In most cases you will probably be adding parameters via the add_parameter
-# method on the instrument class
-
 #
 # class GeneratedSetPoints(Parameter):
 #       """
@@ -77,6 +67,7 @@ class RFSoC(VisaInstrument):
 
         else:
             raise ValueError('Wrong channel value')
+
 
     def reset_all_DAC_2D_memory(self):
         """
