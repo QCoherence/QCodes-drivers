@@ -30,6 +30,7 @@ class Pulse:
 		for obj in cls.objs:
 
 			print(last_DAC_channel_event)
+
 			N_wait = int(round(obj.t_init/(4.e-9)))
 			N_duration = int(round(obj.t_duration/(4.e-9)))
 
@@ -52,7 +53,10 @@ class Pulse:
 
 				else :
 
-					new_adress= N_duration + 4
+
+					new_adress= int(round(last_DAC_channel_event[int(obj.channel[2])-1].t_duration/(4.e-9))) + 1
+
+					print('new_adress = {}'.format(new_adress))
 
 					if N_wait!=0:
 
@@ -78,7 +82,7 @@ class Pulse:
 
 				scpi_str=scpi_str+'{},{},1,{},4096,{},1,{},'.format(4106+int(obj.channel[2]),N_acq,N_wait,ctrl_dac_adc,N_duration)
 
-		return scpi_str+'3,2'
+		return scpi_str+'3,1'
 
 
 		

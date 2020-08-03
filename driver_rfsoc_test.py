@@ -23,14 +23,16 @@ for inst in sqg.Pulse.objs:
 
 rfsoc.reset_all_DAC_2D_memory()
 
-freq=0.5e6
-amp=1.
+freq1=2.e6
+amp1=1.
+param1=[freq1,amp1]
 
+freq2=5.e6
+amp2=0.5
+param2=[freq2,amp2]
 
-param=[freq,amp]
-
-pulse1_DAC1=sqg.PulseGeneration(2.e-6,4.e-6,'CH2','SIN',param,CW_mode=False)
-# pulse2_DAC1=sqg.PulseGeneration(2.e-6,3.e-6,'CH2','SIN', [freq,amp,10.e-6,delay], CW_mode=False, parent=pulse1_DAC1)
+pulse1_DAC1=sqg.PulseGeneration(1e-6,4.e-6,'CH2','SIN',param1,CW_mode=False)
+pulse2_DAC1=sqg.PulseGeneration(2.e-6,2.e-6,'CH2','SIN', param2, CW_mode=False, parent=pulse1_DAC1)
 
 
 rfsoc.write_sequence_and_DAC_memory()
