@@ -25,12 +25,12 @@ rfsoc.write("SEQ:STOP")
 # time.sleep(5)
 # rfsoc.write("DAC:RELAY:ALL 1")
 
-rfsoc.write("ADC:ADC2:MIXER 0.")
+rfsoc.write("ADC:ADC2:MIXER 25.0")
 rfsoc.write("ADC:TILE0:DECFACTOR 1")
 
 #generating and loading sequence
 
-chunck_duration=10.e-6
+chunck_duration=1.e-6
 
 ADCs=[1]
 DACs=[]
@@ -56,8 +56,8 @@ rfsoc.write("OUTPUT:FORMAT BIN")
 rep = rfsoc.query_binary_values('OUTPUT:DATA?', datatype="h", is_big_endian=True)
 
 tstart = time.perf_counter()
-tick = 0.01
-duree = 2
+tick = 0.5
+duree = 0.1
 rep=[]
 
 rfsoc.write("ADC:ADC1 1")
