@@ -1,4 +1,8 @@
 import numpy as np
+from operator import itemgetter, attrgetter
+from itertools import groupby
+
+
 
 class Pulse:
 
@@ -9,8 +13,11 @@ class Pulse:
 		Pulse.objs.append(self)
 		self.t_init = t_init
 		self.t_duration = t_duration
+		self._t_abs=None
 		self.channel = channel
 		self.parent = parent
+
+
 
 	def is_absolute_parent(self):
 		if self.parent is None :
@@ -18,14 +25,48 @@ class Pulse:
 		else :
 			return False
 
-	@classmethod
-	def sort_timewise(cls):
-		'''
-			sort ADC and DAC events timewise taking simultaneous events into account
-		'''
-		return cls.objs
-		
 
+
+
+
+
+
+	@classmethod
+	def absolute_init_time(cls):
+
+		for obj in cls.objs:
+
+			t_abs=obj.t_init
+			parent=obj.parent
+
+			while parent is not None:
+
+				t_abs+=parent.t_init + parent.t_duration
+				parent=parent.parent
+
+			obj._t_abs=t_abs
+
+
+
+
+
+	@classmethod
+	def sort_and_groupby_timewise(cls):
+		'''
+			sort ADC and DAC events timewise and grouping simultaneous events
+		'''
+		cls.absolute_init_time()
+
+		groups=[]
+		new=sorted(cls.objs , key=attrgetter('_t_abs'))
+
+		for _ , g in groupby(new, key=attrgetter('_t_abs')):
+
+			groups.append(list(g))
+
+		return groups
+		
+		
 	@classmethod
 	def generate_sequence_and_DAC_memory(cls):
 		'''
@@ -94,6 +135,11 @@ class Pulse:
 
 
 
+
+
+
+
+
 class PulseGeneration(Pulse):
 
 	objs=[]
@@ -105,6 +151,11 @@ class PulseGeneration(Pulse):
 		self.wform = wform
 		self.params = params
 		self.CW_mode = CW_mode
+
+	def __repr__(self):
+
+		return('Pulse(DAC {}, t_abs={} s,  t_init={} s, t_duration={} s, waveform : {}, params={}, CW_mode={}'.format(
+				self.channel, self._t_abs, self.t_init, self.t_duration, self.wform, self.params, self.CW_mode))
 
 	def fill_2D_memory(self,trigger=None):
 		"""
@@ -233,6 +284,10 @@ class PulseReadout(Pulse):
 		super().__init__(t_init, t_duration, channel, parent)
 		PulseReadout.objs.append(self)
 
+	def __repr__(self):
+
+		return('Pulse(ADC {}, t_abs={} s,  t_init={} s, t_duration={} s'.format(
+				self.channel, self._t_abs, self.t_init, self.t_duration))
 
 
 
@@ -269,11 +324,29 @@ if __name__=="__main__":
 	pulse_duration=1.e-6
 	delay=0.
 
+	freq1=2.e6
+	amp1=1.
+	param1=[freq1,amp1]
 
-	params=[freq,amp,pulse_duration,delay]
+	freq2=5.e6
+	amp2=0.5
+	param2=[freq2,amp2]
 
-	DAC1=PulseGeneration(0,1.e-6,'CH1','SIN',params,CW_mode=False)
-	DAC2=PulseGeneration(0,5.e-6,'CH2','SIN',params,CW_mode=True, parent=DAC1)
-	ADC1=PulseReadout(0,5.e-6,'CH1', parent=DAC2)
+	pulse1_DAC1=PulseGeneration(1e-6,4.e-6,'CH2','SIN',param1,CW_mode=False)
+	pulse2_DAC1=PulseGeneration(2.e-6,2.e-6,'CH2','SIN', param2, CW_mode=False, parent=pulse1_DAC1)
+	pulse1_DAC4=PulseGeneration(.5e-6,2.e-6,'CH4','SIN', param2, CW_mode=False, parent=pulse1_DAC1)
+	pulse1_ADC1=PulseReadout(1e-6,9.e-6,'CH1')
 
-	print(Pulse.generate_sequence_and_DAC_memory())
+	Pulse.absolute_init_time()
+
+	# print('pulse 1 abosolute time : {} s'.format(pulse1_DAC1._t_abs))
+	# print('pulse 2 abosolute time : {} s'.format(pulse2_DAC1._t_abs))
+	# print('pulse 3 abosolute time : {} s'.format(pulse1_DAC4._t_abs))
+
+
+	sorted_objs=Pulse.sort_and_groupby_timewise()
+	
+
+	print('Sorted list of pulse instances grouped by absolute initial time')
+	print(*sorted_objs , sep='\n')
+	
