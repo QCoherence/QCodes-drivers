@@ -28,6 +28,27 @@ import SequenceGeneration as sqg
 #                               self._numpointsparam())
 
 
+class ChannelADC(InstrumentChannel):
+
+    def __init__(self, parent: 'RFSoC', name: str; channel: int): 
+        """
+        Args: 
+            parent : Instrument that this channel is bound to.
+            name:  Name to use for this channel.
+            channel: ADC channel to use.
+        """
+
+        self._ADC_channel = channel
+
+        self.add_parameter( name = 'format_output', 
+                            #Format(string) : 'BIN' or 'ASCII' 
+                            label='Output format',
+                            vals = vals.Enum('ASCII','BIN'),
+                            set_cmd='OUTPUT:FORMAT ' + '{}',
+                            get_cmd='OUTPUT:FORMAT?',
+                            get_parser=str
+                            )
+
 
 class RFSoC(VisaInstrument):
 
