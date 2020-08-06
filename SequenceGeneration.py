@@ -18,17 +18,11 @@ class Pulse:
 		self.parent = parent
 
 
-
 	def is_absolute_parent(self):
 		if self.parent is None :
 			return True
 		else :
 			return False
-
-
-
-
-
 
 
 	@classmethod
@@ -45,9 +39,6 @@ class Pulse:
 				parent=parent.parent
 
 			obj._t_abs=t_abs
-
-
-
 
 
 	@classmethod
@@ -72,69 +63,76 @@ class Pulse:
 		'''
 		ATM this method doesnt account for simultaneous events
 		'''
-		scpi_str='SEQ 0,1,10,4105,0,'
+		scpi_str='SEQ 0,1,10,4105,0'
 
 		last_DAC_channel_event=[None,None,None,None,None,None,None,None]
 
-		for obj in cls.sort_timewise():
+		#TODO : get rid of the groupy method and directly loop through groupby(sorted listn key)
 
-			print(last_DAC_channel_event)
+		for gp in cls.sort_and_groupby_timewise():
+			print('new group')
+			for obj in gp:
 
-			N_wait = int(round(obj.t_init/(4.e-9)))
-			N_duration = int(round(obj.t_duration/(4.e-9)))
+				print(type(obj))
 
-			ctrl_dac_adc=DAC_status([int(obj.channel[2])])
+				ctrl_dac_adc=DAC_status([int(obj.channel[2])])
 
-			if type(obj)==PulseGeneration:
+				if type(obj)==PulseGeneration:
+					print('im DAC')
 
-				if last_DAC_channel_event[int(obj.channel[2])-1]==None:
+					N_wait = int(round(obj.t_init/(4.e-9)))
+					N_duration = int(round(obj.t_duration/(4.e-9)))
 
-					if N_wait!=0:
+					
+					if last_DAC_channel_event[int(obj.channel[2])-1]==None:
 
-						scpi_str=scpi_str+'1,{},4096,{},1,{},'.format(N_wait,ctrl_dac_adc,N_duration)
+						if N_wait!=0.:
+
+							scpi_str=scpi_str+',1,{},4096,{},1,{}'.format(N_wait,ctrl_dac_adc,N_duration)
+
+						else :
+
+							scpi_str=scpi_str+',4096,{},1,{}'.format(ctrl_dac_adc,N_duration)
+
+						obj._DAC_2D_memory=obj.send_DAC_2D_memory()
+
 
 					else :
 
-						scpi_str=scpi_str+'4096,{},1,{},'.format(ctrl_dac_adc,N_duration)
 
-					obj._DAC_2D_memory=obj.send_DAC_2D_memory()
+						new_adress= int(round(last_DAC_channel_event[int(obj.channel[2])-1].t_duration/(4.e-9))) + 1
+
+						# print('new_adress = {}'.format(new_adress))
+
+						if N_wait!=0.:
+
+							scpi_str=scpi_str+',{},{},1,{},4096,{},1,{}'.format(4096+int(obj.channel[2]),new_adress,N_wait-1,ctrl_dac_adc,N_duration-1)
+
+						else :
+
+							scpi_str=scpi_str+',{},{},4096,{},1,{}'.format(4096+int(obj.channel[2]),new_adress,ctrl_dac_adc,N_duration-1)
+
+						obj._DAC_2D_memory=obj.send_DAC_2D_memory(new_adress)
 
 
-				else :
-
-
-					new_adress= int(round(last_DAC_channel_event[int(obj.channel[2])-1].t_duration/(4.e-9))) + 1
-
-					print('new_adress = {}'.format(new_adress))
-
-					if N_wait!=0:
-
-						scpi_str=scpi_str+'{},{},1,{},4096,{},1,{},'.format(4096+int(obj.channel[2]),new_adress,N_wait-1,ctrl_dac_adc,N_duration-1)
-
-					else :
-
-						scpi_str=scpi_str+'{},{},4096,{},1,{},'.format(4096+int(obj.channel[2]),new_adress,ctrl_dac_adc,N_duration-1)
-
-					obj._DAC_2D_memory=obj.send_DAC_2D_memory(new_adress)
-
-				last_DAC_channel_event[int(obj.channel[2])-1]=obj
+					last_DAC_channel_event[int(obj.channel[2])-1]=obj
 
 
 
 
-			if type(obj)==PulseReadout:
+				elif type(obj)==PulseReadout:
 
-				N_wait = int(round(obj.t_init/(4.e-9)))
-				N_acq = int(round(obj.t_duration)/(0.5e-9))
-				N_duration = int(round(obj.t_duration/(4.e-9)))
-				ctrl_dac_adc=ADC_status([int(obj.channel[2])])
+					print('Im adc')
 
-				scpi_str=scpi_str+'{},{},1,{},4096,{},1,{},'.format(4106+int(obj.channel[2]),N_acq,N_wait,ctrl_dac_adc,N_duration)
+					N_wait = int(round(obj.t_init/(4.e-9)))
+					N_acq = int(round(obj.t_duration/(0.5e-9)))
+					print('t_duration = {}'.format(obj.t_duration))
+					print('N_acq = {}'.format(N_acq))
+					ctrl_dac_adc=ADC_status([int(obj.channel[2])])
 
-		return scpi_str+'3,1'
+					scpi_str=scpi_str+',{},{},1,{},4096,{}'.format(4106+int(obj.channel[2]),N_acq,N_wait,ctrl_dac_adc)
 
-
-
+		return scpi_str+',1,2500000000'
 
 
 
@@ -236,6 +234,8 @@ class PulseGeneration(Pulse):
 
 			    return memory_table.reshape((1,memory_table.shape[0]*memory_table.shape[1]))[0]
 
+
+
 	def send_DAC_2D_memory(self,adress=0):
 		#THIS FUNCTION CAN BE WRITTEN IN A NICER MANNER USING ARGS AND KWARGS
 		#BCSE DURATION AND MODE ARE  SYSTEMATICALLY USED
@@ -288,8 +288,6 @@ class PulseReadout(Pulse):
 
 		return('Pulse(ADC {}, t_abs={} s,  t_init={} s, t_duration={} s'.format(
 				self.channel, self._t_abs, self.t_init, self.t_duration))
-
-
 
 
 
@@ -348,5 +346,5 @@ if __name__=="__main__":
 	
 
 	print('Sorted list of pulse instances grouped by absolute initial time')
-	print(*sorted_objs , sep='\n')
+	print(sorted_objs)
 	

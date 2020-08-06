@@ -10,44 +10,8 @@ from qcodes.instrument.channel import InstrumentChannel
 from qcodes.instrument.parameter import ParameterWithSetpoints, Parameter
 
 import SequenceGeneration as sqg
+from qcodes.utils.delaykeyboardinterrupt import DelayedKeyboardInterrupt
 
-#
-# class GeneratedSetPoints(Parameter):
-#       """
-#     A parameter that generates a setpoint array from start, stop and num points
-#     parameters.
-#     """
-#     def __init__(self, startparam, stopparam, numpointsparam, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         self._startparam = startparam
-#         self._stopparam = stopparam
-#         self._numpointsparam = numpointsparam
-#
-#     def get_raw(self):
-#         return np.linspace(self._startparam(), self._stopparam() -1,
-#                               self._numpointsparam())
-
-
-class ChannelADC(InstrumentChannel):
-
-    def __init__(self, parent: 'RFSoC', name: str; channel: int): 
-        """
-        Args: 
-            parent : Instrument that this channel is bound to.
-            name:  Name to use for this channel.
-            channel: ADC channel to use.
-        """
-
-        self._ADC_channel = channel
-
-        self.add_parameter( name = 'format_output', 
-                            #Format(string) : 'BIN' or 'ASCII' 
-                            label='Output format',
-                            vals = vals.Enum('ASCII','BIN'),
-                            set_cmd='OUTPUT:FORMAT ' + '{}',
-                            get_cmd='OUTPUT:FORMAT?',
-                            get_parser=str
-                            )
 
 
 class RFSoC(VisaInstrument):
@@ -97,3 +61,25 @@ class RFSoC(VisaInstrument):
         for channel in ['CH1','CH2','CH3','CH4','CH5','CH6','CH7','CH8']:
 
             self.write("DAC:DATA:{}:CLEAR".format(channel))
+
+
+
+
+    def ask_raw(self, cmd: str) -> str:
+        """
+        Overwriting the ask_ray qcodes native function to query binary 
+
+        Low-level interface to ``visa_handle.ask``.
+
+        Args:
+            cmd: The command to send to the instrument.
+
+        Returns:
+            str: The instrument's response.
+        """
+        with DelayedKeyboardInterrupt():
+            self.visa_log.debug(f"Querying: {cmd}")
+            response = self.visa_handle.query_binary_values(cmd, datatype="h", is_big_endian=True)
+            self.visa_log.debug(f"Response: {response}")
+        return response
+   
