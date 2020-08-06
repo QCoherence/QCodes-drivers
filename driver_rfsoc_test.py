@@ -12,17 +12,22 @@ rfsoc = RFSoC('RFSoC', 'TCPIP::{}::{}::SOCKET'.format('192.168.0.123',5001))
 
 rfsoc.write("SEQ:STOP")
 
+#uncomment the following lines when first booting the RFSoC
+
 # rfsoc.write("DAC:RELAY:ALL 0")
 # rfsoc.write("PLLINIT")
 # time.sleep(5)
 # rfsoc.write("DAC:RELAY:ALL 1")
 
 
+#make sure that no Pulses are defined at the beginning
+
 for inst in sqg.Pulse.objs:
 	del inst
 
 rfsoc.reset_all_DAC_2D_memory()
 
+#define parameters of pulses we want to play
 freq1=2.e6
 amp1=.7
 param1=[freq1,amp1]
@@ -31,9 +36,7 @@ freq2=15.e6
 amp2=0.5
 param2=[freq2,amp2]
 
-
-param3=[freq1,amp2]
-
+#instantiation of pulses
 pulse1_DAC1=sqg.PulseGeneration(1e-6,4.e-6,'CH2','SIN',param1,CW_mode=False)
 pulse2_DAC1=sqg.PulseGeneration(2.e-6,2.e-6,'CH2','SIN', param2, CW_mode=False, parent=pulse1_DAC1)
 
@@ -41,6 +44,7 @@ pulse_ADC=sqg.PulseReadout(0.,10.e-6,'CH2')
 
 rfsoc.write_sequence_and_DAC_memory()
 
+#data acquisition
 rfsoc.write("OUTPUT:FORMAT BIN")
 
 rep = rfsoc.ask('OUTPUT:DATA?')
@@ -72,6 +76,7 @@ r = rfsoc.ask('OUTPUT:DATA?')
 if len(r)>1:
     rep = rep+r
 
+#TODO get a function for data decoding
 
 # decodage des données
 # 8 places pour les 8 voies en I & Q
@@ -145,7 +150,7 @@ while (i + 8 )<= len(rep) : # reste au moins 1 entete
 
 # temps de traitement du buffer
 print("********************************************************************")
-print(len(rep),"Pts traités en ",time.perf_counter()-tstart,"secondes")
+print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
 print("********************************************************************")
 
 # pour le signal ADC ou I

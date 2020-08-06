@@ -70,7 +70,6 @@ class Pulse:
 		#TODO : get rid of the groupy method and directly loop through groupby(sorted listn key)
 
 		for gp in cls.sort_and_groupby_timewise():
-			print('new group')
 			for obj in gp:
 
 				print(type(obj))
@@ -78,8 +77,7 @@ class Pulse:
 				ctrl_dac_adc=DAC_status([int(obj.channel[2])])
 
 				if type(obj)==PulseGeneration:
-					print('im DAC')
-
+					
 					N_wait = int(round(obj.t_init/(4.e-9)))
 					N_duration = int(round(obj.t_duration/(4.e-9)))
 
@@ -122,20 +120,14 @@ class Pulse:
 
 				elif type(obj)==PulseReadout:
 
-					print('Im adc')
-
 					N_wait = int(round(obj.t_init/(4.e-9)))
 					N_acq = int(round(obj.t_duration/(0.5e-9)))
-					print('t_duration = {}'.format(obj.t_duration))
-					print('N_acq = {}'.format(N_acq))
 					ctrl_dac_adc=ADC_status([int(obj.channel[2])])
 
 					scpi_str=scpi_str+',{},{},1,{},4096,{}'.format(4106+int(obj.channel[2]),N_acq,N_wait,ctrl_dac_adc)
 
+		#TODO figure out the bus error when removing the 1 2500000000
 		return scpi_str+',1,2500000000'
-
-
-
 
 
 class PulseGeneration(Pulse):
