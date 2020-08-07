@@ -67,7 +67,7 @@ class RFSoC(VisaInstrument):
 
     def ask_raw(self, cmd: str) -> str:
         """
-        Overwriting the ask_ray qcodes native function to query binary 
+        Overwriting the ask_ray qcodes native function to query binary
 
         Low-level interface to ``visa_handle.ask``.
 
@@ -82,4 +82,3 @@ class RFSoC(VisaInstrument):
             response = self.visa_handle.query_binary_values(cmd, datatype="h", is_big_endian=True)
             self.visa_log.debug(f"Response: {response}")
         return response
-   
