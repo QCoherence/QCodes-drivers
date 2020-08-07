@@ -142,6 +142,8 @@ class Pulse:
 				elif type(obj)==PulseReadout:
 
 					N_wait = int(round(obj.t_init/(4.e-9)))
+					#TODO : take decimation into account
+					#       if deficamtion divide N_acq by decimation facotr
 					N_acq = int(round(obj.t_duration/(0.5e-9)))
 
 					ctrl_dac_adc=ADC_status([int(obj.channel[2])])
@@ -311,24 +313,24 @@ def ADC_status(ADC_list):
 	Convert the ADC channel numbers to the CTRL_DAC&ADC data value of the
 	sequenceur.
 	'''
-    dec=0
+	dec=0
 
-    for ADCnum in ADC_list:
-        dec+=2**(ADCnum+23)
+	for ADCnum in ADC_list:
+		dec+=2**(ADCnum+23)
 
-    return str(dec)
+	return str(dec)
 
 def DAC_status(DAC_list):
 	'''
 	Convert the DAC channel numbers to the CTRL_DAC&ADC data value of the
 	sequenceur.
 	'''
-    dec=0
+	dec=0
 
-    for DACnum in DAC_list:
-        dec+= 2**(3*DACnum - 3) + 2**(3*DACnum - 2) + 0*2**(3*DACnum - 1)
+	for DACnum in DAC_list:
+		dec+= 2**(3*DACnum - 3) + 2**(3*DACnum - 2) + 0*2**(3*DACnum - 1)
 
-    return str(dec)
+	return str(dec)
 
 
 def ADC_DAC_status(DAC_list, ADC_list):
@@ -336,7 +338,7 @@ def ADC_DAC_status(DAC_list, ADC_list):
 	Convert both DAC and ADC channel numbers to the CTRL_DAC&ADC data value of
 	the sequenceur.
 	'''
-    return str(DAC_status(DAC_list)+ADC_status(ADC_list))
+	return str(DAC_status(DAC_list)+ADC_status(ADC_list))
 
 #Testing the module
 

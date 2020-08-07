@@ -33,7 +33,7 @@ freq1=2.e6
 amp1=.7
 param1=[freq1,amp1]
 
-freq2=15.e6
+freq2=6.e6
 amp2=0.5
 param2=[freq2,amp2]
 
@@ -41,7 +41,8 @@ param2=[freq2,amp2]
 pulse1_DAC1=sqg.PulseGeneration(1e-6,4.e-6,'CH2','SIN',param1,CW_mode=False)
 pulse2_DAC1=sqg.PulseGeneration(2.e-6,2.e-6,'CH2','SIN', param2, CW_mode=False, parent=pulse1_DAC1)
 
-pulse_ADC=sqg.PulseReadout(0.,10.e-6,'CH2')
+#factor 8 to reduce number of points for decimation 
+pulse_ADC=sqg.PulseReadout(0.,10.e-6 / 8,'CH2')
 
 #sending sequence and DAC memories based on the Pulse instances
 rfsoc.write_sequence_and_DAC_memory()
@@ -58,7 +59,7 @@ rep=[]
 
 #ADC parameters
 rfsoc.write("ADC:ADC2:MIXER 0.0")
-rfsoc.write("ADC:TILE0:DECFACTOR 1")
+rfsoc.write("ADC:TILE0:DECFACTOR 8")
 rfsoc.write("ADC:ADC2 1")
 
 # beginning of the sequence
