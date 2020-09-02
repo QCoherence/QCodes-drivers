@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 # This is a Qcodes driver for Redpitaya card SCPI IQ server 
 # written by Martina Esposito and Arpit Ranadive, 2019/2020
-# last modifications have been made by Vincent Jouanny (M2 intern) in Arpril-May 2020
-# This driver is a Qcodes version of the qtlab driver 'redpitaya_qtlab.py' written by Sebastian
 #
 
 from time import sleep
@@ -123,11 +121,14 @@ class ADC_power(ParameterWithSetpoints):
     def get_raw(self):
         time.sleep(0.2)
         data = self._instrument.get_data()
-        data_ret_I1 = (np.mean(data[0]**2)-np.mean(data[0])**2)/50
-        data_ret_Q1 = (np.mean(data[1]**2)-np.mean(data[1])**2)/50
-        data_ret_I2 = (np.mean(data[2]**2)-np.mean(data[2])**2)/50
-        data_ret_Q2 = (np.mean(data[3]**2)-np.mean(data[3])**2)/50
-        return np.array([data_ret_I1+data_ret_Q1,data_ret_I2+data_ret_Q2])
+        # data_ret_I1 = (np.mean(data[0]**2)-np.mean(data[0])**2)/50
+        # data_ret_Q1 = (np.mean(data[1]**2)-np.mean(data[1])**2)/50
+        # data_ret_I2 = (np.mean(data[2]**2)-np.mean(data[2])**2)/50
+        # data_ret_Q2 = (np.mean(data[3]**2)-np.mean(data[3])**2)/50
+        A_1 = (np.mean(data[0]**2 + data[1]**2))/50
+        A_2 = (np.mean(data[2]**2 + data[3]**2))/50
+        #data_ret_I1+data_ret_Q1,data_ret_I2+data_ret_Q2,
+        return np.array([ A_1, A_2])
 
 
 
@@ -169,7 +170,7 @@ class IQ_CH2(ParameterWithSetpoints):
 
 
 
-class ADC(ParameterWithSetpoints):
+class ADC(Parameter):
 
     def __init__(self, channel, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -718,11 +719,12 @@ class Redpitaya(VisaInstrument):
         t = 0 
         nb_measure = self.nb_measure()
         mode = self.mode_output()
+        N_single_trace = int(round(self.stop_ADC()/8e-9))-int(round(self.start_ADC()/8e-9))
         #print(1,t)
         # print(nb_measure, 'traces.', 'Mode:',mode)
         self.format_output('ASCII')
         self.status('start')
-        time.sleep(0.5) # Timer to change if no time to start ; changed from 2
+        time.sleep(0.2) # Timer to change if no time to start ; changed from 2
         signal = np.array([], dtype ='int32')
         t0 = time.time()
 
@@ -734,7 +736,7 @@ class Redpitaya(VisaInstrument):
                 #rep = self.data_output_raw()
                 if rep[1] == '}':
                     print('Warning: fast polling')
-                elif rep[1] != '0' or len(rep)<=2:
+                elif rep[1] != '0' or len(rep)<=2:  
                     print ('Memory problem %s' %rep[1])
                     #print(2,t)
                     #time.sleep(0.2)
@@ -744,7 +746,7 @@ class Redpitaya(VisaInstrument):
                     self.status('start')
                 else: 
                     # signal.append( rep[3:-1] + ',')
-                    rep = eval( '[' + rep[3:-1] + ']' )
+                    rep = eval( '[' + rep[3:-1] + ']' ) ### it creates an array of the data removing just the first one
                     signal = np.concatenate((signal,rep))
                     tick = np.bitwise_and(rep,3) # extraction du debut de l'aquisition: LSB = 3
                     t += len(np.where(tick[1:] - tick[:-1])[0])+1 # idex of the tick   
@@ -762,8 +764,15 @@ class Redpitaya(VisaInstrument):
         #time.sleep(1)
         #print(mode)
         if t > nb_measure: 
+            #print(t, nb_measure)
+            #print(tick)
             jump_tick = np.where(tick[1:] - tick[:-1])[0]
-            len_data_block = jump_tick[1] - jump_tick[0]
+            #print(jump_tick)
+            if len(jump_tick)==1:
+                len_data_block = jump_tick[0]+1
+            else:
+                len_data_block = jump_tick[1] - jump_tick[0]
+
             signal = signal[:nb_measure*len_data_block]
             
         if (mode == 'ADC' or mode == 'IQCH1' or mode == 'IQCH2'):
@@ -772,10 +781,10 @@ class Redpitaya(VisaInstrument):
             data_2 = signal[1::2]/(4*8192.)
             return data_1, data_2
         else: # mode IQint and IQLP1
-            ICH1 = signal[::4]/(4*8192.)/(self.length_time()/self.nb_measure()) # it staRT FROM 0 AND TAKE A POINT EVERY 4
-            QCH1 = signal[1::4]/(4*8192.)/(self.length_time()/self.nb_measure()) # it staART FROM 1 AND TAKE A POINT EVERY 4
-            ICH2 = signal[2::4]/(4*8192.)/(self.length_time()/self.nb_measure())
-            QCH2 = signal[3::4]/(4*8192.)/(self.length_time()/self.nb_measure())
+            ICH1 = signal[::4]/(4*8192.)/N_single_trace#(self.length_time()/self.nb_measure()) # it staRT FROM 0 AND TAKE A POINT EVERY 4 
+            QCH1 = signal[1::4]/(4*8192.)/N_single_trace#(self.length_time()/self.nb_measure()) # it staART FROM 1 AND TAKE A POINT EVERY 4
+            ICH2 = signal[2::4]/(4*8192.)/N_single_trace#(self.length_time()/self.nb_measure())
+            QCH2 = signal[3::4]/(4*8192.)/N_single_trace#(self.length_time()/self.nb_measure())
             return ICH1, QCH1, ICH2, QCH2
             
     def get_single_pulse(self):
