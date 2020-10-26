@@ -101,7 +101,7 @@ class SMB100A(VisaInstrument):
 
 		self.add_parameter( name = 'dwell_time',  
 							label = 'Sweep: dwell time',
-							vals = vals.Numbers(100e3,20e9),
+							vals = vals.Numbers(1e-3,1000),
 							unit   = 's',
 							set_cmd='SWE:DWEL ' + '{:.12f}' + 's',
 							get_cmd='SWE:DWEL?'
@@ -110,8 +110,19 @@ class SMB100A(VisaInstrument):
 		self.add_parameter( name = 'freqsweep',  
 							label = 'Enable/disable frequency sweep',
 							vals = vals.Enum('on','off'),
-							set_cmd='SWE:DWEL ' + '{:.12f}' + 's',
-							get_cmd='SWE:DWEL?'
+							set_cmd='SOURce:FREQuency:MODE ',
+							get_cmd='SWE:RUNN?',
+							set_parser =self.freqsweep_set,
+							get_parser=self.freqsweep_get
+							)
+
+		self.add_parameter( name = 'sweepmode',  
+							label = 'Set frequency sweep mode',
+							vals = vals.Enum('on','off'),
+							set_cmd='SOURce:FREQuency:MODE ',
+							get_cmd='SWE:RUNN?',
+							set_parser =self.freqsweep_set,
+							get_parser=self.freqsweep_get
 							)
 
 		# good idea to call connect_message at the end of your constructor.
@@ -146,3 +157,17 @@ class SMB100A(VisaInstrument):
 		if power>16:
 			log.Warning('Power over range (limit to 16 dBm).')
 		return power
+
+	def freqsweep_set(self,sweep_status):
+		if sweep_status == 'on':
+			ret = 'SWEep'
+		else:
+			ret = 'CW'
+		return ret
+
+	def freqsweep_get(self,sweep_status):
+		if sweep_status == 0:
+			ret = 'off'
+		else:
+			ret = 'on'
+		return ret
