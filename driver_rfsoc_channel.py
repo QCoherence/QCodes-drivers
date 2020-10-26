@@ -14,6 +14,53 @@ from qcodes.utils.delaykeyboardinterrupt import DelayedKeyboardInterrupt
 import struct
 
 
+class AcqChannel(InstrumentChannel):
+
+    #initializing the array storing channel instances
+    objs = []
+
+    def __init__(self, parent: 'RFSoC', name: str, channel: int):
+
+        """
+        Args:
+            parent: Instrument that this channel is bound to.
+            name: Name to use for this channel.
+            channel: channel on the card to use
+        """
+        if channel not in np.arange(1,9):
+            raise ValueError('channel number must be in between 1 and 8')
+
+        self._adc_channel = channel
+
+        super().__init__(parent, name)
+
+        AcqChannel.objs.append(self)
+
+        self.add_parameter(name='status',
+                           label = 'ADC{} status'.format(self._adc_channel),
+                           set_cmd='ADC:ADC{} {}'.format(self._adc_channel,'{:d}'),
+                           val_mapping={'on': 1, 'off': 0}
+                           )
+
+        #TODO : add allowed values of decimation and mixer frea
+        self.add_parameter(name='decfact',
+                           label='ADC{} decimation factor'.format(self._adc_channel),
+                           #the decimation works by tiles of two adcs
+                           set_cmd='ADC:TILE{}:DECFACTOR {}'.format((self._adc_channel-1)//2,'{:d}')
+                           )
+
+        self.add_parameter(name='fmixer',
+                           label = 'ADC{} mixer frequency'.format(self._adc_channel),
+                           set_cmd='ADC:ADC{}:MIXER {}'.format(self._adc_channel,'{:.4f}')
+                           )
+
+        self.add_parameter(name='mode',
+                           label='ADC{} acquisition mode'.format(self._adc_channel),
+                           vals = vals.Enum('RAW','SUM'),)
+
+
+
+
 class RFSoC(VisaInstrument):
 
     # all instrument constructors should accept **kwargs and pass them on to
@@ -23,10 +70,18 @@ class RFSoC(VisaInstrument):
         # response
         super().__init__(name, address, terminator='\r\n', **kwargs)
 
+        #Add the channel to the instrument
+        for adc_num in np.arange(1,9):
+
+            adc_name='ADC{}'.format(adc_num)
+            adc=AcqChannel(self,adc_name,adc_num)
+            self.add_submodule(adc_name, adc)
+
 
         self.add_parameter('nb_measure',
                             set_cmd='{}',
-                            get_parser=int,)
+                            get_parser=int,
+                            initial_value = int(1))
 
         self.add_parameter( name = 'output_format', 
                             #Format(string) : 'BIN' or 'ASCII' 
@@ -107,7 +162,7 @@ class RFSoC(VisaInstrument):
 
     	self.write("DAC:RELAY:ALL 0")
     	self.write("PLLINIT")
-    	self.sleep(5)
+    	time.sleep(5)
     	self.write("DAC:RELAY:ALL 1")
 
     def reset_output_data(self):
@@ -115,6 +170,8 @@ class RFSoC(VisaInstrument):
     	self.ask('OUTPUT:DATA?')
 
     def run_and_get_data(self):
+
+        rep=self.ask("OUTPUT:DATA?")
 
         tstart = time.perf_counter()
         tick = 0.1

@@ -152,7 +152,9 @@ class Pulse:
 
 		#TODO figure out the bus error when removing the 1 2500000000
 
-		return scpi_str+',1,2500000000'
+		seq = scpi_str+',1,2500000000'
+		print(seq)
+		return seq
 
 
 class PulseGeneration(Pulse):
@@ -296,10 +298,15 @@ class PulseReadout(Pulse):
 	'''
 	objs=[]
 
-	def __init__(self,t_init, t_duration, channel, parent=None):
+	def __init__(self,t_init, t_duration, channel, mode, parent=None):
 
 		super().__init__(t_init, t_duration, channel, parent)
 		PulseReadout.objs.append(self)
+
+		if mode not in ['RAW','SUM']:
+			raise ValueError('ADC mode must be either "RAW" or "SUM"')
+		else:
+			PulseReadout.mode=mode
 
 	def __repr__(self):
 

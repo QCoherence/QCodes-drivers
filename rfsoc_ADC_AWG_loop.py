@@ -5,7 +5,7 @@ from numpy.fft import fft
 import matplotlib.pyplot as plt
 import struct
 import math
-import DAC_memory_test as mem
+
 #
 # fileseq= open(r"E:\rfSoc_Set\test_1.scpi","r+")
 # fileseq= open(r"E:\rfSoc_Set\adc1_cont.scpi","r+")
@@ -46,7 +46,7 @@ elif dec_factor is not 1:
 
 ADCs=[2]
 DACs=[]
-ctrl_dac_adc=mem.ADC_DAC_status(DACs,ADCs)
+ctrl_dac_adc=33554432
 
 N_acq=int((chunck_duration)/0.5e-9)
 
@@ -63,8 +63,12 @@ print("********************************************************************")
 
 # print(ctrl_dac_adc)
 
-#mode brute ADC2
-seq="SEQ 0,1,10,4106,"+str(accum)+",4115,"+str(N_acq)+",4096,"+str(ctrl_dac_adc)+",1,"+str(N_wait)+",3,3"
+#IQ demod ADC2 finite loop
+seq="SEQ 0,1,10,4106,"+str(accum)+",4115,"+str(N_acq)+",257,40,4096,"+str(ctrl_dac_adc)+",1,"+str(N_wait)+",513,0"
+
+#IQ demod infinite sequence loop
+# seq="SEQ 0,1,10,4106,"+str(accum)+",4115,"+str(N_acq)+",4096,"+str(ctrl_dac_adc)+",1,"+str(N_wait)+",3,3"
+
 print(seq)
 rfsoc.write(seq)
 
@@ -76,7 +80,7 @@ rep = rfsoc.query_binary_values('OUTPUT:DATA?', datatype="h", is_big_endian=True
 
 tstart = time.perf_counter()
 tick = 0.0
-duree = 0.1
+duree = 2
 rep=[]
 
 rfsoc.write("ADC:ADC2 1")

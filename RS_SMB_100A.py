@@ -7,8 +7,14 @@ from qcodes import (Instrument, VisaInstrument,
 					ManualParameter, MultiParameter,
 					validators as vals)
 from qcodes.instrument.channel import InstrumentChannel
+import logging
 
 from numpy import pi
+
+log = logging.getLogger(__name__)
+
+
+
 
 
 
@@ -61,6 +67,53 @@ class SMB100A(VisaInstrument):
 							get_parser=self.easy_read_status_read
 							)
 
+		self.add_parameter( name = 'freq_start',  
+							label = 'Sweep: start frequency in Hz',
+							vals = vals.Numbers(100e3,20e9),
+							unit   = 'Hz',
+							set_cmd='FREQ:START ' + '{:.12f}' + 'Hz',
+							get_cmd='FREQ:START?'
+							)
+
+		self.add_parameter( name = 'freq_stop',  
+							label = 'Sweep: stop frequency in Hz',
+							vals = vals.Numbers(100e3,20e9),
+							unit   = 'Hz',
+							set_cmd='FREQ:STOP ' + '{:.12f}' + 'Hz',
+							get_cmd='FREQ:STOP?'
+							)
+
+		self.add_parameter( name = 'freq_step',  
+							label = 'Sweep: frequency step',
+							vals = vals.Numbers(100e3,20e9),
+							unit   = 'Hz',
+							set_cmd='SWE:STEP ' + '{:.12f}' + 'Hz',
+							get_cmd='SWE:STEP?'
+							)
+
+		self.add_parameter( name = 'freq_points',  
+							label = 'Sweep: frequency points',
+							vals = vals.Numbers(100e3,20e9),
+							unit   = 'Hz',
+							set_cmd='SWE:POIN ' + '{:.12f}',
+							get_cmd='SWE:POIN?'
+							)
+
+		self.add_parameter( name = 'dwell_time',  
+							label = 'Sweep: dwell time',
+							vals = vals.Numbers(100e3,20e9),
+							unit   = 's',
+							set_cmd='SWE:DWEL ' + '{:.12f}' + 's',
+							get_cmd='SWE:DWEL?'
+							)
+
+		self.add_parameter( name = 'freqsweep',  
+							label = 'Enable/disable frequency sweep',
+							vals = vals.Enum('on','off'),
+							set_cmd='SWE:DWEL ' + '{:.12f}' + 's',
+							get_cmd='SWE:DWEL?'
+							)
+
 		# good idea to call connect_message at the end of your constructor.
 		# this calls the 'IDN' parameter that the base Instrument class creates 
 		# for every instrument  which serves two purposes:
@@ -91,5 +144,5 @@ class SMB100A(VisaInstrument):
 
 	def warn_over_range(self, power):
 		if power>16:
-			print('### Warning: Power over range (limit to 16 dBm).')
+			log.Warning('Power over range (limit to 16 dBm).')
 		return power
