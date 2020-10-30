@@ -6,13 +6,33 @@ from qcodes import VisaInstrument
 from qcodes import ChannelList, InstrumentChannel
 from qcodes.utils import validators as vals
 import numpy as np
-from qcodes import MultiParameter, ArrayParameter
+from qcodes import MultiParameter, ArrayParameter, ManualParameter
+from qcodes.instrument.parameter import ParameterWithSetpoints, Parameter
+from qcodes.utils.validators import Numbers, Arrays
 
 import time
 
 log = logging.getLogger(__name__)
 
-#
+
+
+
+
+class GeneratedSetPoints(Parameter):
+    """
+    A parameter that generates a setpoint array from start, stop and num points
+    parameters.
+    """
+    def __init__(self, startparam, stopparam, numpointsparam, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._startparam = startparam
+        self._stopparam = stopparam
+        self._numpointsparam = numpointsparam
+
+    def get_raw(self):
+        return np.linspace(self._startparam(), self._stopparam(),
+                              self._numpointsparam())
+
 class FrequencySweepMagPhase(MultiParameter):
 	"""
 	Sweep that return magnitude and phase.
@@ -50,34 +70,15 @@ class FrequencySweepMagPhase(MultiParameter):
 		return 20.*np.log10(abs(real + 1j*imag)), np.angle(real + 1j*imag)
 		# return abs(data), np.angle(data)
 
-class CWPhase(ArrayParameter):
+class CWPhase(ParameterWithSetpoints):
 	"""
 	Sweep that returns phase(for CW mode, with set delay).
 	"""
 
-	def __init__(self, name, instrument, start, stop, npts_cw, channel):
-		super().__init__(name, shape=(npts_cw,))
-		self._instrument = instrument
-		# self.set_sweep(start, stop, npts_cw)
-		self._channel = channel
-		self.names = ('phase')
-		self.labels = ('{} phase'.format(instrument.short_name))
-		self.units = ('deg')
-	# 	self.setpoint_units = (('Hz',))
-	# 	self.setpoint_labels = (('{} frequency'.format(instrument.short_name),))
-	# 	self.setpoint_names = (('{}_frequency'.format(instrument.short_name),))
-
-	# def set_sweep(self, start, stop, npts_cw):
-	# 	#  needed to update config of the software parameter on sweep change
-	# 	# freq setpoints tuple as needs to be hashable for look up
-	# 	f = tuple(np.linspace(int(start), int(stop), num=npts_cw))
-	# 	self.setpoints = (f,)
-	# 	self.shapes = (npts_cw,)
-
 	def get_raw(self):
 		old_format = self._instrument.format()
 		self._instrument.format('Phase')
-		data = self._instrument._get_sweep_data()
+		data = self._instrument._get_sweep_data_CW()
 		self._instrument.format(old_format)
 		return data
 
@@ -312,12 +313,27 @@ class AnritsuChannel(InstrumentChannel):
 							# set_perser = int,
 							# vals = vals.Numbers(1, 20001) )
 
+		self.add_parameter( name = 'f_start_CW',
+							label = 'Start frequency for CW mode spectroscopy',
+							parameter_class=ManualParameter)
+
+		self.add_parameter( name = 'f_stop_CW',
+							label = 'Stop frequency for CW mode spectroscopy',
+							parameter_class=ManualParameter)
+
+		self.add_parameter('freq_axis_CW',
+							unit='Hz',
+							label='Freq Axis for CW mode spectroscopy',
+							parameter_class=GeneratedSetPoints,
+							startparam=self.f_start_CW,
+							stopparam=self.f_stop_CW,
+							numpointsparam=self.npts_cw,
+							vals=Arrays(shape=(self.npts_cw.get_latest,)))
+
 		self.add_parameter(name='trace_CWphase',
-						   start=self.start(),
-						   stop=self.stop(),
-						   npts_cw=self.npts_cw(),
-						   channel=n,
-						   parameter_class=CWPhase)
+						   setpoints=(self.freq_axis_CW,),
+						   parameter_class=CWPhase,
+						   vals=Arrays(shape=(self.npts_cw.get_latest,)))
 
 	def _get_format(self, tracename):
 		n = self._instrument_channel
@@ -489,8 +505,6 @@ class AnritsuChannel(InstrumentChannel):
 										 datatype='d', is_big_endian=False, container=np.array
 										 )
 
-			#
-
 
 
 			# data_str = self.ask(
@@ -514,6 +528,30 @@ class AnritsuChannel(InstrumentChannel):
 		finally:
 			self._parent.cont_meas_on()
 			#self.status(initial_state)
+		return data
+
+	def _get_sweep_data_CW(self):
+
+		instrument_parameter = self.vna_parameter()
+		root_instr = self.root_instrument
+		if instrument_parameter != self._vna_parameter:
+			raise RuntimeError("Invalid parameter. Tried to measure "
+							   "{} got {}".format(self._vna_parameter,
+												  instrument_parameter))
+
+		try:
+
+			data_format_command = 'FDAT'
+
+			data = root_instr.visa_handle.query_binary_values('CALC{}:DATA:{}?'.format(self._instrument_channel,
+										 data_format_command),
+										 datatype='d', is_big_endian=False, container=np.array
+										 )
+
+		finally:
+
+			pass
+
 		return data
 
 

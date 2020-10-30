@@ -93,7 +93,7 @@ class SMB100A(VisaInstrument):
 
 		self.add_parameter( name = 'freq_points',  
 							label = 'Sweep: frequency points',
-							vals = vals.Numbers(100e3,20e9),
+							vals = vals.Numbers(2,20e9),
 							unit   = 'Hz',
 							set_cmd='SWE:POIN ' + '{:.12f}',
 							get_cmd='SWE:POIN?'
@@ -101,28 +101,28 @@ class SMB100A(VisaInstrument):
 
 		self.add_parameter( name = 'dwell_time',  
 							label = 'Sweep: dwell time',
-							vals = vals.Numbers(1e-3,1000),
+							vals = vals.Numbers(5e-3,1000),
 							unit   = 's',
 							set_cmd='SWE:DWEL ' + '{:.12f}' + 's',
 							get_cmd='SWE:DWEL?'
 							)
 
-		self.add_parameter( name = 'freqsweep',  
-							label = 'Enable/disable frequency sweep',
-							vals = vals.Enum('on','off'),
-							set_cmd='SOURce:FREQuency:MODE ',
-							get_cmd='SWE:RUNN?',
+		self.add_parameter( name = 'sourcemode',  
+							label = 'Set source mode',
+							vals = vals.Enum('CW','sweep'),
+							set_cmd='SOURce:FREQuency:MODE '+ '{}',
+							get_cmd='SOURce:FREQuency:MODE?',
 							set_parser =self.freqsweep_set,
 							get_parser=self.freqsweep_get
 							)
 
 		self.add_parameter( name = 'sweepmode',  
 							label = 'Set frequency sweep mode',
-							vals = vals.Enum('on','off'),
-							set_cmd='SOURce:FREQuency:MODE ',
-							get_cmd='SWE:RUNN?',
-							set_parser =self.freqsweep_set,
-							get_parser=self.freqsweep_get
+							vals = vals.Enum('auto','single'),
+							set_cmd='TRIG:FSW:SOUR '+ '{}',
+							get_cmd='TRIG:FSW:SOUR?',
+							set_parser =self.sweepmode_set,
+							get_parser=self.sweepmode_get
 							)
 
 		# good idea to call connect_message at the end of your constructor.
@@ -159,15 +159,32 @@ class SMB100A(VisaInstrument):
 		return power
 
 	def freqsweep_set(self,sweep_status):
-		if sweep_status == 'on':
+		if sweep_status == 'sweep':
 			ret = 'SWEep'
 		else:
 			ret = 'CW'
 		return ret
 
 	def freqsweep_get(self,sweep_status):
-		if sweep_status == 0:
-			ret = 'off'
+		if sweep_status == 'CW':
+			ret = 'CW'
 		else:
-			ret = 'on'
+			ret = 'sweep'
 		return ret
+
+	def sweepmode_set(self,sweepmode):
+		if sweepmode == 'auto':
+			ret = 'AUTO'
+		else:
+			ret = 'SING'
+		return ret
+
+	def sweepmode_get(self,sweepmode):
+		if sweepmode == 'AUTO':
+			ret = 'auto'
+		else:
+			ret = 'single'
+		return ret
+
+	def start_sweep(self):
+		self.write('*TRG')
