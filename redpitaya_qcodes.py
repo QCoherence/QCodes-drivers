@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 # This is a Qcodes driver for Redpitaya card SCPI IQ server 
 # written by Martina Esposito and Arpit Ranadive, 2019/2020
-# last modifications have been made by Vincent Jouanny (M2 intern) in Arpril-May 2020
-# This driver is a Qcodes version of the qtlab driver 'redpitaya_qtlab.py' written by Sebastian
 #
 
 from time import sleep
@@ -59,6 +57,23 @@ class IQ_INT(ParameterWithSetpoints):
         return data_ret
 
 
+class IQ_INT_all(Parameter):
+
+    def __init__(self, channel, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._channel = channel
+
+    def get_raw(self):
+        #time.sleep(0.2) ### test
+        data = self._instrument.get_data()
+        data_ret_I1 = np.array([data[0]])
+        data_ret_Q1 = np.array([data[1]])
+        data_ret_I2 = np.array([data[2]])
+        data_ret_Q2 = np.array([data[3]])
+        data_ret = np.concatenate((data_ret_I1,data_ret_Q1,data_ret_I2,data_ret_Q2)).T
+        return data_ret
+
+
 class IQ_INT_AVG(Parameter):
 
     def __init__(self, channel, *args, **kwargs):
@@ -77,6 +92,43 @@ class IQ_INT_AVG(Parameter):
         else:
             data_ret = np.mean(data[3])
         return data_ret
+
+
+
+class IQ_INT_AVG_all(Parameter):
+
+    def __init__(self, channel, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._channel = channel
+
+    def get_raw(self):
+        time.sleep(0.2)
+        data = self._instrument.get_data()
+        data_ret_I1 = np.mean(data[0])
+        data_ret_Q1 = np.mean(data[1])
+        data_ret_I2 = np.mean(data[2])
+        data_ret_Q2 = np.mean(data[3])
+        return [data_ret_I1,data_ret_Q1,data_ret_I2,data_ret_Q2]
+
+
+
+class ADC_power(ParameterWithSetpoints):
+
+    def __init__(self, channel, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._channel = channel
+
+    def get_raw(self):
+        time.sleep(0.2)
+        data = self._instrument.get_data()
+        # data_ret_I1 = (np.mean(data[0]**2)-np.mean(data[0])**2)/50
+        # data_ret_Q1 = (np.mean(data[1]**2)-np.mean(data[1])**2)/50
+        # data_ret_I2 = (np.mean(data[2]**2)-np.mean(data[2])**2)/50
+        # data_ret_Q2 = (np.mean(data[3]**2)-np.mean(data[3])**2)/50
+        A_1 = (np.mean(data[0]**2 + data[1]**2))/50
+        A_2 = (np.mean(data[2]**2 + data[3]**2))/50
+        #data_ret_I1+data_ret_Q1,data_ret_I2+data_ret_Q2,
+        return np.array([ A_1, A_2])
 
 
 
@@ -118,7 +170,7 @@ class IQ_CH2(ParameterWithSetpoints):
 
 
 
-class ADC(ParameterWithSetpoints):
+class ADC(Parameter):
 
     def __init__(self, channel, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -150,6 +202,8 @@ class Redpitaya(VisaInstrument):
         super().__init__(name, address, terminator='\r\n', **kwargs)
 
         self.dummy_array_size_1 = 0
+        self.dummy_array_size_2 = 2
+        self.dummy_array_size_4 = 4
         
         
         self.add_parameter( name = 'freq_filter',  
@@ -284,7 +338,18 @@ class Redpitaya(VisaInstrument):
                             startparam = self.pulse_zero,
                             stopparam=self.nb_measure,
                             numpointsparam=self.nb_measure,
+                            snapshot_value = False,
                             vals=Arrays(shape=(self.nb_measure.get_latest,)))
+
+        self.add_parameter('channel_axis',
+                            unit = 'channel index',
+                            label = 'Channel index axis for ADC power mode',
+                            parameter_class = GeneratedSetPoints,
+                            startparam = self.int_0,
+                            stopparam = self.int_2,
+                            numpointsparam = self.int_2,
+                            snapshot_value = False,
+                            vals=Arrays(shape=(self.dummy_array_size_2,)))
 
 
         self.add_parameter('time_axis',
@@ -294,6 +359,7 @@ class Redpitaya(VisaInstrument):
                             startparam=self.pulse_zero,
                             stopparam=self.length_time,#*8*1e-9,
                             numpointsparam=self.length_time,
+                            snapshot_value = False,
                             vals=Arrays(shape=(self.length_time.get_latest,)))#Maybe change the name to something understandable
 
         
@@ -385,6 +451,13 @@ class Redpitaya(VisaInstrument):
                             parameter_class=IQ_INT,
                             vals=Arrays(shape=(self.nb_measure.get_latest,)))
 
+        self.add_parameter('IQ_INT_all',
+                            unit='V',
+                            label='Integrated I Q for both ADC',
+                            channel='all_IQ',
+                            parameter_class=IQ_INT_all,
+                            vals=Arrays(shape=(tuple([self.nb_measure.get_latest,self.dummy_array_size_4]),)))
+
         ###########################We perform the average over the number of repeated traces
 
         self.add_parameter('I1_INT_AVG',
@@ -419,6 +492,23 @@ class Redpitaya(VisaInstrument):
                             parameter_class=IQ_INT_AVG,
                             #snapshot_get  = False,
                             vals=Arrays(shape=(self.dummy_array_size_1,)))
+
+        self.add_parameter('IQ_INT_AVG_all',
+                            unit='V',
+                            label='Integrated averaged I Q for both ADC',
+                            channel='all_IQ',
+                            parameter_class=IQ_INT_AVG_all,
+                            #snapshot_get  = False,
+                            vals=Arrays(shape=(self.dummy_array_size_4,)))
+
+        self.add_parameter('ADC_power',
+                            unit='W',
+                            setpoints=(self.channel_axis,),
+                            label='Integrated averaged power at both ADC',
+                            channel='SpectrumAnalyzer',
+                            parameter_class=ADC_power,
+                            #snapshot_get  = False,
+                            vals=Arrays(shape=(self.dummy_array_size_2,)))
 
         #It's a useful parameter to check the "ERR!" type errors.
         self.add_parameter('RESET',
@@ -629,21 +719,24 @@ class Redpitaya(VisaInstrument):
         t = 0 
         nb_measure = self.nb_measure()
         mode = self.mode_output()
+        N_single_trace = int(round(self.stop_ADC()/8e-9))-int(round(self.start_ADC()/8e-9))
         #print(1,t)
         # print(nb_measure, 'traces.', 'Mode:',mode)
         self.format_output('ASCII')
         self.status('start')
-        time.sleep(0.5) # Timer to change if no time to start ; changed from 2
+        time.sleep(0.2) # Timer to change if no time to start ; changed from 2
         signal = np.array([], dtype ='int32')
         t0 = time.time()
 
         while t < nb_measure:
             try:
-                time.sleep(0.2)
+                # time.sleep(0.0) ***testing
                 rep = self.ask('OUTPUT:DATA?')
                 #print(rep)
                 #rep = self.data_output_raw()
-                if rep[1] != '0' or len(rep)<=2:
+                if rep[1] == '}':
+                    print('Warning: fast polling')
+                elif rep[1] != '0' or len(rep)<=2:  
                     print ('Memory problem %s' %rep[1])
                     #print(2,t)
                     #time.sleep(0.2)
@@ -653,7 +746,7 @@ class Redpitaya(VisaInstrument):
                     self.status('start')
                 else: 
                     # signal.append( rep[3:-1] + ',')
-                    rep = eval( '[' + rep[3:-1] + ']' )
+                    rep = eval( '[' + rep[3:-1] + ']' ) ### it creates an array of the data removing just the first one
                     signal = np.concatenate((signal,rep))
                     tick = np.bitwise_and(rep,3) # extraction du debut de l'aquisition: LSB = 3
                     t += len(np.where(tick[1:] - tick[:-1])[0])+1 # idex of the tick   
@@ -663,14 +756,23 @@ class Redpitaya(VisaInstrument):
                     t0 = t1
             except: 
                 t=t
+        time.sleep(0.1)
         self.status('stop')
         #time.sleep(1)
+        time.sleep(0.1)
         trash = self.ask('OUTPUT:DATA?')
         #time.sleep(1)
         #print(mode)
         if t > nb_measure: 
+            #print(t, nb_measure)
+            #print(tick)
             jump_tick = np.where(tick[1:] - tick[:-1])[0]
-            len_data_block = jump_tick[1] - jump_tick[0]
+            #print(jump_tick)
+            if len(jump_tick)==1:
+                len_data_block = jump_tick[0]+1
+            else:
+                len_data_block = jump_tick[1] - jump_tick[0]
+
             signal = signal[:nb_measure*len_data_block]
             
         if (mode == 'ADC' or mode == 'IQCH1' or mode == 'IQCH2'):
@@ -678,11 +780,11 @@ class Redpitaya(VisaInstrument):
             data_1 = signal[::2]/(4*8192.)
             data_2 = signal[1::2]/(4*8192.)
             return data_1, data_2
-        else: 
-            ICH1 = signal[::4]/(4*8192.)/(self.length_time()/self.nb_measure())
-            QCH1 = signal[1::4]/(4*8192.)/(self.length_time()/self.nb_measure())
-            ICH2 = signal[2::4]/(4*8192.)/(self.length_time()/self.nb_measure())
-            QCH2 = signal[3::4]/(4*8192.)/(self.length_time()/self.nb_measure())
+        else: # mode IQint and IQLP1
+            ICH1 = signal[::4]/(4*8192.)/N_single_trace#(self.length_time()/self.nb_measure()) # it staRT FROM 0 AND TAKE A POINT EVERY 4 
+            QCH1 = signal[1::4]/(4*8192.)/N_single_trace#(self.length_time()/self.nb_measure()) # it staART FROM 1 AND TAKE A POINT EVERY 4
+            ICH2 = signal[2::4]/(4*8192.)/N_single_trace#(self.length_time()/self.nb_measure())
+            QCH2 = signal[3::4]/(4*8192.)/N_single_trace#(self.length_time()/self.nb_measure())
             return ICH1, QCH1, ICH2, QCH2
             
     def get_single_pulse(self):
@@ -767,6 +869,15 @@ class Redpitaya(VisaInstrument):
             QCH2 = signal[3::4][:nb_measure]/(4*8192.)
             return ICH1, QCH1, ICH2, QCH2     
     
+
+
+
+
+    def int_0(self):
+        return 0
+
+    def int_2(self):
+        return 2
 
 
 

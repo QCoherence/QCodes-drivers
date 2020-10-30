@@ -3,7 +3,7 @@ import sys
 
 import serial
 import time
-ser = serial.Serial('COM4', 9600, timeout=2)
+ser = serial.Serial('COM5', 9600, timeout=2)
 
 def serial_write(num):
 	# print('num is:',num)
@@ -27,7 +27,7 @@ server_address = ('localhost', 10000)
 header='\n\n\n'
 header+='############################################\n'
 header+='#                                          #\n'
-header+='#       TCP server for arduino @ COM4      #\n'
+header+='#       TCP server for arduino @ COM5      #\n'
 header+='#                                          #\n'
 header+='############################################\n'
 header+='\n\n\n'

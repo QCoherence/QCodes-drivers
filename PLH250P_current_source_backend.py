@@ -10,7 +10,7 @@ from qcodes import (Instrument, VisaInstrument,
 from qcodes.instrument.channel import InstrumentChannel
 
 # from Arduino import serial_write
-from Serial_TCP_client_functions import serial_write
+from Serial_TCP_client_functions import serial_write,TCP_pi_write
 
 oldstate = 'off'
 
@@ -143,13 +143,15 @@ def setstate(newstate):
 	global oldstate,ser
 	if newstate != oldstate:
 		if newstate=='neg':
-			serial_write(2)
+			TCP_pi_write(2)
+			# serial_write(2)
 			oldstate='neg'
 		if newstate=='pos':
-			serial_write(1)
+			TCP_pi_write(1)
+			# serial_write(1)
 			oldstate='pos'
 	if newstate=='off':
-		serial_write(0)
+		TCP_pi_write(0)
 		oldstate='off'
 
 
