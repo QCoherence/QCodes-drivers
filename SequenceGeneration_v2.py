@@ -254,13 +254,14 @@ class PulseGeneration(Pulse):
 	'''
 	objs=[]
 
-	def __init__(self, t_init, t_duration, channel, wform, params, CW_mode=False, parent=None):
+	def __init__(self, t_init, t_duration, channel, wform, params, CW_mode=False, DC_offset=0, parent=None):
 
 		super().__init__(t_init, t_duration, channel, parent)
 		PulseGeneration.objs.append(self)
 		self.wform = wform
 		self.params = params
 		self.CW_mode = CW_mode
+		self.DC_offset = DC_offset
 
 	#overwritting the __repr__ native method for nice display of the object
 	def __repr__(self):
@@ -301,7 +302,7 @@ class PulseGeneration(Pulse):
 			n_oscillation = freq*self.t_duration
 			t = np.linspace(0, 2 * np.pi,N_point)
 
-			table=DAC_amplitude*np.concatenate((np.sin(n_oscillation*t),np.zeros(N_point%8)))
+			table = (self.DC_offset* 8192/0.926) + DAC_amplitude*np.concatenate((np.sin(n_oscillation*t),np.zeros(N_point%8)))
 			# print(table)
 			# adding zeros at the end so that N_point_tot is dividable by 8
 			# because the table is to be divided in chunks of 8 values
