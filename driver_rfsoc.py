@@ -176,6 +176,9 @@ class RFSoC(VisaInstrument):
         # response
         super().__init__(name, address, terminator='\r\n', **kwargs)
 
+        # reset PLL
+        self.reset_PLL()
+
         #Add the channel to the instrument
         for adc_num in np.arange(1,9):
 
@@ -236,6 +239,12 @@ class RFSoC(VisaInstrument):
                            label='Reference frequency for all mixers',
                            set_cmd='{}',
                            get_parser=float)
+
+        # self.add_parameter(name = 'DC_offset',
+        #                     unit = 'V',
+        #                     label = 'DC offset list for all channels',
+        #                     get_parser = list,
+        #                     parameter_class = ManualParameter)
 
 
     def write_sequence_and_DAC_memory(self):
