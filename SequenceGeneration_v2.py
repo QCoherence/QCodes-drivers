@@ -96,7 +96,7 @@ class Pulse:
 		sorted_seq=np.array(cls.sort_and_groupby_timewise())
 		print(sorted_seq)
 
-		Tseq=max([p._t_abs + p.t_duration for  p in sorted_seq.flatten()])
+		Tseq=max([max([p[i]._t_abs + p[i].t_duration for i in range(len(p))]) for  p in sorted_seq])
 		
 		print('Tseq={}'.format(Tseq))
 
@@ -230,8 +230,8 @@ class Pulse:
 		if mix_freq!=0.:
 
 			N_mix=int(round(1./(4.e-9 * mix_freq*1e6)))
-			N_add +=(N_mix -  N_seq_loop % N_mix) 
-			N_seq_loop+=(N_mix -  N_seq_loop % N_mix) 
+			N_add +=(N_mix -  N_seq_loop % N_mix) + N_mix*100000
+			N_seq_loop+=(N_mix -  N_seq_loop % N_mix) + N_mix*100000
 
 		print('N_add={}'.format(N_add))
 
@@ -302,6 +302,79 @@ class PulseGeneration(Pulse):
 			t = np.linspace(0, 2 * np.pi,N_point)
 
 			table=DAC_amplitude*np.concatenate((np.sin(n_oscillation*t),np.zeros(N_point%8)))
+			# print(table)
+			# adding zeros at the end so that N_point_tot is dividable by 8
+			# because the table is to be divided in chunks of 8 values
+
+			#reshaping +andadding initialized values for trigger and repetition
+			#number
+
+			table=table.reshape(int(round(table.shape[0]/8.)),8)
+			memory_table=np.concatenate((table,np.zeros((table.shape[0],1)),np.zeros((table.shape[0],2))),axis=1)
+
+			# the triggers of one channel are stored in a tuple
+			# the tuple is composed of couples of string for the trigger val
+			# and float for the time at wich a trigger is set
+			# by default trigger is set to none and all trigger is set to 0
+
+			#TODO : made before coding the class. Maybe put the trigger as an
+			#       attribute of the PulseGeneration class.
+
+			#triggers not used or tested so far
+			if trigger is None:
+			    return memory_table.reshape((1,memory_table.shape[0]*memory_table.shape[1]))[0]
+
+			else :
+			    for trig in trigger :
+			        trig_name=trig[0]
+			        trig_time=trig[1]
+			        trig_row_index=int(round(trig_time/(0.5e-9 * 8)))
+
+			        if trig_name=='TRIG1':
+			            memory_table[trig_row_index,-1]=1.
+
+			        elif trig_name=='TRIG2':
+			            memory_table[trig_row_index,-2]=1.
+
+			        elif trig_name=='BOTH':
+			            memory_table[trig_row_index,-1]=1.
+			            memory_table[trig_row_index,-2]=1.
+
+			        else :
+			            raise ValueError('Wrong trigger value')
+
+			    return memory_table.reshape((1,memory_table.shape[0]*memory_table.shape[1]))[0]
+
+			#check waveform
+		if self.wform=='SIN+SIN':
+
+			freq1, amp1, freq2, amp2 = self.params
+
+			#size of the memory is 65536 and the time step of the DACS is 500 ps
+
+			#control parameters of the wform
+			#TODO : move those control to the init of the PulseGeneration object
+
+			if freq1 > 1./0.5e-9 or freq1 > 1./0.5e-9 or amp1 + amp2 > .926 or self.t_duration > 64.e-6:
+				raise ValueError('One of the parameters is not correct')
+
+			else :
+				if freq1 > 1./(4.*0.5e-9) or freq2 > 1./(4.*0.5e-9):
+				    print('Warning : bellow 4 points per period, the signal might be unstable.')
+
+			# DAC values are coded on signed 14 bits = +/- 8192
+			DAC_amp1 = amp1 * 8192/0.926
+			DAC_amp2 = amp2 * 8192/0.926
+
+			N_point = int(round(self.t_duration/0.5e-9))
+			n_oscillation1 = freq1*self.t_duration
+			n_oscillation2 = freq2*self.t_duration
+			t = np.linspace(0, 2 * np.pi,N_point)
+
+			table1=DAC_amp1*np.concatenate((np.sin(n_oscillation1*t),np.zeros(N_point%8)))
+			table2=DAC_amp2*np.concatenate((np.sin(n_oscillation2*t),np.zeros(N_point%8)))
+
+			table = table1 + table2
 			# print(table)
 			# adding zeros at the end so that N_point_tot is dividable by 8
 			# because the table is to be divided in chunks of 8 values

@@ -292,7 +292,12 @@ class RFSoC(VisaInstrument):
         '''
         will be used to organize the data saving
         '''
-        sorted_seq=np.array(sqg.Pulse.sort_and_groupby_timewise()).flatten()
+        sorted_seq=np.array(sqg.Pulse.sort_and_groupby_timewise())
+        
+        # sorted_seq=np.array(sqg.Pulse.sort_and_groupby_timewise()).flatten()
+        sorted_seq=np.concatenate( sorted_seq, axis=0 )
+        print('sorted_seq={}'.format(sorted_seq))
+
         mask=[type(p) is sqg.PulseReadout for p in sorted_seq]
 
         sorted_adcs=sorted_seq[mask]
@@ -352,14 +357,16 @@ class RFSoC(VisaInstrument):
 
         rep=[]
         count_meas=0
+        end_loop=0
 
         if mode=='SUM':
 
             self.write("SEQ:START")
-            time.sleep(0.1)
+           
 
-            while count_meas==0:
+            while end_loop==0:
 
+                time.sleep(1.)
                 r = self.ask('OUTPUT:DATA?')
 
                 if len(r)>1:
@@ -369,10 +376,13 @@ class RFSoC(VisaInstrument):
                     # count_meas+=len(r)//(16*N_adc_events)
 
 
-                elif r==[3338]:
+                # elif r==[3338]:
 
-                    # count_meas=nb_measure
-                    count_meas=1
+                #     # count_meas=nb_measure
+                #     end_loop=1
+
+                else:
+                    end_loop=1
 
         if mode=='RAW':
 
@@ -380,8 +390,8 @@ class RFSoC(VisaInstrument):
             time.sleep(0.1)
 
 
-            while count_meas==0:
-
+            while end_loop==0:
+                time.sleep(0.1)
                 r = self.ask('OUTPUT:DATA?')
 
                 if len(r)>1:
@@ -391,7 +401,7 @@ class RFSoC(VisaInstrument):
                     #TODO : figure a way to do it auto depending on the adcs ons and their modes
                     #now for 1 ADC in accum
                     # count_meas+=len(r)//16
-                    # count_meas+=len(r)//((8+N_acq))
+                    count_meas+=len(r)//((8+N_acq))
 
 
                 elif r==[3338]:
@@ -455,7 +465,8 @@ class RFSoC(VisaInstrument):
             mask[indices]=False
 
             res=rep[mask]
-
+            print('count_meas={}'.format(count_meas))
+            print('nb_measure={}'.format(nb_measure))
             print('len(res)={}'.format(len(res)))
 
             #format for unpacking
