@@ -45,11 +45,11 @@ class RAW(Parameter):
 
         dataI, dataQ = self._instrument._parent.get_single_readout_pulse()
 
-        print(self._channel)
+        # print(self._channel)
         if self._channel in np.arange(1,9):
             data_ret = dataI[self._channel-1]
         else:
-            print('Wrong parameter.')
+            # print('Wrong parameter.')
 
         return data_ret
 
@@ -78,12 +78,12 @@ class IQINT(Parameter):
 
         dataI, dataQ = self._instrument._parent.get_single_readout_pulse()
 
-        print(self._channel)
+        # print(self._channel)
         if self._channel in np.arange(1,9):
             data_retI = dataI[self._channel-1]
             data_retQ = dataQ[self._channel-1]
         else:
-            print('Wrong parameter.')
+            # print('Wrong parameter.')
 
         return data_retI, data_retQ
 
@@ -450,7 +450,7 @@ class RFSoC(VisaInstrument):
         
         # sorted_seq=np.array(sqg.Pulse.sort_and_groupby_timewise()).flatten()
         sorted_seq=np.concatenate( sorted_seq, axis=0 )
-        print('sorted_seq={}'.format(sorted_seq))
+        # print('sorted_seq={}'.format(sorted_seq))
 
         mask=[type(p) is sqg.PulseReadout for p in sorted_seq]
 
@@ -549,7 +549,7 @@ class RFSoC(VisaInstrument):
                 r = self.ask('OUTPUT:DATA?')
 
                 if len(r)>1:
-                    print(len(r))
+                    # print(len(r))
                     rep = rep+r
                     #to modify manually depending on what we
                     #TODO : figure a way to do it auto depending on the adcs ons and their modes
@@ -587,10 +587,10 @@ class RFSoC(VisaInstrument):
             mask = np.ones(len(rep), dtype=bool) #initialize array storing which items to keep
 
             starts = np.arange(0, len(rep), N_acq_single + 8)
-            # print(starts)
+            print(starts)
             indices=np.arange(8) + starts[:,np.newaxis] #indeces of headers datapoints
             indices=indices.flatten()
-            # print(indices)
+            print(indices)
             mask[indices]=False
 
             res=np.right_shift(rep[mask],4)*(2*0.3838e-3)
@@ -620,9 +620,9 @@ class RFSoC(VisaInstrument):
             mask[indices]=False
 
             res=rep[mask]
-            print('count_meas={}'.format(count_meas))
-            print('nb_measure={}'.format(nb_measure))
-            print('len(res)={}'.format(len(res)))
+            # print('count_meas={}'.format(count_meas))
+            # print('nb_measure={}'.format(nb_measure))
+            # print('len(res)={}'.format(len(res)))
 
             #format for unpacking
             fmt='q'*nb_measure
@@ -647,8 +647,8 @@ class RFSoC(VisaInstrument):
                 newI=res[maskI].astype('int16').tobytes()
                 newQ=res[maskQ].astype('int16').tobytes()
 
-                print('len(newI)={}'.format(len(newI)))
-                print('len(newQ)={}'.format(len(newQ)))
+                # print('len(newI)={}'.format(len(newI)))
+                # print('len(newQ)={}'.format(len(newQ)))
 
                 newI=np.array(struct.unpack(fmt,newI))*(2*0.3838e-3)/(N_acq_single*2*8)
                 newQ=np.array(struct.unpack(fmt,newQ))*(2*0.3838e-3)/(N_acq_single*2*8)
@@ -709,7 +709,7 @@ class RFSoC(VisaInstrument):
 
             N_acq=np.sum(np.sum(length_vec))
 
-            # print('N_acq={}'.format(N_acq))
+            print('N_acq={}'.format(N_acq))
 
             # 8 I and Q channels
             adcdataI = [[],[],[],[],[],[],[],[]]
@@ -747,13 +747,13 @@ class RFSoC(VisaInstrument):
                 self.write("SEQ:START")
                 time.sleep(0.1)
 
-                # print(self.nb_measure.get())
+                print(self.nb_measure.get())
                 while count_meas<self.nb_measure.get():
 
                     r = self.ask('OUTPUT:DATA?')
 
                     if len(r)>1:
-                        # print(len(r))
+                        print(len(r))
                         rep = rep+r
                         #to modify manually depending on what we
                         #TODO : figure a way to do it auto depending on the adcs ons and their modes
@@ -797,8 +797,8 @@ class RFSoC(VisaInstrument):
                 NpCont = X[7]*256 + X[6]
                 TS= struct.unpack('Q',X[8:16])[0]
 
-                # print the header for each packet
-                # print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
+                print the header for each packet
+                print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
 
                 TSMEM=TS
 
@@ -822,8 +822,8 @@ class RFSoC(VisaInstrument):
                         I=  struct.unpack('q',X[0:8])[0]*(0.3838e-3)/(N*2*4)
                         Q=  struct.unpack('q',X[8:16])[0]*(0.3838e-3)/(N*2*4)
 
-                        #print the point
-                        # print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
+                        print the point
+                        print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
 
                         adcdataI[V]=np.append(adcdataI[V], I)
                         adcdataQ[V]=np.append(adcdataQ[V], Q)
@@ -848,15 +848,15 @@ class RFSoC(VisaInstrument):
 
                 i = iStart+Np # index of the new data block, new header
 
-            # print("********************************************************************")
-            # print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
-            # print("********************************************************************")
+            print("********************************************************************")
+            print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
+            print("********************************************************************")
 
             #reshaping results
 
             if mode=='SUM':
 
-                print('*** ',length_vec)
+                # print('*** ',length_vec)
 
                 adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),len(length_vec[v])).T for v in range(8)]
                 adcdataQ=[np.array(adcdataQ[v]).reshape(self.nb_measure.get(),len(length_vec[v])).T for v in range(8)]
@@ -884,7 +884,7 @@ class RFSoC(VisaInstrument):
 
     #     self.reset_output_data()
 
-    #     print(self.ADC_events.get())
+        print(self.ADC_events.get())
 
     #     if len(self.ADC_events.get())>1:
 
@@ -915,9 +915,9 @@ class RFSoC(VisaInstrument):
     #     tick = 0.1
     #     duree = 2
 
-    #     print('mode is {}'.format(mode))
+        print('mode is {}'.format(mode))
     #     count_meas=0
-    #     print('count_meas={}'.format(count_meas))
+        print('count_meas={}'.format(count_meas))
     #     rep=[]
 
     #     if mode=='SUM':
@@ -950,7 +950,7 @@ class RFSoC(VisaInstrument):
     #             r = self.ask('OUTPUT:DATA?')
 
     #             if len(r)>1:
-    #                 print(len(r))
+                    print(len(r))
     #                 rep = rep+r
     #                 #to modify manually depending on what we
     #                 #TODO : figure a way to do it auto depending on the adcs ons and their modes
@@ -991,8 +991,8 @@ class RFSoC(VisaInstrument):
     #         NpCont = X[7]*256 + X[6]
     #         TS= struct.unpack('Q',X[8:16])[0]
 
-    #         # print the header for each packet
-    #         # print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
+            # print the header for each packet
+            # print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
 
     #         TSMEM=TS
 
@@ -1015,8 +1015,8 @@ class RFSoC(VisaInstrument):
     #                 I=  struct.unpack('q',X[0:8])[0]*(0.3838e-3)/(N*2)
     #                 Q=  struct.unpack('q',X[8:16])[0]*(0.3838e-3)/(N*2)
 
-    #                 #print the point
-    #                 # print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
+                    #print the point
+                    # print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
 
     #                 adcdataI[V]=np.append(adcdataI[V], I)
     #                 adcdataQ[V]=np.append(adcdataQ[V], Q)
@@ -1039,9 +1039,9 @@ class RFSoC(VisaInstrument):
 
     #         i = iStart+Np # index of the new data block, new header
 
-    #     print("********************************************************************")
-    #     print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
-    #     print("********************************************************************")
+        print("********************************************************************")
+        print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
+        print("********************************************************************")
 
 
     #     return adcdataI,adcdataQ

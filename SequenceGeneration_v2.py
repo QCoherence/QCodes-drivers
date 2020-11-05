@@ -94,11 +94,11 @@ class Pulse:
 		'''
 
 		sorted_seq=np.array(cls.sort_and_groupby_timewise())
-		print(sorted_seq)
+		# print(sorted_seq)
 
 		Tseq=max([max([p[i]._t_abs + p[i].t_duration for i in range(len(p))]) for  p in sorted_seq])
 		
-		print('Tseq={}'.format(Tseq))
+		# print('Tseq={}'.format(Tseq))
 
 		#initialize the scpi command (memory adress 0 wait 44 ns and set all
 		#beginiing DAC memories to 0)
@@ -130,7 +130,7 @@ class Pulse:
 
 		#go through sorted events (the sequence is ... sequential)
 		for gp in sorted_seq:
-			# print(last_DAC_channel_event)
+			print(last_DAC_channel_event)
 			N_wait = int(round(gp[0].t_init/(4.e-9)))
 			ctrl_dac_adc=0
 			N_adc_duration=0
@@ -156,7 +156,7 @@ class Pulse:
 					else :
 						#computing new start adress for the new wform of the DAC
 						new_adress= int(round(last_DAC_channel_event[int(obj.channel[2])-1].t_duration/(4.e-9))) + 1
-						# print('new_adress = {}'.format(new_adress))
+						print('new_adress = {}'.format(new_adress))
 
 						#adding delay or not
 						scpi_str=scpi_str+',{},{}'.format(4096+int(obj.channel[2]),new_adress)
@@ -215,22 +215,22 @@ class Pulse:
 		
 		N_add=0
 		N_seq_loop+=3 #end of loop and wait at the end for adjustment
-		print('N_seq_loop={}'.format(N_seq_loop))
+		# print('N_seq_loop={}'.format(N_seq_loop))
 
 		if N_seq_loop*4.e-9 < Tseq:
 
 			N_add=int(round((Tseq-N_seq_loop*4.e-9)/4.e-9))
 			N_seq_loop+=N_add
 
-		print('N_add={}'.format(N_add))
+		# print('N_add={}'.format(N_add))
 
 		N_data_transfer=N_data_transfer*10
 		N_seq_loop = N_seq_loop + N_data_transfer*10
 
-		print('N_seq_loop={}'.format(N_seq_loop))
+		# print('N_seq_loop={}'.format(N_seq_loop))
 		# N_seq_loop = N_seq_loop
 
-		print('N_data_transfer={}'.format(N_data_transfer))
+		# print('N_data_transfer={}'.format(N_data_transfer))
 
 		if mix_freq!=0.:
 
@@ -238,18 +238,18 @@ class Pulse:
 			N_add +=(N_mix -  N_seq_loop % N_mix) + N_mix*100000
 			N_seq_loop+=(N_mix -  N_seq_loop % N_mix) + N_mix*100000
 
-		print('N_add={}'.format(N_add))
+		# print('N_add={}'.format(N_add))
 
 		#16 working
 		scpi_str=scpi_str+',1,{},513,0'.format(N_add+N_data_transfer)
 
 		# scpi_str=scpi_str+',1,{},513,0'.format(1000000-5)
 
-		print('N_seq_loop={}'.format(N_seq_loop))
-		print('t_seq_loop={} s'.format(N_seq_loop*4.e-9))
+		# print('N_seq_loop={}'.format(N_seq_loop))
+		# print('t_seq_loop={} s'.format(N_seq_loop*4.e-9))
 	
 
-		print(scpi_str)
+		# print(scpi_str)
 		return scpi_str
 
 
@@ -298,7 +298,7 @@ class PulseGeneration(Pulse):
 
 			else :
 				if freq > 1./(4.*0.5e-9):
-				    print('Warning : bellow 4 points per period, the signal might be unstable.')
+				    # print('Warning : bellow 4 points per period, the signal might be unstable.')
 
 			# DAC values are coded on signed 14 bits = +/- 8192
 			DAC_amplitude = amplitude * 8192/0.926
@@ -308,7 +308,7 @@ class PulseGeneration(Pulse):
 			t = np.linspace(0, 2 * np.pi,N_point)
 
 			table = (self.DC_offset* 8192/0.926) + DAC_amplitude*np.concatenate((np.sin(n_oscillation*t),np.zeros(N_point%8)))
-			# print(table)
+			print(table)
 			# adding zeros at the end so that N_point_tot is dividable by 8
 			# because the table is to be divided in chunks of 8 values
 
@@ -366,7 +366,7 @@ class PulseGeneration(Pulse):
 
 			else :
 				if freq1 > 1./(4.*0.5e-9) or freq2 > 1./(4.*0.5e-9):
-				    print('Warning : bellow 4 points per period, the signal might be unstable.')
+				    # print('Warning : bellow 4 points per period, the signal might be unstable.')
 
 			# DAC values are coded on signed 14 bits = +/- 8192
 			DAC_amp1 = amp1 * 8192/0.926
@@ -381,7 +381,7 @@ class PulseGeneration(Pulse):
 			table2=DAC_amp2*np.concatenate((np.sin(n_oscillation2*t),np.zeros(N_point%8)))
 
 			table = table1 + table2
-			# print(table)
+			print(table)
 			# adding zeros at the end so that N_point_tot is dividable by 8
 			# because the table is to be divided in chunks of 8 values
 
@@ -554,5 +554,5 @@ if __name__=="__main__":
 	sorted_objs=Pulse.sort_and_groupby_timewise()
 
 
-	print('Sorted list of pulse instances grouped by absolute initial time')
-	print(sorted_objs)
+	# print('Sorted list of pulse instances grouped by absolute initial time')
+	# print(sorted_objs)
