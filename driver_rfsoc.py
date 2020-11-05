@@ -13,7 +13,25 @@ from qcodes.instrument.parameter import ParameterWithSetpoints, Parameter
 
 import SequenceGeneration_v2 as sqg
 from qcodes.utils.delaykeyboardinterrupt import DelayedKeyboardInterrupt
+from qcodes.utils.validators import Numbers, Arrays
 
+
+
+
+class GeneratedSetPoints(Parameter):
+    """
+    A parameter that generates a setpoint array from start, stop and num points
+    parameters.
+    """
+    def __init__(self, startparam, stopparam, numpointsparam, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._startparam = startparam
+        self._stopparam = stopparam 
+        self._numpointsparam = numpointsparam
+
+    def get_raw(self):
+        return np.linspace(self._startparam(), self._stopparam() -1,
+                              self._numpointsparam())
 
 
 class RAW(Parameter):
@@ -69,6 +87,7 @@ class IQINT(Parameter):
 
         return data_retI, data_retQ
 
+
 class IQINT_ALL(Parameter):
 
     def __init__(self, *args, **kwargs):
@@ -83,25 +102,101 @@ class IQINT_ALL(Parameter):
         return data_retI, data_retQ
 
 
-class IQINT_AVG(Parameter):
+class IQINT_ALL_read_header(Parameter):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._channel = self._instrument._adc_channel
+
 
     def get_raw(self):
         time.sleep(0.2)
 
-        dataI, dataQ = self._instrument._parent.get_single_readout_pulse()
-
-        print(self._channel)
-        if self._channel in np.arange(1,9):
-            data_retI = np.mean(dataI[self._channel-1])
-            data_retQ = np.mean(dataQ[self._channel-1])
-        else:
-            print('Wrong parameter.')
+        data_retI, data_retQ = self._instrument.get_readout_pulse_loop()
 
         return data_retI, data_retQ
+
+
+class IQINT_AVG(Parameter): 
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def get_raw(self):
+
+        time.sleep(0.2)
+
+        data_retI, data_retQ = self._instrument.get_readout_pulse()
+
+        Sq_I = [[],[],[],[],[],[],[],[]]
+        Sq_Q = [[],[],[],[],[],[],[],[]]
+
+        Sq_I_list = [[],[],[],[],[],[],[],[]]
+        Sq_Q_list = [[],[],[],[],[],[],[],[]]
+
+        for i in range(8):
+
+            if len(data_retI[i])>0:
+
+                for j in range(len(data_retI[i])):
+
+                    if len(data_retI[i][j])>0:
+
+                        Sq_I[i] = np.append(Sq_I[i],np.mean(data_retI[i][j]))
+                        Sq_Q[i] = np.append(Sq_Q[i],np.mean(data_retQ[i][j]))
+                        Sq_I_list[i].append(np.mean(data_retI[i][j]))
+                        Sq_Q_list[i].append(np.mean(data_retQ[i][j]))
+                                
+        for i in range(8):
+            
+            Sq_I[i] = np.array(Sq_I_list[i])
+            Sq_Q[i] = np.array(Sq_Q_list[i])
+
+        return Sq_I,Sq_Q
+
+
+class ADC_power(ParameterWithSetpoints):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def get_raw(self):
+
+        Sq_I = [[],[],[],[],[],[],[],[]]
+        Sq_Q = [[],[],[],[],[],[],[],[]]
+        PSD = [[],[],[],[],[],[],[],[]]
+
+        time.sleep(0.2)
+
+        data_retI, data_retQ = self._instrument.get_readout_pulse_loop()
+
+        for i in range(8):
+
+            if len(data_retI[i])>0:
+
+                Sq_I[i] = data_retI[i][0]**2
+                Sq_Q[i] = data_retQ[i][0]**2
+
+                PSD[i] = [np.mean(Sq_I[i]+Sq_Q[i])/50]
+
+        for i in range(8):
+
+            if len(PSD[i]) == 0:
+
+                PSD[i] = 0
+
+            else:
+
+                PSD[i] = PSD[i][0]
+
+        return np.array(PSD)
+
+
+
+
+
+
+
+
 
 
 
@@ -132,7 +227,8 @@ class AcqChannel(InstrumentChannel):
                            label = 'ADC{} status'.format(self._adc_channel),
                            set_cmd='ADC:ADC{} {}'.format(self._adc_channel,'{:d}'),
                            val_mapping={'ON': 1, 'OFF': 0},
-                           initial_value='OFF'
+                           initial_value='OFF',
+                           snapshot_value = False
                            )
 
         #TODO : add allowed values of decimation and mixer frea
@@ -140,32 +236,45 @@ class AcqChannel(InstrumentChannel):
                            label='ADC{} decimation factor'.format(self._adc_channel),
                            #the decimation works by tiles of two adcs
                            set_cmd='ADC:TILE{}:DECFACTOR {}'.format((self._adc_channel-1)//2,'{:d}'),
-
+                           snapshot_value = False
                            )
 
         self.add_parameter(name='fmixer',
                            label = 'ADC{} mixer frequency'.format(self._adc_channel),
                            set_cmd='ADC:ADC{}:MIXER {}'.format(self._adc_channel,'{:.4f}'),
+                           get_parser = self.MHz_to_Hz,
+                           set_parser = self.Hz_to_MHz,
+                           snapshot_value = False
                            )
 
         self.add_parameter(name='RAW',
                            unit='V',
                            label='Channel {}'.format(self._adc_channel),
                            channel=self._adc_channel,
-                           parameter_class=RAW)
+                           parameter_class=RAW,
+                           snapshot_value = False
+                           )
 
         self.add_parameter(name='IQINT',
                            unit='V',
                            label='Channel {}'.format(self._adc_channel),
                            channel=self._adc_channel,
-                           parameter_class=IQINT)
+                           parameter_class=IQINT,
+                           snapshot_value = False)
 
         self.add_parameter(name='IQINT_AVG',
                            unit='V',
                            label='Integrated averaged I Q for channel {}'.format(self._adc_channel),
                            channel=self._adc_channel,
-                           parameter_class=IQINT_AVG)
+                           parameter_class=IQINT_AVG,
+                           snapshot_value = False)
         self.status('OFF')
+
+    def MHz_to_Hz(self,value):
+        return value*1e6
+
+    def Hz_to_MHz(self,value):
+        return value*1e-6
 
 class RFSoC(VisaInstrument):
 
@@ -177,7 +286,9 @@ class RFSoC(VisaInstrument):
         super().__init__(name, address, terminator='\r\n', **kwargs)
 
         # reset PLL
-        self.reset_PLL()
+        # self.reset_PLL()
+
+        self.dummy_array_size_8 = 8
 
         #Add the channel to the instrument
         for adc_num in np.arange(1,9):
@@ -188,30 +299,30 @@ class RFSoC(VisaInstrument):
 
         #parameters to store the events of a sequence directly as a parameter of the instrument
         self.add_parameter('events',
-                            set_cmd='{}',
                             get_parser=list,
-                            initial_value=[])
+                            initial_value=[],
+                            parameter_class=ManualParameter)
 
         self.add_parameter('DAC_events',
-                            set_cmd='{}',
                             get_parser=list,
-                            initial_value=[])
+                            initial_value=[],
+                            parameter_class=ManualParameter)
 
         self.add_parameter('ADC_events',
-                            set_cmd='{}',
                             get_parser=list,
-                            initial_value=[])
+                            initial_value=[],
+                            parameter_class=ManualParameter)
 
         self.add_parameter('nb_measure',
-                            set_cmd='{}',
                             get_parser=int,
-                            initial_value = int(1))
+                            initial_value = int(1),
+                            parameter_class=ManualParameter)
 
         self.add_parameter('acquisition_mode',
                             label='ADCs acquisition mode',
-                            set_cmd='{}',
                             get_parser=str,
-                            vals = vals.Enum('RAW','SUM')
+                            vals = vals.Enum('RAW','SUM'),
+                            parameter_class=ManualParameter
                             )
 
         self.add_parameter( name = 'output_format',
@@ -226,19 +337,53 @@ class RFSoC(VisaInstrument):
         self.add_parameter(name='RAW_ALL',
                            unit='V',
                            label='Raw adc for all channel',
-                           parameter_class=RAW_ALL)
+                           parameter_class=RAW_ALL,
+                           snapshot_value = False)
 
         self.add_parameter(name='IQINT_ALL',
                            unit='V',
+                           label='Integrated I Q for all channels',
+                           parameter_class=IQINT_ALL,
+                           snapshot_value = False)
+
+        self.add_parameter(name='IQINT_ALL_read_header',
+                           unit='V',
+                           label='Integrated I Q for all channels with header check',
+                           parameter_class=IQINT_ALL_read_header,
+                           snapshot_value = False)
+
+        self.add_parameter(name='IQINT_AVG',
+                           unit='V',
                            label='Integrated averaged I Q for all channels',
-                           parameter_class=IQINT_ALL)
+                           parameter_class=IQINT_AVG,
+                           snapshot_value = False)
+
+        self.add_parameter('channel_axis',
+                            unit = 'channel index',
+                            label = 'Channel index axis for ADC power mode',
+                            parameter_class = GeneratedSetPoints,
+                            startparam = self.int_0,
+                            stopparam = self.int_8,
+                            numpointsparam = self.int_8,
+                            snapshot_value = False,
+                            vals=Arrays(shape=(self.dummy_array_size_8,))
+                            )
+
+        self.add_parameter(name='ADC_power',
+                           unit='W',
+                           setpoints=(self.channel_axis,),
+                           label='Array of incident power on ADC channels, (works only in single pulse sequence)',
+                           parameter_class=ADC_power,
+                           vals=Arrays(shape=(self.dummy_array_size_8,)),
+                           snapshot_value = False)
 
         #for now all mixer frequency must be multiples of the base frequency for phase matching
         self.add_parameter(name='base_fmixer',
-                           unit='MHz',
+                           unit='Hz',
                            label='Reference frequency for all mixers',
-                           set_cmd='{}',
-                           get_parser=float)
+                           get_parser=float,
+                           parameter_class=ManualParameter,
+                           snapshot_value = False)
 
         # self.add_parameter(name = 'DC_offset',
         #                     unit = 'V',
@@ -416,7 +561,8 @@ class RFSoC(VisaInstrument):
                 elif r==[3338]:
 
                     # count_meas=nb_measure
-                    count_meas=1
+                    # count_meas=1
+                    end_loop = 1
 
 
         # while time.perf_counter()<(tstart+duree):
@@ -557,7 +703,7 @@ class RFSoC(VisaInstrument):
             #for now we consider only the one same type of acq on all adc
             mode=self.acquisition_mode.get()
 
-            ch_vec,length_vec=self.adc_events()
+            length_vec,ch_vec=self.adc_events()
 
             N_adc_events=len(ch_vec)
 
@@ -672,8 +818,9 @@ class RFSoC(VisaInstrument):
                         X = D.astype('int16').tobytes()
 
                         #I  dvided N and 2 bcse signed 63 bits aligned to the left
-                        I=  struct.unpack('q',X[0:8])[0]*(0.3838e-3)/(N*2)
-                        Q=  struct.unpack('q',X[8:16])[0]*(0.3838e-3)/(N*2)
+                        # mod div by 4 to fix amplitude -Arpit, Martina
+                        I=  struct.unpack('q',X[0:8])[0]*(0.3838e-3)/(N*2*4)
+                        Q=  struct.unpack('q',X[8:16])[0]*(0.3838e-3)/(N*2*4)
 
                         #print the point
                         # print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
@@ -709,6 +856,8 @@ class RFSoC(VisaInstrument):
 
             if mode=='SUM':
 
+                print('*** ',length_vec)
+
                 adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),len(length_vec[v])).T for v in range(8)]
                 adcdataQ=[np.array(adcdataQ[v]).reshape(self.nb_measure.get(),len(length_vec[v])).T for v in range(8)]
 
@@ -723,6 +872,12 @@ class RFSoC(VisaInstrument):
                 adcdataI=np.array([np.split(adcdataI[v],[sum(length_vec[v][0:i+1]) for i in range(len(length_vec[v]))]) for v in range(8)])
 
             return adcdataI,adcdataQ
+
+    def int_0(self):
+        return 0
+
+    def int_8(self):
+        return 8
 
 
     # def get_single_readout_pulse(self):

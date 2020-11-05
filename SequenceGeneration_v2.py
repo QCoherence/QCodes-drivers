@@ -131,29 +131,26 @@ class Pulse:
 		#go through sorted events (the sequence is ... sequential)
 		for gp in sorted_seq:
 			# print(last_DAC_channel_event)
+			N_wait = int(round(gp[0].t_init/(4.e-9)))
+			ctrl_dac_adc=0
+			N_adc_duration=0
+
+			if N_wait!=0.:
+				scpi_str=scpi_str+',1,{}'.format(N_wait-1)
+				N_seq_loop+=N_wait
+
+
 			for obj in gp:
 				#looking if the pulse is DAC or ADC
 				if type(obj)==PulseGeneration:
 
-					#computing the data for the CTRL_DAC&ADC seq instr
-					ctrl_dac_adc=DAC_status([int(obj.channel[2])])
-
-					#computing the steps to wait
-					N_wait = int(round(obj.t_init/(4.e-9)))
-					N_duration = int(round(obj.t_duration/(4.e-9)))
-
-					
+					N_duration = int(round(obj.t_duration/(4.e-9)))	
+					ctrl_dac_adc+=DAC_status([int(obj.channel[2])])
+		
 
 					#managing DAC memory adress
 					if last_DAC_channel_event[int(obj.channel[2])-1]==None:
-						#adding delay or not
-						if N_wait!=0.:
-							scpi_str=scpi_str+',1,{},4096,{}'.format(N_wait-1,ctrl_dac_adc)
-							N_seq_loop+=N_wait+1
-						else :
-							scpi_str=scpi_str+',4096,{}'.format(ctrl_dac_adc)
-							N_seq_loop+=1
-
+				
 						obj._DAC_2D_memory=obj.send_DAC_2D_memory()
 
 					else :
@@ -162,13 +159,9 @@ class Pulse:
 						# print('new_adress = {}'.format(new_adress))
 
 						#adding delay or not
-						if N_wait!=0.:
-							scpi_str=scpi_str+',{},{},1,{},4096,{}'.format(4096+int(obj.channel[2]),new_adress,N_wait-1,ctrl_dac_adc)
-							N_seq_loop+=N_wait+2
-						else :
-							scpi_str=scpi_str+',{},{},4096,{}'.format(4096+int(obj.channel[2]),new_adress,ctrl_dac_adc)
-							N_seq_loop+=2
-
+						scpi_str=scpi_str+',{},{}'.format(4096+int(obj.channel[2]),new_adress)
+						N_seq_loop+=1
+						
 						#storing the filling DAC memory SCPI instruction as an
 						#attribute of the PulseGeneration object
 						obj._DAC_2D_memory=obj.send_DAC_2D_memory(new_adress)
@@ -178,18 +171,20 @@ class Pulse:
 
 				elif type(obj)==PulseReadout:
 
+					ctrl_dac_adc+=ADC_status([int(obj.channel[2])])
+
 					#header 8 point of 2 bytes
 					#data transfer speed is 100 Mo/s max (doc specify to verify)
 					t_data_transfer=16./(100.e6)
 					N_data_transfer+=int(round(t_data_transfer/(4.e-9)))
 
-					N_wait = int(round(obj.t_init/(4.e-9)))
 					#TODO : take decimation into account
 					#       if deficamtion divide N_acq by decimation facotr
 					N_acq = int(round(obj.t_duration/(0.5e-9)))
-					N_duration=int(round(obj.t_duration/(4e-9)))
 
-					ctrl_dac_adc=ADC_status([int(obj.channel[2])])
+					N_temp=int(round(obj.t_duration/(4e-9)))
+					if N_temp > N_adc_duration:
+						N_adc_duration=N_temp
 
 					#data is 2 octet per point in raw mode
 					if acq_mode is 'RAW':
@@ -203,9 +198,19 @@ class Pulse:
 						N_data_transfer+=int(round(t_data_transfer/(4.e-9)))
 
 
-					scpi_str=scpi_str+',{},{},1,{},4096,{},1,{}'.format(4106+int(obj.channel[2]),N_acq,N_wait-1,ctrl_dac_adc,N_duration-1)
+					scpi_str=scpi_str+',{},{}'.format(4106+int(obj.channel[2]),N_acq)
 					
-					N_seq_loop+=N_wait+N_duration+2
+					N_seq_loop+= 1
+
+			if N_adc_duration!=0:
+
+				scpi_str=scpi_str+',4096,{},1,{}'.format(ctrl_dac_adc,N_adc_duration-1)
+				N_seq_loop+= 1 + N_adc_duration
+
+			else:
+				
+				scpi_str=scpi_str+',4096,{}'.format(ctrl_dac_adc)
+				N_seq_loop+= 1
 
 		
 		N_add=0
@@ -229,7 +234,7 @@ class Pulse:
 
 		if mix_freq!=0.:
 
-			N_mix=int(round(1./(4.e-9 * mix_freq*1e6)))
+			N_mix=int(round(1./(4.e-9 * mix_freq)))
 			N_add +=(N_mix -  N_seq_loop % N_mix) + N_mix*100000
 			N_seq_loop+=(N_mix -  N_seq_loop % N_mix) + N_mix*100000
 
@@ -485,7 +490,7 @@ def ADC_status(ADC_list):
 	for ADCnum in ADC_list:
 		dec+=2**(ADCnum+23)
 
-	return str(dec)
+	return dec
 
 def DAC_status(DAC_list):
 	'''
@@ -497,7 +502,7 @@ def DAC_status(DAC_list):
 	for DACnum in DAC_list:
 		dec+= 2**(3*DACnum - 3) + 2**(3*DACnum - 2) + 0*2**(3*DACnum - 1)
 
-	return str(dec)
+	return dec
 
 
 def ADC_DAC_status(DAC_list, ADC_list):

@@ -155,7 +155,7 @@ class SMB100A(VisaInstrument):
 
 	def warn_over_range(self, power):
 		if power>16:
-			log.Warning('Power over range (limit to 16 dBm).')
+			log.warning('Power over range (limit to 16 dBm).')
 		return power
 
 	def freqsweep_set(self,sweep_status):
