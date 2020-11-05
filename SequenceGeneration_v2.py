@@ -2,8 +2,10 @@ import numpy as np
 from operator import itemgetter, attrgetter
 from itertools import groupby
 
+import logging
 
 
+log = logging.getLogger(__name__)
 
 class Pulse:
 	'''
@@ -298,7 +300,7 @@ class PulseGeneration(Pulse):
 
 			else :
 				if freq > 1./(4.*0.5e-9):
-				    # print('Warning : bellow 4 points per period, the signal might be unstable.')
+				    log.Warning('Warning : bellow 4 points per period, the signal might be unstable.')
 
 			# DAC values are coded on signed 14 bits = +/- 8192
 			DAC_amplitude = amplitude * 8192/0.926
@@ -366,7 +368,7 @@ class PulseGeneration(Pulse):
 
 			else :
 				if freq1 > 1./(4.*0.5e-9) or freq2 > 1./(4.*0.5e-9):
-				    # print('Warning : bellow 4 points per period, the signal might be unstable.')
+				    log.Warning('Warning : bellow 4 points per period, the signal might be unstable.')
 
 			# DAC values are coded on signed 14 bits = +/- 8192
 			DAC_amp1 = amp1 * 8192/0.926

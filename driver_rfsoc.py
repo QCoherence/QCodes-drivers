@@ -15,6 +15,10 @@ import SequenceGeneration_v2 as sqg
 from qcodes.utils.delaykeyboardinterrupt import DelayedKeyboardInterrupt
 from qcodes.utils.validators import Numbers, Arrays
 
+import logging
+log = logging.getLogger(__name__)
+
+
 
 
 
@@ -49,7 +53,7 @@ class RAW(Parameter):
         if self._channel in np.arange(1,9):
             data_ret = dataI[self._channel-1]
         else:
-            # print('Wrong parameter.')
+            log.warning('Wrong parameter.')
 
         return data_ret
 
@@ -83,7 +87,7 @@ class IQINT(Parameter):
             data_retI = dataI[self._channel-1]
             data_retQ = dataQ[self._channel-1]
         else:
-            # print('Wrong parameter.')
+            log.warning('Wrong parameter.')
 
         return data_retI, data_retQ
 
@@ -797,8 +801,8 @@ class RFSoC(VisaInstrument):
                 NpCont = X[7]*256 + X[6]
                 TS= struct.unpack('Q',X[8:16])[0]
 
-                print the header for each packet
-                print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
+                # print the header for each packet
+                # print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
 
                 TSMEM=TS
 
@@ -822,8 +826,8 @@ class RFSoC(VisaInstrument):
                         I=  struct.unpack('q',X[0:8])[0]*(0.3838e-3)/(N*2*4)
                         Q=  struct.unpack('q',X[8:16])[0]*(0.3838e-3)/(N*2*4)
 
-                        print the point
-                        print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
+                        # print the point
+                        # print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
 
                         adcdataI[V]=np.append(adcdataI[V], I)
                         adcdataQ[V]=np.append(adcdataQ[V], Q)
@@ -848,9 +852,9 @@ class RFSoC(VisaInstrument):
 
                 i = iStart+Np # index of the new data block, new header
 
-            print("********************************************************************")
-            print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
-            print("********************************************************************")
+            # print("********************************************************************")
+            # print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
+            # print("********************************************************************")
 
             #reshaping results
 
@@ -884,7 +888,7 @@ class RFSoC(VisaInstrument):
 
     #     self.reset_output_data()
 
-        print(self.ADC_events.get())
+        # print(self.ADC_events.get())
 
     #     if len(self.ADC_events.get())>1:
 
@@ -915,9 +919,9 @@ class RFSoC(VisaInstrument):
     #     tick = 0.1
     #     duree = 2
 
-        print('mode is {}'.format(mode))
+        # print('mode is {}'.format(mode))
     #     count_meas=0
-        print('count_meas={}'.format(count_meas))
+        # print('count_meas={}'.format(count_meas))
     #     rep=[]
 
     #     if mode=='SUM':
@@ -950,7 +954,7 @@ class RFSoC(VisaInstrument):
     #             r = self.ask('OUTPUT:DATA?')
 
     #             if len(r)>1:
-                    print(len(r))
+                    # print(len(r))
     #                 rep = rep+r
     #                 #to modify manually depending on what we
     #                 #TODO : figure a way to do it auto depending on the adcs ons and their modes
@@ -1039,9 +1043,9 @@ class RFSoC(VisaInstrument):
 
     #         i = iStart+Np # index of the new data block, new header
 
-        print("********************************************************************")
-        print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
-        print("********************************************************************")
+        # print("********************************************************************")
+        # print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
+        # print("********************************************************************")
 
 
     #     return adcdataI,adcdataQ
