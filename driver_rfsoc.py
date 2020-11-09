@@ -1,4 +1,5 @@
 import time
+import datetime
 import numpy as np
 import sys
 import struct
@@ -6,8 +7,8 @@ import ctypes  # only for DLL-based instrument
 
 import qcodes as qc
 from qcodes import (Instrument, VisaInstrument,
-                    ManualParameter, MultiParameter,
-                    validators as vals)
+					ManualParameter, MultiParameter,
+					validators as vals)
 from qcodes.instrument.channel import InstrumentChannel
 from qcodes.instrument.parameter import ParameterWithSetpoints, Parameter
 
@@ -23,176 +24,176 @@ log = logging.getLogger(__name__)
 
 
 class GeneratedSetPoints(Parameter):
-    """
-    A parameter that generates a setpoint array from start, stop and num points
-    parameters.
-    """
-    def __init__(self, startparam, stopparam, numpointsparam, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._startparam = startparam
-        self._stopparam = stopparam 
-        self._numpointsparam = numpointsparam
+	"""
+	A parameter that generates a setpoint array from start, stop and num points
+	parameters.
+	"""
+	def __init__(self, startparam, stopparam, numpointsparam, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self._startparam = startparam
+		self._stopparam = stopparam 
+		self._numpointsparam = numpointsparam
 
-    def get_raw(self):
-        return np.linspace(self._startparam(), self._stopparam() -1,
-                              self._numpointsparam())
+	def get_raw(self):
+		return np.linspace(self._startparam(), self._stopparam() -1,
+							  self._numpointsparam())
 
 
 class RAW(Parameter):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._channel = self._instrument._adc_channel
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self._channel = self._instrument._adc_channel
 
-    def get_raw(self):
-        time.sleep(0.2)
+	def get_raw(self):
+		time.sleep(0.2)
 
-        dataI, dataQ = self._instrument._parent.get_single_readout_pulse()
+		dataI, dataQ = self._instrument._parent.get_single_readout_pulse()
 
-        # print(self._channel)
-        if self._channel in np.arange(1,9):
-            data_ret = dataI[self._channel-1]
-        else:
-            log.warning('Wrong parameter.')
+		# print(self._channel)
+		if self._channel in np.arange(1,9):
+			data_ret = dataI[self._channel-1]
+		else:
+			log.warning('Wrong parameter.')
 
-        return data_ret
+		return data_ret
 
 class RAW_ALL(Parameter):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
 
-    def get_raw(self):
-        time.sleep(0.2)
+	def get_raw(self):
+		time.sleep(0.2)
 
-        dataI, dataQ = self._instrument.get_readout_pulse()
+		dataI, dataQ = self._instrument.get_readout_pulse()
 
-        data_ret = dataI
+		data_ret = dataI
 
-        return data_ret
+		return data_ret
 
 class IQINT(Parameter):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._channel = self._instrument._adc_channel
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self._channel = self._instrument._adc_channel
 
-    def get_raw(self):
-        time.sleep(0.2)
+	def get_raw(self):
+		time.sleep(0.2)
 
-        dataI, dataQ = self._instrument._parent.get_single_readout_pulse()
+		dataI, dataQ = self._instrument._parent.get_single_readout_pulse()
 
-        # print(self._channel)
-        if self._channel in np.arange(1,9):
-            data_retI = dataI[self._channel-1]
-            data_retQ = dataQ[self._channel-1]
-        else:
-            log.warning('Wrong parameter.')
+		# print(self._channel)
+		if self._channel in np.arange(1,9):
+			data_retI = dataI[self._channel-1]
+			data_retQ = dataQ[self._channel-1]
+		else:
+			log.warning('Wrong parameter.')
 
-        return data_retI, data_retQ
+		return data_retI, data_retQ
 
 
 class IQINT_ALL(Parameter):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
 
 
-    def get_raw(self):
-        time.sleep(0.2)
+	def get_raw(self):
+		time.sleep(0.2)
 
-        data_retI, data_retQ = self._instrument.get_readout_pulse()
+		data_retI, data_retQ = self._instrument.get_readout_pulse()
 
-        return data_retI, data_retQ
+		return data_retI, data_retQ
 
 
 class IQINT_ALL_read_header(Parameter):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
 
 
-    def get_raw(self):
-        time.sleep(0.2)
+	def get_raw(self):
+		time.sleep(0.2)
 
-        data_retI, data_retQ = self._instrument.get_readout_pulse_loop()
+		data_retI, data_retQ = self._instrument.get_readout_pulse_loop()
 
-        return data_retI, data_retQ
+		return data_retI, data_retQ
 
 
 class IQINT_AVG(Parameter): 
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
 
-    def get_raw(self):
+	def get_raw(self):
 
-        time.sleep(0.2)
+		time.sleep(0.2)
 
-        data_retI, data_retQ = self._instrument.get_readout_pulse()
+		data_retI, data_retQ = self._instrument.get_readout_pulse_loop()#.get_readout_pulse() ###### Martina 08/11/2020
 
-        Sq_I = [[],[],[],[],[],[],[],[]]
-        Sq_Q = [[],[],[],[],[],[],[],[]]
+		Sq_I = [[],[],[],[],[],[],[],[]]
+		Sq_Q = [[],[],[],[],[],[],[],[]]
 
-        Sq_I_list = [[],[],[],[],[],[],[],[]]
-        Sq_Q_list = [[],[],[],[],[],[],[],[]]
+		Sq_I_list = [[],[],[],[],[],[],[],[]]
+		Sq_Q_list = [[],[],[],[],[],[],[],[]]
 
-        for i in range(8):
+		for i in range(8):
 
-            if len(data_retI[i])>0:
+			if len(data_retI[i])>0:
 
-                for j in range(len(data_retI[i])):
+				for j in range(len(data_retI[i])):
 
-                    if len(data_retI[i][j])>0:
+					if len(data_retI[i][j])>0:
 
-                        Sq_I[i] = np.append(Sq_I[i],np.mean(data_retI[i][j]))
-                        Sq_Q[i] = np.append(Sq_Q[i],np.mean(data_retQ[i][j]))
-                        Sq_I_list[i].append(np.mean(data_retI[i][j]))
-                        Sq_Q_list[i].append(np.mean(data_retQ[i][j]))
-                                
-        for i in range(8):
-            
-            Sq_I[i] = np.array(Sq_I_list[i])
-            Sq_Q[i] = np.array(Sq_Q_list[i])
+						Sq_I[i] = np.append(Sq_I[i],np.mean(data_retI[i][j]))
+						Sq_Q[i] = np.append(Sq_Q[i],np.mean(data_retQ[i][j]))
+						Sq_I_list[i].append(np.mean(data_retI[i][j]))
+						Sq_Q_list[i].append(np.mean(data_retQ[i][j]))
+								
+		for i in range(8):
+			
+			Sq_I[i] = np.array(Sq_I_list[i])
+			Sq_Q[i] = np.array(Sq_Q_list[i])
 
-        return Sq_I,Sq_Q
+		return Sq_I,Sq_Q
 
 
 class ADC_power(ParameterWithSetpoints):
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
 
-    def get_raw(self):
+	def get_raw(self):
 
-        Sq_I = [[],[],[],[],[],[],[],[]]
-        Sq_Q = [[],[],[],[],[],[],[],[]]
-        PSD = [[],[],[],[],[],[],[],[]]
+		Sq_I = [[],[],[],[],[],[],[],[]]
+		Sq_Q = [[],[],[],[],[],[],[],[]]
+		PSD = [[],[],[],[],[],[],[],[]]
 
-        time.sleep(0.2)
+		time.sleep(0.2)
 
-        data_retI, data_retQ = self._instrument.get_readout_pulse_loop()
+		data_retI, data_retQ = self._instrument.get_readout_pulse_loop()
 
-        for i in range(8):
+		for i in range(8):
 
-            if len(data_retI[i])>0:
+			if len(data_retI[i])>0:
 
-                Sq_I[i] = data_retI[i][0]**2
-                Sq_Q[i] = data_retQ[i][0]**2
+				Sq_I[i] = data_retI[i][0]**2
+				Sq_Q[i] = data_retQ[i][0]**2
 
-                PSD[i] = [np.mean(Sq_I[i]+Sq_Q[i])/50]
+				PSD[i] = [np.mean(Sq_I[i]+Sq_Q[i])/50]
 
-        for i in range(8):
+		for i in range(8):
 
-            if len(PSD[i]) == 0:
+			if len(PSD[i]) == 0:
 
-                PSD[i] = 0
+				PSD[i] = 0
 
-            else:
+			else:
 
-                PSD[i] = PSD[i][0]
+				PSD[i] = PSD[i][0]
 
-        return np.array(PSD)
+		return np.array(PSD)
 
 
 
@@ -207,845 +208,893 @@ class ADC_power(ParameterWithSetpoints):
 #TODO : add the different results we would return
 class AcqChannel(InstrumentChannel):
 
-    #initializing the array storing channel instances
-    objs = []
+	#initializing the array storing channel instances
+	objs = []
 
-    def __init__(self, parent: 'RFSoC', name: str, channel: int):
+	def __init__(self, parent: 'RFSoC', name: str, channel: int):
 
-        """
-        Args:
-            parent: Instrument that this channel is bound to.
-            name: Name to use for this channel.
-            channel: channel on the card to use
-        """
-        if channel not in np.arange(1,9):
-            raise ValueError('channel number must be in between 1 and 8')
+		"""
+		Args:
+			parent: Instrument that this channel is bound to.
+			name: Name to use for this channel.
+			channel: channel on the card to use
+		"""
+		if channel not in np.arange(1,9):
+			raise ValueError('channel number must be in between 1 and 8')
 
-        self._adc_channel = channel
+		self._adc_channel = channel
 
-        super().__init__(parent, name)
+		super().__init__(parent, name)
 
-        AcqChannel.objs.append(self)
+		AcqChannel.objs.append(self)
 
-        self.add_parameter(name='status',
-                           label = 'ADC{} status'.format(self._adc_channel),
-                           set_cmd='ADC:ADC{} {}'.format(self._adc_channel,'{:d}'),
-                           val_mapping={'ON': 1, 'OFF': 0},
-                           initial_value='OFF',
-                           snapshot_value = False
-                           )
+		self.add_parameter(name='status',
+						   label = 'ADC{} status'.format(self._adc_channel),
+						   set_cmd='ADC:ADC{} {}'.format(self._adc_channel,'{:d}'),
+						   val_mapping={'ON': 1, 'OFF': 0},
+						   initial_value='OFF',
+						   snapshot_value = False
+						   )
 
-        #TODO : add allowed values of decimation and mixer frea
-        self.add_parameter(name='decfact',
-                           label='ADC{} decimation factor'.format(self._adc_channel),
-                           #the decimation works by tiles of two adcs
-                           set_cmd='ADC:TILE{}:DECFACTOR {}'.format((self._adc_channel-1)//2,'{:d}'),
-                           snapshot_value = False
-                           )
+		#TODO : add allowed values of decimation and mixer frea
+		self.add_parameter(name='decfact',
+						   label='ADC{} decimation factor'.format(self._adc_channel),
+						   #the decimation works by tiles of two adcs
+						   set_cmd='ADC:TILE{}:DECFACTOR {}'.format((self._adc_channel-1)//2,'{:d}'),
+						   snapshot_value = False
+						   )
 
-        self.add_parameter(name='fmixer',
-                           label = 'ADC{} mixer frequency'.format(self._adc_channel),
-                           set_cmd='ADC:ADC{}:MIXER {}'.format(self._adc_channel,'{:.4f}'),
-                           get_parser = self.MHz_to_Hz,
-                           set_parser = self.Hz_to_MHz,
-                           snapshot_value = False
-                           )
+		self.add_parameter(name='fmixer',
+						   label = 'ADC{} mixer frequency'.format(self._adc_channel),
+						   set_cmd='ADC:ADC{}:MIXER {}'.format(self._adc_channel,'{:.4f}'),
+						   get_parser = self.MHz_to_Hz,
+						   set_parser = self.Hz_to_MHz,
+						   snapshot_value = False
+						   )
 
-        self.add_parameter(name='RAW',
-                           unit='V',
-                           label='Channel {}'.format(self._adc_channel),
-                           channel=self._adc_channel,
-                           parameter_class=RAW,
-                           snapshot_value = False
-                           )
+		self.add_parameter(name='RAW',
+						   unit='V',
+						   label='Channel {}'.format(self._adc_channel),
+						   channel=self._adc_channel,
+						   parameter_class=RAW,
+						   snapshot_value = False
+						   )
 
-        self.add_parameter(name='IQINT',
-                           unit='V',
-                           label='Channel {}'.format(self._adc_channel),
-                           channel=self._adc_channel,
-                           parameter_class=IQINT,
-                           snapshot_value = False)
+		self.add_parameter(name='IQINT',
+						   unit='V',
+						   label='Channel {}'.format(self._adc_channel),
+						   channel=self._adc_channel,
+						   parameter_class=IQINT,
+						   snapshot_value = False)
 
-        self.add_parameter(name='IQINT_AVG',
-                           unit='V',
-                           label='Integrated averaged I Q for channel {}'.format(self._adc_channel),
-                           channel=self._adc_channel,
-                           parameter_class=IQINT_AVG,
-                           snapshot_value = False)
-        self.status('OFF')
+		self.add_parameter(name='IQINT_AVG',
+						   unit='V',
+						   label='Integrated averaged I Q for channel {}'.format(self._adc_channel),
+						   channel=self._adc_channel,
+						   parameter_class=IQINT_AVG,
+						   snapshot_value = False)
+		self.status('OFF')
 
-    def MHz_to_Hz(self,value):
-        return value*1e6
+	def MHz_to_Hz(self,value):
+		return value*1e6
 
-    def Hz_to_MHz(self,value):
-        return value*1e-6
+	def Hz_to_MHz(self,value):
+		return value*1e-6
 
 class RFSoC(VisaInstrument):
 
-    # all instrument constructors should accept **kwargs and pass them on to
-    # super().__init__
-    def __init__(self, name, address, **kwargs):
-        # supplying the terminator means you don't need to remove it from every
-        # response
-        super().__init__(name, address, terminator='\r\n', **kwargs)
-
-        # reset PLL
-        # self.reset_PLL()
-
-        self.dummy_array_size_8 = 8
-
-        #Add the channel to the instrument
-        for adc_num in np.arange(1,9):
-
-            adc_name='ADC{}'.format(adc_num)
-            adc=AcqChannel(self,adc_name,adc_num)
-            self.add_submodule(adc_name, adc)
-
-        #parameters to store the events of a sequence directly as a parameter of the instrument
-        self.add_parameter('events',
-                            get_parser=list,
-                            initial_value=[],
-                            parameter_class=ManualParameter)
-
-        self.add_parameter('DAC_events',
-                            get_parser=list,
-                            initial_value=[],
-                            parameter_class=ManualParameter)
-
-        self.add_parameter('ADC_events',
-                            get_parser=list,
-                            initial_value=[],
-                            parameter_class=ManualParameter)
-
-        self.add_parameter('nb_measure',
-                            get_parser=int,
-                            initial_value = int(1),
-                            parameter_class=ManualParameter)
-
-        self.add_parameter('acquisition_mode',
-                            label='ADCs acquisition mode',
-                            get_parser=str,
-                            vals = vals.Enum('RAW','SUM'),
-                            parameter_class=ManualParameter
-                            )
-
-        self.add_parameter( name = 'output_format',
-                            #Format(string) : 'BIN' or 'ASCII'
-                            label='Output format',
-                            vals = vals.Enum('ASCII','BIN'),
-                            set_cmd='OUTPUT:FORMAT ' + '{}',
-                            get_cmd='OUTPUT:FORMAT?',
-                            #snapshot_get  = False,
-                            get_parser=str )
-
-        self.add_parameter(name='RAW_ALL',
-                           unit='V',
-                           label='Raw adc for all channel',
-                           parameter_class=RAW_ALL,
-                           snapshot_value = False)
-
-        self.add_parameter(name='IQINT_ALL',
-                           unit='V',
-                           label='Integrated I Q for all channels',
-                           parameter_class=IQINT_ALL,
-                           snapshot_value = False)
-
-        self.add_parameter(name='IQINT_ALL_read_header',
-                           unit='V',
-                           label='Integrated I Q for all channels with header check',
-                           parameter_class=IQINT_ALL_read_header,
-                           snapshot_value = False)
-
-        self.add_parameter(name='IQINT_AVG',
-                           unit='V',
-                           label='Integrated averaged I Q for all channels',
-                           parameter_class=IQINT_AVG,
-                           snapshot_value = False)
-
-        self.add_parameter('channel_axis',
-                            unit = 'channel index',
-                            label = 'Channel index axis for ADC power mode',
-                            parameter_class = GeneratedSetPoints,
-                            startparam = self.int_0,
-                            stopparam = self.int_8,
-                            numpointsparam = self.int_8,
-                            snapshot_value = False,
-                            vals=Arrays(shape=(self.dummy_array_size_8,))
-                            )
+	# all instrument constructors should accept **kwargs and pass them on to
+	# super().__init__
+	def __init__(self, name, address, **kwargs):
+		# supplying the terminator means you don't need to remove it from every
+		# response
+		super().__init__(name, address, terminator='\r\n', **kwargs)
+
+		# reset PLL
+		# self.reset_PLL()
+
+		self.dummy_array_size_8 = 8
+
+		#Add the channel to the instrument
+		for adc_num in np.arange(1,9):
+
+			adc_name='ADC{}'.format(adc_num)
+			adc=AcqChannel(self,adc_name,adc_num)
+			self.add_submodule(adc_name, adc)
+
+		#parameters to store the events of a sequence directly as a parameter of the instrument
+		self.add_parameter('events',
+							get_parser=list,
+							initial_value=[],
+							parameter_class=ManualParameter)
+
+		self.add_parameter('DAC_events',
+							get_parser=list,
+							initial_value=[],
+							parameter_class=ManualParameter)
+
+		self.add_parameter('ADC_events',
+							get_parser=list,
+							initial_value=[],
+							parameter_class=ManualParameter)
+
+		self.add_parameter('nb_measure',
+							get_parser=int,
+							initial_value = int(1),
+							parameter_class=ManualParameter)
+
+		self.add_parameter('acquisition_mode',
+							label='ADCs acquisition mode',
+							get_parser=str,
+							vals = vals.Enum('RAW','SUM'),
+							parameter_class=ManualParameter
+							)
+
+		self.add_parameter( name = 'output_format',
+							#Format(string) : 'BIN' or 'ASCII'
+							label='Output format',
+							vals = vals.Enum('ASCII','BIN'),
+							set_cmd='OUTPUT:FORMAT ' + '{}',
+							get_cmd='OUTPUT:FORMAT?',
+							#snapshot_get  = False,
+							get_parser=str )
+
+		self.add_parameter(name='RAW_ALL',
+						   unit='V',
+						   label='Raw adc for all channel',
+						   parameter_class=RAW_ALL,
+						   snapshot_value = False)
+
+		self.add_parameter(name='IQINT_ALL',
+						   unit='V',
+						   label='Integrated I Q for all channels',
+						   parameter_class=IQINT_ALL,
+						   snapshot_value = False)
+
+		self.add_parameter(name='IQINT_ALL_read_header',
+						   unit='V',
+						   label='Integrated I Q for all channels with header check',
+						   parameter_class=IQINT_ALL_read_header,
+						   snapshot_value = False)
+
+		self.add_parameter(name='IQINT_AVG',
+						   unit='V',
+						   label='Integrated averaged I Q for all channels',
+						   parameter_class=IQINT_AVG,
+                           vals=Arrays(shape=(self.dummy_array_size_8,)), ### ME
+						   snapshot_value = False)
+
+		self.add_parameter('channel_axis',
+							unit = 'channel index',
+							label = 'Channel index axis for ADC power mode',
+							parameter_class = GeneratedSetPoints,
+							startparam = self.int_0,
+							stopparam = self.int_8,
+							numpointsparam = self.int_8,
+							snapshot_value = False,
+							vals=Arrays(shape=(self.dummy_array_size_8,))
+							)
 
-        self.add_parameter(name='ADC_power',
-                           unit='W',
-                           setpoints=(self.channel_axis,),
-                           label='Array of incident power on ADC channels, (works only in single pulse sequence)',
-                           parameter_class=ADC_power,
-                           vals=Arrays(shape=(self.dummy_array_size_8,)),
-                           snapshot_value = False)
+		self.add_parameter(name='ADC_power',
+						   unit='W',
+						   setpoints=(self.channel_axis,),
+						   label='Array of incident power on ADC channels, (works only in single pulse sequence)',
+						   parameter_class=ADC_power,
+						   vals=Arrays(shape=(self.dummy_array_size_8,)),
+						   snapshot_value = False)
 
-        #for now all mixer frequency must be multiples of the base frequency for phase matching
-        self.add_parameter(name='base_fmixer',
-                           unit='Hz',
-                           label='Reference frequency for all mixers',
-                           get_parser=float,
-                           parameter_class=ManualParameter,
-                           snapshot_value = False)
+		#for now all mixer frequency must be multiples of the base frequency for phase matching
+		self.add_parameter(name='base_fmixer',
+						   unit='Hz',
+						   label='Reference frequency for all mixers',
+						   get_parser=float,
+						   parameter_class=ManualParameter,
+						   snapshot_value = False)
 
-        # self.add_parameter(name = 'DC_offset',
-        #                     unit = 'V',
-        #                     label = 'DC offset list for all channels',
-        #                     get_parser = list,
-        #                     parameter_class = ManualParameter)
+		# self.add_parameter(name = 'DC_offset',
+		#                     unit = 'V',
+		#                     label = 'DC offset list for all channels',
+		#                     get_parser = list,
+		#                     parameter_class = ManualParameter)
 
 
-    def write_sequence_and_DAC_memory(self):
+	def write_sequence_and_DAC_memory(self):
 
-        self.log.info(__name__+ ' sending sequence'+'  \n')
-        self.write(sqg.Pulse.generate_sequence_and_DAC_memory(self.nb_measure.get()-1,self.acquisition_mode.get(),self.base_fmixer.get()))
+		self.log.info(__name__+ ' sending sequence'+'  \n')
+		self.write(sqg.Pulse.generate_sequence_and_DAC_memory(self.nb_measure.get()-1,self.acquisition_mode.get(),self.base_fmixer.get()))
 
-        for obj in sqg.PulseGeneration.objs:
+		for obj in sqg.PulseGeneration.objs:
 
-            self.log.info(__name__+ ' sending DAC {} 2D memory'.format(obj.channel)+'  \n')
-            self.write(obj._DAC_2D_memory)
+			self.log.info(__name__+ ' sending DAC {} 2D memory'.format(obj.channel)+'  \n')
+			self.write(obj._DAC_2D_memory)
 
 
-    def reset_DAC_2D_memory(self, channel):
-        """
-            Reset the 2D memory of one DAC
+	def reset_DAC_2D_memory(self, channel):
+		"""
+			Reset the 2D memory of one DAC
 
-            Input : - channel of the DAC we wantto reset
-        """
+			Input : - channel of the DAC we wantto reset
+		"""
 
-        self.log.info(__name__+ ' reset the 2D memory of DAC channel'+ channel+'  \n')
+		self.log.info(__name__+ ' reset the 2D memory of DAC channel'+ channel+'  \n')
 
-        if channel in ['CH1','CH2','CH3','CH4','CH5','CH6','CH7','CH8']:
+		if channel in ['CH1','CH2','CH3','CH4','CH5','CH6','CH7','CH8']:
 
-            self.write("DAC:DATA:{}:CLEAR".format(channel))
+			self.write("DAC:DATA:{}:CLEAR".format(channel))
 
-        else:
-            raise ValueError('Wrong channel value')
+		else:
+			raise ValueError('Wrong channel value')
 
 
-    def reset_all_DAC_2D_memory(self):
-        """
-            Reset the 2D memory of all the DACs
-        """
-        for channel in ['CH1','CH2','CH3','CH4','CH5','CH6','CH7','CH8']:
+	def reset_all_DAC_2D_memory(self):
+		"""
+			Reset the 2D memory of all the DACs
+		"""
+		for channel in ['CH1','CH2','CH3','CH4','CH5','CH6','CH7','CH8']:
 
-            self.write("DAC:DATA:{}:CLEAR".format(channel))
+			self.write("DAC:DATA:{}:CLEAR".format(channel))
 
 
-    def reset_PLL(self):
+	def reset_PLL(self):
 
-        self.write("DAC:RELAY:ALL 0")
-        self.write("PLLINIT")
-        time.sleep(5)
-        self.write("DAC:RELAY:ALL 1")
+		self.write("DAC:RELAY:ALL 0")
+		self.write("PLLINIT")
+		time.sleep(5)
+		self.write("DAC:RELAY:ALL 1")
 
 
-    def reset_output_data(self):
+	def reset_output_data(self):
 
-        self.ask('OUTPUT:DATA?')
+		self.ask('OUTPUT:DATA?')
 
 
-    def adc_events(self):
-        '''
-        will be used to organize the data saving
-        '''
-        sorted_seq=np.array(sqg.Pulse.sort_and_groupby_timewise())
-        
-        # sorted_seq=np.array(sqg.Pulse.sort_and_groupby_timewise()).flatten()
-        sorted_seq=np.concatenate( sorted_seq, axis=0 )
-        # print('sorted_seq={}'.format(sorted_seq))
+	def adc_events(self):
+		'''
+		will be used to organize the data saving
+		'''
+		sorted_seq=np.array(sqg.Pulse.sort_and_groupby_timewise())
+		
+		# sorted_seq=np.array(sqg.Pulse.sort_and_groupby_timewise()).flatten()
+		sorted_seq=np.concatenate( sorted_seq, axis=0 )
+		# print('sorted_seq={}'.format(sorted_seq))
 
-        mask=[type(p) is sqg.PulseReadout for p in sorted_seq]
+		mask=[type(p) is sqg.PulseReadout for p in sorted_seq]
 
-        sorted_adcs=sorted_seq[mask]
+		sorted_adcs=sorted_seq[mask]
 
-        #store the nb of acq point for each unique event of each channel
-        length_vec=[[],[],[],[],[],[],[],[]]
+		#store the nb of acq point for each unique event of each channel
+		length_vec=[[],[],[],[],[],[],[],[]]
 
-        N_adc_events=len(sorted_adcs)
+		N_adc_events=len(sorted_adcs)
 
-        #ch vec list of the order of adc ch measured in one loop of the sequence
-        ch_vec=np.zeros(N_adc_events,dtype=int)
+		#ch vec list of the order of adc ch measured in one loop of the sequence
+		ch_vec=np.zeros(N_adc_events,dtype=int)
 
-        for i in range(len(sorted_adcs)):
+		for i in range(len(sorted_adcs)):
 
-            length_vec[int(sorted_adcs[i].channel[2])-1].append(int(round((sorted_adcs[i].t_duration)/0.5e-9)))
+			length_vec[int(sorted_adcs[i].channel[2])-1].append(int(round((sorted_adcs[i].t_duration)/0.5e-9)))
 
-            ch_vec[i]=int(sorted_adcs[i].channel[2])-1
+			ch_vec[i]=int(sorted_adcs[i].channel[2])-1
 
-        return(length_vec,ch_vec)
+		return(length_vec,ch_vec)
 
 
 
 
-    def get_readout_pulse(self):
+	def get_readout_pulse(self):
 
-        '''
+		'''
 
-         This function reformat the data without looping over all the headers by trusting that 
-         what we set is what we get.
-         It also assumes that within a sequence every ADC pulses have the same length.
+		 This function reformat the data without looping over all the headers by trusting that 
+		 what we set is what we get.
+		 It also assumes that within a sequence every ADC pulses have the same length.
 
-        '''
+		'''
 
-        self.reset_output_data()
+		self.reset_output_data()
 
-        #for now we consider only the one same type of acq on all adc
-        mode=self.acquisition_mode.get()
+		#for now we consider only the one same type of acq on all adc
+		mode=self.acquisition_mode.get()
 
-        nb_measure=self.nb_measure.get()
+		nb_measure=self.nb_measure.get()
 
-        length_vec,ch_vec=self.adc_events()
-        
-        N_adc_events=len(ch_vec)
-        N_acq=np.sum(np.sum(length_vec))
-        
-        #same acquisition length for all ADCs
-        N_acq_single=int(round(N_acq/N_adc_events))
+		length_vec,ch_vec=self.adc_events()
+		
+		N_adc_events=len(ch_vec)
+		N_acq=np.sum(np.sum(length_vec))
+		
+		#same acquisition length for all ADCs
+		N_acq_single=int(round(N_acq/N_adc_events))
 
-         
-        # 8 I and Q channels
-        adcdataI = [[],[],[],[],[],[],[],[]]
-        adcdataQ = [[],[],[],[],[],[],[],[]]
+		 
+		# 8 I and Q channels
+		adcdataI = [[],[],[],[],[],[],[],[]]
+		adcdataQ = [[],[],[],[],[],[],[],[]]
 
-        tstart = time.perf_counter()
-        tick = 0.1
-        duree = 2
+		tstart = time.perf_counter()
+		tick = 0.1
+		duree = 2
 
-        rep=[]
-        count_meas=0
-        end_loop=0
+		rep=[]
+		count_meas=0
+		end_loop=0
 
-        if mode=='SUM':
+		if mode=='SUM':
 
-            self.write("SEQ:START")
-           
+			self.write("SEQ:START")
+			time.sleep(0.1)
 
-            while end_loop==0:
+			while (count_meas//(16*N_adc_events))<self.nb_measure.get():
 
-                time.sleep(1.)
-                r = self.ask('OUTPUT:DATA?')
+				start_time = datetime.datetime.now()
+				r = self.ask('OUTPUT:DATA?')
+				step_time = datetime.datetime.now()
+				print('get data',len(r)//(16000*N_adc_events),str(step_time-start_time))
 
-                if len(r)>1:
-                    rep = rep+r
-                    #to modify manually depending on what we
+				if r == 'ERR':
 
-                    # count_meas+=len(r)//(16*N_adc_events)
+					log.error('rfSoC: Instrument returned ERR!')
 
+					break
 
-                # elif r==[3338]:
+				elif len(r)>1:
 
-                #     # count_meas=nb_measure
-                #     end_loop=1
+					empty_packet_count = 0
 
-                else:
-                    end_loop=1
+					rep = rep+r
+					step_time = datetime.datetime.now()
+					print('add data',str(step_time-start_time))
 
-        if mode=='RAW':
+					count_meas+=len(r)
 
-            self.write("SEQ:START")
-            time.sleep(0.1)
 
+				elif r==[3338]:
 
-            while end_loop==0:
-                time.sleep(0.1)
-                r = self.ask('OUTPUT:DATA?')
+					empty_packet_count += 1
+					print('got empty')
+					time.sleep(0.1)
 
-                if len(r)>1:
-                    # print(len(r))
-                    rep = rep+r
-                    #to modify manually depending on what we
-                    #TODO : figure a way to do it auto depending on the adcs ons and their modes
-                    #now for 1 ADC in accum
-                    # count_meas+=len(r)//16
-                    count_meas+=len(r)//((8+N_acq))
+				if empty_packet_count>20:
 
+					log.warning('Data curruption: rfSoC did not send all data points({}).'.format(count_meas//(16*N_adc_events)))
 
-                elif r==[3338]:
+					break
 
-                    # count_meas=nb_measure
-                    # count_meas=1
-                    end_loop = 1
+			
 
+		if mode=='RAW':
 
-        # while time.perf_counter()<(tstart+duree):
+			self.write("SEQ:START")
+			time.sleep(0.1)
 
-        #     time.sleep(tick)
-        #     r = self.ask('OUTPUT:DATA?')
-        #     if len(r)>1:
-        #         rep = rep+r
 
-        self.write("SEQ:STOP")
-        #we ask for last packet and add it
-        r = self.ask('OUTPUT:DATA?')
-        if len(r)>1:
-                rep = rep+r
+			while end_loop==0:
+				time.sleep(0.5)
+				r = self.ask('OUTPUT:DATA?')
 
-        rep=np.array(rep,dtype=int)
-        #data decoding
-        if mode is 'RAW':
+				if len(r)>1:
+					# print(len(r))
+					rep = rep+r
+					
+					#to modify manually depending on what we
+					#TODO : figure a way to do it auto depending on the adcs ons and their modes
+					#now for 1 ADC in accum
+					# count_meas+=len(r)//16
+					count_meas+=len(r)//((8+N_acq))
 
-            # removing headers
 
-            mask = np.ones(len(rep), dtype=bool) #initialize array storing which items to keep
+				elif r==[3338]:
 
-            starts = np.arange(0, len(rep), N_acq_single + 8)
-            print(starts)
-            indices=np.arange(8) + starts[:,np.newaxis] #indeces of headers datapoints
-            indices=indices.flatten()
-            print(indices)
-            mask[indices]=False
+					# count_meas=nb_measure
+					# count_meas=1
+					end_loop = 1
 
-            res=np.right_shift(rep[mask],4)*(2*0.3838e-3)
 
-            res=np.split(res,nb_measure)
+		# while time.perf_counter()<(tstart+duree):
 
-            res=np.mean(res,axis=0)
+		#     time.sleep(tick)
+		#     r = self.ask('OUTPUT:DATA?')
+		#     if len(r)>1:
+		#         rep = rep+r
 
-            res=np.split(res,N_adc_events)
+		self.write("SEQ:STOP")
+		#we ask for last packet and add it
+		r = self.ask('OUTPUT:DATA?')
+		if len(r)>1:
+				rep = rep+r
 
-            for i in range(len(ch_vec)):
+		rep=np.array(rep,dtype=int)
+		# np.save('raw_IQ_data_dump_'+str(self.nb_measure.get()),rep)
 
-                adcdataI[ch_vec[i]].append(res[i])
+		#data decoding
+		if mode is 'RAW':
 
+			# removing headers
 
-        if mode is 'SUM':
+			mask = np.ones(len(rep), dtype=bool) #initialize array storing which items to keep
 
-            # removing headers
+			starts = np.arange(0, len(rep), N_acq_single + 8)
+			#print(starts)
+			indices=np.arange(8) + starts[:,np.newaxis] #indeces of headers datapoints
+			indices=indices.flatten()
+			#print(indices)
+			mask[indices]=False
 
-            mask = np.ones(len(rep), dtype=bool) #initialize array storing which items to keep
+			res=np.right_shift(rep[mask],4)*(2*0.3838e-3)
 
-            starts = np.arange(0, len(rep), 8 + 8)
+			res=np.split(res,nb_measure)
 
-            indices=np.arange(8) + starts[:,np.newaxis] #indices of headers datapoints
-            indices=indices.flatten()
+			res=np.mean(res,axis=0)
 
-            mask[indices]=False
+			res=np.split(res,N_adc_events)
 
-            res=rep[mask]
-            # print('count_meas={}'.format(count_meas))
-            # print('nb_measure={}'.format(nb_measure))
-            # print('len(res)={}'.format(len(res)))
+			for i in range(len(ch_vec)):
 
-            #format for unpacking
-            fmt='q'*nb_measure
-       
-            for i in range(len(ch_vec)):
+				adcdataI[ch_vec[i]].append(res[i])
 
-                maskI= np.zeros(len(res), dtype=bool) #initialize array storing which items to keep
-                maskQ= np.zeros(len(res), dtype=bool) #initialize array storing which items to keep
 
-                starts= np.arange(8*i,len(res), len(ch_vec)*8 )
+		if mode is 'SUM':
 
-                indicesI=np.arange(4) + starts[:,np.newaxis]
-                
-                indicesI=indicesI.flatten()
+			# removing headers
 
-                indicesQ=np.arange(4) + starts[:,np.newaxis] 
-                indicesQ=indicesQ.flatten() + 4    
+			mask = np.ones(len(rep), dtype=bool) #initialize array storing which items to keep
 
-                maskI[indicesI]=True
-                maskQ[indicesQ]=True
+			starts = np.arange(0, len(rep), 8 + 8)
 
-                newI=res[maskI].astype('int16').tobytes()
-                newQ=res[maskQ].astype('int16').tobytes()
+			indices=np.arange(8) + starts[:,np.newaxis] #indices of headers datapoints
+			indices=indices.flatten()
 
-                # print('len(newI)={}'.format(len(newI)))
-                # print('len(newQ)={}'.format(len(newQ)))
+			mask[indices]=False
 
-                newI=np.array(struct.unpack(fmt,newI))*(2*0.3838e-3)/(N_acq_single*2*8)
-                newQ=np.array(struct.unpack(fmt,newQ))*(2*0.3838e-3)/(N_acq_single*2*8)
-                # newI=np.array(struct.unpack(fmt,newI))/(N_acq_single*2)
-                # newQ=np.array(struct.unpack(fmt,newQ))/(N_acq_single*2)
-              
+			res=rep[mask]
+			# print('count_meas={}'.format(count_meas))
+			# print('nb_measure={}'.format(nb_measure))
+			# print('len(res)={}'.format(len(res)))
 
-                adcdataI[ch_vec[i]].append(newI)
-                adcdataQ[ch_vec[i]].append(newQ)
-              
+			#format for unpacking
+			fmt='q'*nb_measure
+	   
+			for i in range(len(ch_vec)):
 
-        return adcdataI,adcdataQ
+				maskI= np.zeros(len(res), dtype=bool) #initialize array storing which items to keep
+				maskQ= np.zeros(len(res), dtype=bool) #initialize array storing which items to keep
 
+				starts= np.arange(8*i,len(res), len(ch_vec)*8 )
 
-    def ask_raw(self, cmd: str) -> str:
-            """
-            Overwriting the ask_ray qcodes native function to query binary
-            Low-level interface to ``visa_handle.ask``.
-            Args:
-                cmd: The command to send to the instrument.
-            Returns:
-                str: The instrument's response.
-            """
-            with DelayedKeyboardInterrupt():
-                keep_trying = True
-                count = 0
-                while keep_trying:
-                    count += 1
-                    self.visa_log.debug(f"Querying: {cmd}")
-                    try:
-                        response = self.visa_handle.query_binary_values(cmd, datatype="h", is_big_endian=True)
-                        self.visa_log.debug(f"Response: {response}")
-                    except:
-                        response = 'ERR'
-                    if response != 'ERR' and response != [3338]:
-                        keep_trying = False
-                    if count>10:
-                        keep_trying = False
+				indicesI=np.arange(4) + starts[:,np.newaxis]
+				
+				indicesI=indicesI.flatten()
 
-            return response
+				indicesQ=np.arange(4) + starts[:,np.newaxis] 
+				indicesQ=indicesQ.flatten() + 4    
 
+				maskI[indicesI]=True
+				maskQ[indicesQ]=True
 
+				newI=res[maskI].astype('int16').tobytes()
+				newQ=res[maskQ].astype('int16').tobytes()
 
-    def get_readout_pulse_loop(self):
-            '''
-            This function uses loop over all the data array to read the dsp type and parameters
-            If the regular fast decoding behaviour is weird check using this function
-            Very long for high nb of measurements 
-            '''
-            self.reset_output_data()
+				# print('len(newI)={}'.format(len(newI)))
+				# print('len(newQ)={}'.format(len(newQ)))
 
-            #for now we consider only the one same type of acq on all adc
-            mode=self.acquisition_mode.get()
+				newI=np.array(struct.unpack(fmt,newI))*(2*0.3838e-3)/(N_acq_single*2*8)
+				newQ=np.array(struct.unpack(fmt,newQ))*(2*0.3838e-3)/(N_acq_single*2*8)
+				# newI=np.array(struct.unpack(fmt,newI))/(N_acq_single*2)
+				# newQ=np.array(struct.unpack(fmt,newQ))/(N_acq_single*2)
+			  
 
-            length_vec,ch_vec=self.adc_events()
+				adcdataI[ch_vec[i]].append(newI)
+				adcdataQ[ch_vec[i]].append(newQ)
+			  
 
-            N_adc_events=len(ch_vec)
+		return adcdataI,adcdataQ
 
-            N_acq=np.sum(np.sum(length_vec))
 
-            print('N_acq={}'.format(N_acq))
+	def ask_raw(self, cmd: str) -> str:
+			"""
+			Overwriting the ask_ray qcodes native function to query binary
+			Low-level interface to ``visa_handle.ask``.
+			Args:
+				cmd: The command to send to the instrument.
+			Returns:
+				str: The instrument's response.
+			"""
+			with DelayedKeyboardInterrupt():
+				keep_trying = True
+				count = 0
+				while keep_trying:
+					count += 1
+					self.visa_log.debug(f"Querying: {cmd}")
+					try:
+						response = self.visa_handle.query_binary_values(cmd, datatype="h", is_big_endian=True)
+						self.visa_log.debug(f"Response: {response}")
+					except:
+						response = 'ERR'
+					if response != 'ERR' and response != [3338]:
+						keep_trying = False
+					if count>10:
+						keep_trying = False
 
-            # 8 I and Q channels
-            adcdataI = [[],[],[],[],[],[],[],[]]
-            adcdataQ = [[],[],[],[],[],[],[],[]]
+			return response
 
-            tstart = time.perf_counter()
-            tick = 0.1
-            duree = 2
 
-            rep=[]
-            count_meas=0
 
-            if mode=='SUM':
+	def get_readout_pulse_loop(self):
+			'''
+			This function uses loop over all the data array to read the dsp type and parameters
+			If the regular fast decoding behaviour is weird check using this function
+			Very long for high nb of measurements 
+			'''
+			self.reset_output_data()
 
-                self.write("SEQ:START")
-                time.sleep(0.1)
+			#for now we consider only the one same type of acq on all adc
+			mode=self.acquisition_mode.get()
 
-                while count_meas<self.nb_measure.get():
+			length_vec,ch_vec=self.adc_events()
 
-                    r = self.ask('OUTPUT:DATA?')
+			N_adc_events=len(ch_vec)
 
-                    if len(r)>1:
-                        rep = rep+r
-                        #to modify manually depending on what we
+			N_acq=np.sum(np.sum(length_vec))
 
-                        count_meas+=len(r)//(16*N_adc_events)
+			# print('N_acq={}'.format(N_acq))
 
+			# 8 I and Q channels
+			adcdataI = [[],[],[],[],[],[],[],[]]
+			adcdataQ = [[],[],[],[],[],[],[],[]]
 
-                    elif r==[3338]:
+			tstart = time.perf_counter()
+			tick = 0.1
+			duree = 2
 
-                        count_meas=self.nb_measure.get()
+			rep=[]
+			count_meas=0
 
-            if mode=='RAW':
+			empty_packet_count = 0
 
-                self.write("SEQ:START")
-                time.sleep(0.1)
+			if mode=='SUM':
 
-                print(self.nb_measure.get())
-                while count_meas<self.nb_measure.get():
+				self.write("SEQ:START")
+				time.sleep(0.1)
 
-                    r = self.ask('OUTPUT:DATA?')
+				while (count_meas//(16*N_adc_events))<self.nb_measure.get():
 
-                    if len(r)>1:
-                        print(len(r))
-                        rep = rep+r
-                        #to modify manually depending on what we
-                        #TODO : figure a way to do it auto depending on the adcs ons and their modes
-                        #now for 1 ADC in accum
-                        # count_meas+=len(r)//16
-                        count_meas+=len(r)//((8+N_acq))
+					r = self.ask('OUTPUT:DATA?')
+					# print(r)
 
+					if r == 'ERR':
 
-                    elif r==[3338]:
+						log.error('rfSoC: Instrument returned ERR!')
 
-                        count_meas=self.nb_measure.get()
+						break
 
+					elif len(r)>1:
 
+						empty_packet_count = 0
 
-            # while time.perf_counter()<(tstart+duree):
+						# print(rep,r)
+						print(datetime.datetime.now())
+						rep = rep+r
+						print(datetime.datetime.now(),'\n')
+						#to modify manually depending on what we
 
-            #     time.sleep(tick)
-            #     r = self.ask('OUTPUT:DATA?')
-            #     if len(r)>1:
-            #         rep = rep+r
+						count_meas+=len(r)
 
-            self.write("SEQ:STOP")
-            #we ask for last packet and add it
-            r = self.ask('OUTPUT:DATA?')
-            if len(r)>1:
-                    rep = rep+r
 
-            # data decoding
-            i=0
-            TSMEM=0
-            while (i + 8 )<= len(rep) : # at least one header left
+					elif r==[3338]:
 
-                entete = np.array(rep[i:i+8])
-                X =entete.astype('int16').tobytes()
-                V = X[0]-1 # channel (1 to 8)
-                DSPTYPE = X[1]
-                #N does not have the same meaning depending on DSTYPE
-                N = struct.unpack('I',X[2:6])[0]
-                #number of acquisition points in continuous
-                #depends on the point length
-                NpCont = X[7]*256 + X[6]
-                TS= struct.unpack('Q',X[8:16])[0]
+						empty_packet_count += 1
+						time.sleep(0.1)
 
-                # print the header for each packet
-                # print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
+					if empty_packet_count>20:
 
-                TSMEM=TS
+						log.warning('Data curruption: rfSoC did not send all data points({}).'.format(count_meas//(16*N_adc_events)))
 
-                iStart=i+8
-                # if not in continuous acq mode
-                if ((DSPTYPE &  0x2)!=2):
-                    # raw adcdata for each Np points block
-                    if ((DSPTYPE  &  0x1)==0):
-                        Np=N
-                        adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
+						break
 
-                    #in the accumulation mode, only 1 I and Q point even w mixer OFF
-                    #mixer ON or OFF
-                    if ((DSPTYPE  & 0x01)==0x1):
-                        Np=8
-                        D=np.array(rep[iStart:iStart+Np])
-                        X = D.astype('int16').tobytes()
+						# if r==[3338] and count_meas == self.nb_measure.get():
 
-                        #I  dvided N and 2 bcse signed 63 bits aligned to the left
-                        # mod div by 4 to fix amplitude -Arpit, Martina
-                        I=  struct.unpack('q',X[0:8])[0]*(0.3838e-3)/(N*2*4)
-                        Q=  struct.unpack('q',X[8:16])[0]*(0.3838e-3)/(N*2*4)
+						# count_meas = self.nb_measure.get()
 
-                        # print the point
-                        # print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
+			if mode=='RAW':
 
-                        adcdataI[V]=np.append(adcdataI[V], I)
-                        adcdataQ[V]=np.append(adcdataQ[V], Q)
+				self.write("SEQ:START")
+				time.sleep(0.1)
 
+				print(self.nb_measure.get())
+				while count_meas<self.nb_measure.get():
 
-                #in our case we dont need the continuous mode for now
-                # continuoous acquisition mode with accumulation (reduce the flow of data)
-                elif ((DSPTYPE &  0x3)==0x3):
-                    # mixer OFF : onlyI @2Gs/s or 250Ms/s
-                    if ((DSPTYPE  & 0x20)==0x0):
-                        # points are already averaged in the PS part
-                        # format : 16int
-                        Np = NpCont
-                        adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
+					r = self.ask('OUTPUT:DATA?')
 
-                    # mixer ON : I and Q present
-                    elif ((DSPTYPE  & 0x20)==0x20):
-                        Np = NpCont
-                        adcdataI[V]=np.concatenate((adcdataI[V],np.right_shift(rep[iStart:Np:2],4)*0.3838e-3))
-                        adcdataQ[V]=np.concatenate((adcdataQ[V], np.right_shift(rep[iStart+1:Np:2],4)*0.3838e-3))
+					if len(r)>1:
+						print(len(r))
+						rep = rep+r
+						#to modify manually depending on what we
+						#TODO : figure a way to do it auto depending on the adcs ons and their modes
+						#now for 1 ADC in accum
+						# count_meas+=len(r)//16
+						count_meas+=len(r)//((8+N_acq))
 
 
-                i = iStart+Np # index of the new data block, new header
+					elif r==[3338]:
 
-            # print("********************************************************************")
-            # print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
-            # print("********************************************************************")
+						count_meas=self.nb_measure.get()
 
-            #reshaping results
 
-            if mode=='SUM':
 
-                # print('*** ',length_vec)
+			# while time.perf_counter()<(tstart+duree):
 
-                adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),len(length_vec[v])).T for v in range(8)]
-                adcdataQ=[np.array(adcdataQ[v]).reshape(self.nb_measure.get(),len(length_vec[v])).T for v in range(8)]
+			#     time.sleep(tick)
+			#     r = self.ask('OUTPUT:DATA?')
+			#     if len(r)>1:
+			#         rep = rep+r
 
+			self.write("SEQ:STOP")
+			# #we ask for last packet and add it
+			# r = self.ask('OUTPUT:DATA?')
+			# if len(r)>1:
+			#         rep = rep+r
 
-            if mode=='RAW':
+			# data decoding
+			i=0
+			TSMEM=0
+			while (i + 8 )<= len(rep) : # at least one header left
 
-                adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),np.sum(length_vec[v],dtype=int)) for v in range(8)]
+				entete = np.array(rep[i:i+8])
+				X =entete.astype('int16').tobytes()
+				V = X[0]-1 # channel (1 to 8)
+				DSPTYPE = X[1]
+				#N does not have the same meaning depending on DSTYPE
+				N = struct.unpack('I',X[2:6])[0]
+				#number of acquisition points in continuous
+				#depends on the point length
+				NpCont = X[7]*256 + X[6]
+				TS= struct.unpack('Q',X[8:16])[0]
 
-                # adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),np.sum(np.sum(ch[v],dtype=int))) for v in range(8)]
-                adcdataI=[np.mean(adcdataI[v],axis=0) for v in range(8)]
+				# print the header for each packet
+				# print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
 
-                adcdataI=np.array([np.split(adcdataI[v],[sum(length_vec[v][0:i+1]) for i in range(len(length_vec[v]))]) for v in range(8)])
+				TSMEM=TS
 
-            return adcdataI,adcdataQ
+				iStart=i+8
+				# if not in continuous acq mode
+				if ((DSPTYPE &  0x2)!=2):
+					# raw adcdata for each Np points block
+					if ((DSPTYPE  &  0x1)==0):
+						Np=N
+						adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
 
-    def int_0(self):
-        return 0
+					#in the accumulation mode, only 1 I and Q point even w mixer OFF
+					#mixer ON or OFF
+					if ((DSPTYPE  & 0x01)==0x1):
+						Np=8
+						D=np.array(rep[iStart:iStart+Np])
+						X = D.astype('int16').tobytes()
 
-    def int_8(self):
-        return 8
+						#I  dvided N and 2 bcse signed 63 bits aligned to the left
+						# mod div by 4 to fix amplitude -Arpit, Martina
+						I=  struct.unpack('q',X[0:8])[0]*(0.3838e-3)/(N*2*4)
+						Q=  struct.unpack('q',X[8:16])[0]*(0.3838e-3)/(N*2*4)
 
+						# print the point
+						# print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
 
-    # def get_single_readout_pulse(self):
+						adcdataI[V]=np.append(adcdataI[V], I)
+						adcdataQ[V]=np.append(adcdataQ[V], Q)
 
-    #     self.reset_output_data()
 
-        # print(self.ADC_events.get())
+				#in our case we dont need the continuous mode for now
+				# continuoous acquisition mode with accumulation (reduce the flow of data)
+				elif ((DSPTYPE &  0x3)==0x3):
+					# mixer OFF : onlyI @2Gs/s or 250Ms/s
+					if ((DSPTYPE  & 0x20)==0x0):
+						# points are already averaged in the PS part
+						# format : 16int
+						Np = NpCont
+						adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
 
-    #     if len(self.ADC_events.get())>1:
+					# mixer ON : I and Q present
+					elif ((DSPTYPE  & 0x20)==0x20):
+						Np = NpCont
+						adcdataI[V]=np.concatenate((adcdataI[V],np.right_shift(rep[iStart:Np:2],4)*0.3838e-3))
+						adcdataQ[V]=np.concatenate((adcdataQ[V], np.right_shift(rep[iStart+1:Np:2],4)*0.3838e-3))
 
-    #         raise ValueError('Need only one readout pulse in the sequence for this function')
 
-    #     else :
+				i = iStart+Np # index of the new data block, new header
 
-    #         readout=self.ADC_events.get()[0]
+			# print("********************************************************************")
+			# print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
+			# print("********************************************************************")
 
-    #     #pick up the parameters of the wanted ADC
-    #     ch=readout.channel
-    #     ch_obj=getattr(self,'ADC'+ch[2])
+			#reshaping results
 
-    #     fmix=ch_obj.fmixer.get()
-    #     decfactor=ch_obj.decfact.get()
-    #     mode=self.acquisition_mode.get()
+			if mode=='SUM':
 
-    #     N_acq=int((readout.t_duration)/0.5e-9)
-    #     #Ethernet data transfer
-    #     t_wait=(N_acq)*16.e-9
-    #     N_wait=int((t_wait)/0.5e-9)
+				# print('*** ',length_vec)
 
-    #     # 8 I and Q channels
-    #     adcdataI = [[],[],[],[],[],[],[],[]]
-    #     adcdataQ = [[],[],[],[],[],[],[],[]]
+				adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),len(length_vec[v])).T for v in range(8)]
+				adcdataQ=[np.array(adcdataQ[v]).reshape(self.nb_measure.get(),len(length_vec[v])).T for v in range(8)]
 
 
-    #     tick = 0.1
-    #     duree = 2
+			if mode=='RAW':
 
-        # print('mode is {}'.format(mode))
-    #     count_meas=0
-        # print('count_meas={}'.format(count_meas))
-    #     rep=[]
+				adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),np.sum(length_vec[v],dtype=int)) for v in range(8)]
 
-    #     if mode=='SUM':
+				# adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),np.sum(np.sum(ch[v],dtype=int))) for v in range(8)]
+				adcdataI=[np.mean(adcdataI[v],axis=0) for v in range(8)]
 
-    #         self.write("SEQ:START")
-    #         time.sleep(0.1)
+				adcdataI=np.array([np.split(adcdataI[v],[sum(length_vec[v][0:i+1]) for i in range(len(length_vec[v]))]) for v in range(8)])
 
-    #         while count_meas is not 1:
+			return adcdataI,adcdataQ
 
-    #             r = self.ask('OUTPUT:DATA?')
+	def int_0(self):
+		return 0
 
-    #             if len(r)>1:
-    #                 rep = rep+r
-    #                 #to modify manually depending on what we
-    #                 #TODO : figure a way to do it auto depending on the adcs ons and their modes
-    #                 #now for 1 ADC in accum
+	def int_8(self):
+		return 8
 
-    #             elif r==[3338]:
 
-    #                 count_meas=1
+	# def get_single_readout_pulse(self):
 
-    #     if mode=='RAW':
+	#     self.reset_output_data()
 
-    #         self.write("SEQ:START")
-    #         time.sleep(0.1)
+		# print(self.ADC_events.get())
 
+	#     if len(self.ADC_events.get())>1:
 
-    #         while count_meas is not 1:
+	#         raise ValueError('Need only one readout pulse in the sequence for this function')
 
-    #             r = self.ask('OUTPUT:DATA?')
+	#     else :
 
-    #             if len(r)>1:
-                    # print(len(r))
-    #                 rep = rep+r
-    #                 #to modify manually depending on what we
-    #                 #TODO : figure a way to do it auto depending on the adcs ons and their modes
-    #                 #now for 1 ADC in accum
+	#         readout=self.ADC_events.get()[0]
 
-    #             elif r==[3338]:
-    #                 count_meas=1
+	#     #pick up the parameters of the wanted ADC
+	#     ch=readout.channel
+	#     ch_obj=getattr(self,'ADC'+ch[2])
 
+	#     fmix=ch_obj.fmixer.get()
+	#     decfactor=ch_obj.decfact.get()
+	#     mode=self.acquisition_mode.get()
 
+	#     N_acq=int((readout.t_duration)/0.5e-9)
+	#     #Ethernet data transfer
+	#     t_wait=(N_acq)*16.e-9
+	#     N_wait=int((t_wait)/0.5e-9)
 
-    #     # while time.perf_counter()<(tstart+duree):
+	#     # 8 I and Q channels
+	#     adcdataI = [[],[],[],[],[],[],[],[]]
+	#     adcdataQ = [[],[],[],[],[],[],[],[]]
 
-    #     #     time.sleep(tick)
-    #     #     r = self.ask('OUTPUT:DATA?')
-    #     #     if len(r)>1:
-    #     #         rep = rep+r
 
-    #     self.write("SEQ:STOP")
-    #     #we ask for last packet and add it
-    #     r = self.ask('OUTPUT:DATA?')
-    #     if len(r)>1:
-    #             rep = rep+r
+	#     tick = 0.1
+	#     duree = 2
 
-    #     # data decoding
-    #     tstart = time.perf_counter()
-    #     i=0
-    #     TSMEM=0
-    #     while (i + 8 )<= len(rep) : # at least one header left
+		# print('mode is {}'.format(mode))
+	#     count_meas=0
+		# print('count_meas={}'.format(count_meas))
+	#     rep=[]
 
-    #         entete = np.array(rep[i:i+8])
-    #         X =entete.astype('int16').tobytes()
-    #         V = X[0]-1 # channel (1 to 8)
-    #         DSPTYPE = X[1]
-    #         #N does not have the same meaning depending on DSTYPE
-    #         N = struct.unpack('I',X[2:6])[0]
-    #         #number of acquisition points in continuous
-    #         #depends on the point length
-    #         NpCont = X[7]*256 + X[6]
-    #         TS= struct.unpack('Q',X[8:16])[0]
+	#     if mode=='SUM':
 
-            # print the header for each packet
-            # print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
+	#         self.write("SEQ:START")
+	#         time.sleep(0.1)
 
-    #         TSMEM=TS
+	#         while count_meas is not 1:
 
-    #         iStart=i+8
-    #         # if not in continuous acq mode
-    #         if ((DSPTYPE &  0x2)!=2):
-    #             # raw adcdata for each Np points block
-    #             if ((DSPTYPE  &  0x1)==0):
-    #                 Np=N
-    #                 adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
+	#             r = self.ask('OUTPUT:DATA?')
 
-    #             #in the accumulation mode, only 1 I and Q point even w mixer OFF
-    #             #mixer ON or OFF
-    #             if ((DSPTYPE  & 0x01)==0x1):
-    #                 Np=8
-    #                 D=np.array(rep[iStart:iStart+Np])
-    #                 X = D.astype('int16').tobytes()
+	#             if len(r)>1:
+	#                 rep = rep+r
+	#                 #to modify manually depending on what we
+	#                 #TODO : figure a way to do it auto depending on the adcs ons and their modes
+	#                 #now for 1 ADC in accum
 
-    #                 #I  dvided N and 2 bcse signed 63 bits aligned to the left
-    #                 I=  struct.unpack('q',X[0:8])[0]*(0.3838e-3)/(N*2)
-    #                 Q=  struct.unpack('q',X[8:16])[0]*(0.3838e-3)/(N*2)
+	#             elif r==[3338]:
 
-                    #print the point
-                    # print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
+	#                 count_meas=1
 
-    #                 adcdataI[V]=np.append(adcdataI[V], I)
-    #                 adcdataQ[V]=np.append(adcdataQ[V], Q)
+	#     if mode=='RAW':
 
-    #         # continuoous acquisition mode with accumulation (reduce the flow of data)
-    #         elif ((DSPTYPE &  0x3)==0x3):
-    #             # mixer OFF : onlyI @2Gs/s or 250Ms/s
-    #             if ((DSPTYPE  & 0x20)==0x0):
-    #                 # points are already averaged in the PS part
-    #                 # format : 16int
-    #                 Np = NpCont
-    #                 adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
+	#         self.write("SEQ:START")
+	#         time.sleep(0.1)
 
-    #             # mixer ON : I and Q present
-    #             elif ((DSPTYPE  & 0x20)==0x20):
-    #                 Np = NpCont
-    #                 adcdataI[V]=np.concatenate((adcdataI[V],np.right_shift(rep[iStart:Np:2],4)*0.3838e-3))
-    #                 adcdataQ[V]=np.concatenate((adcdataQ[V], np.right_shift(rep[iStart+1:Np:2],4)*0.3838e-3))
 
+	#         while count_meas is not 1:
 
-    #         i = iStart+Np # index of the new data block, new header
+	#             r = self.ask('OUTPUT:DATA?')
 
-        # print("********************************************************************")
-        # print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
-        # print("********************************************************************")
+	#             if len(r)>1:
+					# print(len(r))
+	#                 rep = rep+r
+	#                 #to modify manually depending on what we
+	#                 #TODO : figure a way to do it auto depending on the adcs ons and their modes
+	#                 #now for 1 ADC in accum
 
+	#             elif r==[3338]:
+	#                 count_meas=1
 
-    #     return adcdataI,adcdataQ
+
+
+	#     # while time.perf_counter()<(tstart+duree):
+
+	#     #     time.sleep(tick)
+	#     #     r = self.ask('OUTPUT:DATA?')
+	#     #     if len(r)>1:
+	#     #         rep = rep+r
+
+	#     self.write("SEQ:STOP")
+	#     #we ask for last packet and add it
+	#     r = self.ask('OUTPUT:DATA?')
+	#     if len(r)>1:
+	#             rep = rep+r
+
+	#     # data decoding
+	#     tstart = time.perf_counter()
+	#     i=0
+	#     TSMEM=0
+	#     while (i + 8 )<= len(rep) : # at least one header left
+
+	#         entete = np.array(rep[i:i+8])
+	#         X =entete.astype('int16').tobytes()
+	#         V = X[0]-1 # channel (1 to 8)
+	#         DSPTYPE = X[1]
+	#         #N does not have the same meaning depending on DSTYPE
+	#         N = struct.unpack('I',X[2:6])[0]
+	#         #number of acquisition points in continuous
+	#         #depends on the point length
+	#         NpCont = X[7]*256 + X[6]
+	#         TS= struct.unpack('Q',X[8:16])[0]
+
+			# print the header for each packet
+			# print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
+
+	#         TSMEM=TS
+
+	#         iStart=i+8
+	#         # if not in continuous acq mode
+	#         if ((DSPTYPE &  0x2)!=2):
+	#             # raw adcdata for each Np points block
+	#             if ((DSPTYPE  &  0x1)==0):
+	#                 Np=N
+	#                 adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
+
+	#             #in the accumulation mode, only 1 I and Q point even w mixer OFF
+	#             #mixer ON or OFF
+	#             if ((DSPTYPE  & 0x01)==0x1):
+	#                 Np=8
+	#                 D=np.array(rep[iStart:iStart+Np])
+	#                 X = D.astype('int16').tobytes()
+
+	#                 #I  dvided N and 2 bcse signed 63 bits aligned to the left
+	#                 I=  struct.unpack('q',X[0:8])[0]*(0.3838e-3)/(N*2)
+	#                 Q=  struct.unpack('q',X[8:16])[0]*(0.3838e-3)/(N*2)
+
+					#print the point
+					# print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
+
+	#                 adcdataI[V]=np.append(adcdataI[V], I)
+	#                 adcdataQ[V]=np.append(adcdataQ[V], Q)
+
+	#         # continuoous acquisition mode with accumulation (reduce the flow of data)
+	#         elif ((DSPTYPE &  0x3)==0x3):
+	#             # mixer OFF : onlyI @2Gs/s or 250Ms/s
+	#             if ((DSPTYPE  & 0x20)==0x0):
+	#                 # points are already averaged in the PS part
+	#                 # format : 16int
+	#                 Np = NpCont
+	#                 adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
+
+	#             # mixer ON : I and Q present
+	#             elif ((DSPTYPE  & 0x20)==0x20):
+	#                 Np = NpCont
+	#                 adcdataI[V]=np.concatenate((adcdataI[V],np.right_shift(rep[iStart:Np:2],4)*0.3838e-3))
+	#                 adcdataQ[V]=np.concatenate((adcdataQ[V], np.right_shift(rep[iStart+1:Np:2],4)*0.3838e-3))
+
+
+	#         i = iStart+Np # index of the new data block, new header
+
+		# print("********************************************************************")
+		# print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
+		# print("********************************************************************")
+
+
+	#     return adcdataI,adcdataQ
