@@ -361,7 +361,7 @@ class RFSoC(VisaInstrument):
 						   unit='V',
 						   label='Integrated averaged I Q for all channels',
 						   parameter_class=IQINT_AVG,
-                           vals=Arrays(shape=(self.dummy_array_size_8,)), ### ME
+                           vals=Arrays(shape=(2, 8, 2)), ### ME
 						   snapshot_value = False)
 
 		self.add_parameter('channel_axis',
