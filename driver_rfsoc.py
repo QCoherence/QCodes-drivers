@@ -116,7 +116,7 @@ class IQINT_ALL_read_header(Parameter):
 	def get_raw(self):
 		time.sleep(0.2)
 
-		data_retI, data_retQ = self._instrument.get_readout_pulse_loop()
+		data_retI, data_retQ = self._instrument.get_readout_pulse()
 
 		return data_retI, data_retQ
 
@@ -130,7 +130,7 @@ class IQINT_AVG(Parameter):
 
 		time.sleep(0.2)
 
-		data_retI, data_retQ = self._instrument.get_readout_pulse_loop()#.get_readout_pulse() ###### Martina 08/11/2020
+		data_retI, data_retQ = self._instrument.get_readout_pulse()#.get_readout_pulse() ###### Martina 08/11/2020
 
 		Sq_I = [[],[],[],[],[],[],[],[]]
 		Sq_Q = [[],[],[],[],[],[],[],[]]
@@ -172,7 +172,7 @@ class ADC_power(ParameterWithSetpoints):
 
 		time.sleep(0.2)
 
-		data_retI, data_retQ = self._instrument.get_readout_pulse_loop()
+		data_retI, data_retQ = self._instrument.get_readout_pulse()
 
 		for i in range(8):
 
@@ -492,6 +492,7 @@ class RFSoC(VisaInstrument):
 		nb_measure = self.nb_measure()
 		length_vec,ch_vec = self.adc_events()
 		N_adc_events = len(ch_vec)
+		n_pulses = len(length_vec[0])
 		
 		if mode == 'SUM':
 			'''
@@ -564,22 +565,22 @@ class RFSoC(VisaInstrument):
 
 			I_all_data*ch_1
 
-			I = [(I_all_data*ch_1)[I_all_data*ch_1!=0]-2,
-				 (I_all_data*ch_2)[I_all_data*ch_2!=0]-2,
-				 (I_all_data*ch_3)[I_all_data*ch_3!=0]-2,
-				 (I_all_data*ch_4)[I_all_data*ch_4!=0]-2,
-				 (I_all_data*ch_5)[I_all_data*ch_5!=0]-2,
-				 (I_all_data*ch_6)[I_all_data*ch_6!=0]-2,
-				 (I_all_data*ch_7)[I_all_data*ch_7!=0]-2,
-				 (I_all_data*ch_8)[I_all_data*ch_8!=0]-2]
-			Q = [(Q_all_data*ch_1)[Q_all_data*ch_1!=0]-2,
-				 (Q_all_data*ch_2)[Q_all_data*ch_2!=0]-2,
-				 (Q_all_data*ch_3)[Q_all_data*ch_3!=0]-2,
-				 (Q_all_data*ch_4)[Q_all_data*ch_4!=0]-2,
-				 (Q_all_data*ch_5)[Q_all_data*ch_5!=0]-2,
-				 (Q_all_data*ch_6)[Q_all_data*ch_6!=0]-2,
-				 (Q_all_data*ch_7)[Q_all_data*ch_7!=0]-2,
-				 (Q_all_data*ch_8)[Q_all_data*ch_8!=0]-2]
+			I = [np.split((I_all_data*ch_1)[I_all_data*ch_1!=0]-2,n_pulses),
+				 np.split((I_all_data*ch_2)[I_all_data*ch_2!=0]-2,n_pulses),
+				 np.split((I_all_data*ch_3)[I_all_data*ch_3!=0]-2,n_pulses),
+				 np.split((I_all_data*ch_4)[I_all_data*ch_4!=0]-2,n_pulses),
+				 np.split((I_all_data*ch_5)[I_all_data*ch_5!=0]-2,n_pulses),
+				 np.split((I_all_data*ch_6)[I_all_data*ch_6!=0]-2,n_pulses),
+				 np.split((I_all_data*ch_7)[I_all_data*ch_7!=0]-2,n_pulses),
+				 np.split((I_all_data*ch_8)[I_all_data*ch_8!=0]-2,n_pulses)]
+			Q = [np.split((Q_all_data*ch_1)[Q_all_data*ch_1!=0]-2,n_pulses),
+				 np.split((Q_all_data*ch_2)[Q_all_data*ch_2!=0]-2,n_pulses),
+				 np.split((Q_all_data*ch_3)[Q_all_data*ch_3!=0]-2,n_pulses),
+				 np.split((Q_all_data*ch_4)[Q_all_data*ch_4!=0]-2,n_pulses),
+				 np.split((Q_all_data*ch_5)[Q_all_data*ch_5!=0]-2,n_pulses),
+				 np.split((Q_all_data*ch_6)[Q_all_data*ch_6!=0]-2,n_pulses),
+				 np.split((Q_all_data*ch_7)[Q_all_data*ch_7!=0]-2,n_pulses),
+				 np.split((Q_all_data*ch_8)[Q_all_data*ch_8!=0]-2,n_pulses)]
 
 		elif mode == 'RAW':
 
