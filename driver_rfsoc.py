@@ -483,7 +483,7 @@ class RFSoC(VisaInstrument):
 
 
 
-	def get_readout_pulse(self):
+	# def get_readout_pulse(self):
 		'''
 		 This function reformat the data reading the header contents.
 		'''
@@ -618,7 +618,169 @@ class RFSoC(VisaInstrument):
 
 		elif mode == 'RAW':
 
-			pass
+			# '''
+			# 	Get data
+			# '''
+			# N_acq = np.sum(np.sum(length_vec))
+
+			# data_unsorted = []
+			# count_meas = 0
+			# empty_packet_count = 0
+
+			# self.write("SEQ:START")
+			# time.sleep(0.1)
+
+			# while (count_meas//(16*N_adc_events))<self.nb_measure.get():
+
+			# 	r = self.ask('OUTPUT:DATA?')
+
+			# 	if r == 'ERR':
+
+			# 		log.error('rfSoC: Instrument returned ERR!')
+
+			# 		# reset measurement
+			# 		data_unsorted = []
+			# 		count_meas = 0
+			# 		empty_packet_count = 0
+			# 		self.write("SEQ:STOP")
+			# 		time.sleep(2)
+			# 		while True:
+			# 			junk = self.ask('OUTPUT:DATA?')
+			# 			# print(junk)
+			# 			time.sleep(0.1)
+			# 			if junk == [3338]:
+			# 				break
+			# 		junk = []
+			# 		self.write("SEQ:START")
+			# 		time.sleep(0.1)
+
+			# 		continue
+
+			# 	elif len(r)>1:
+
+			# 		empty_packet_count = 0
+			# 		# print(datetime.datetime.now())
+			# 		data_unsorted = data_unsorted+r
+			# 		# print(datetime.datetime.now(),'\n')
+			# 		count_meas+=len(r)
+
+
+			# 	elif r == [3338]:
+
+			# 		empty_packet_count += 1
+			# 		time.sleep(0.5)
+
+			# 	if empty_packet_count>20:
+
+			# 		log.warning('Data curruption: rfSoC did not send all data points({}).'.format(count_meas//(16*N_adc_events)))
+					
+			# 		# reset measurement
+			# 		data_unsorted = []
+			# 		count_meas = 0
+			# 		empty_packet_count = 0
+			# 		self.write("SEQ:STOP")
+			# 		time.sleep(2)
+			# 		while True:
+			# 			junk = self.ask('OUTPUT:DATA?')
+			# 			# print(junk)
+			# 			time.sleep(0.1)
+			# 			if junk == [3338]:
+			# 				break
+			# 		junk = []
+			# 		self.write("SEQ:START")
+			# 		time.sleep(0.1)
+
+			# 		continue
+
+			# self.write("SEQ:STOP")
+
+
+
+
+
+
+
+			mode=self.acquisition_mode.get()
+
+			nb_measure=self.nb_measure.get()
+
+			length_vec,ch_vec=self.adc_events()
+			
+			N_adc_events=len(ch_vec)
+			N_acq=np.sum(np.sum(length_vec))
+			
+			#same acquisition length for all ADCs
+			N_acq_single=int(round(N_acq/N_adc_events))
+
+			I = [[],[],[],[],[],[],[],[]]
+			Q = [[],[],[],[],[],[],[],[]]
+
+			self.write("SEQ:START")
+			time.sleep(0.1)
+
+			end_loop = 0
+			rep = []
+			count_meas = 0
+
+			while end_loop==0:
+				time.sleep(0.5)
+				r = self.ask('OUTPUT:DATA?')
+
+				if len(r)>1:
+					# print(len(r))
+					rep = rep+r
+					
+					#to modify manually depending on what we
+					#TODO : figure a way to do it auto depending on the adcs ons and their modes
+					#now for 1 ADC in accum
+					# count_meas+=len(r)//16
+					count_meas+=len(r)//((8+N_acq))
+
+
+				elif r==[3338]:
+
+					# count_meas=nb_measure
+					# count_meas=1
+					end_loop = 1
+
+
+			# while time.perf_counter()<(tstart+duree):
+
+			#     time.sleep(tick)
+			#     r = self.ask('OUTPUT:DATA?')
+			#     if len(r)>1:
+			#         rep = rep+r
+
+			self.write("SEQ:STOP")
+			#we ask for last packet and add it
+			r = self.ask('OUTPUT:DATA?')
+			if len(r)>1:
+					rep = rep+r
+
+			rep=np.array(rep,dtype=int)
+
+			mask = np.ones(len(rep), dtype=bool) #initialize array storing which items to keep
+
+			starts = np.arange(0, len(rep), N_acq_single + 8)
+			#print(starts)
+			indices=np.arange(8) + starts[:,np.newaxis] #indeces of headers datapoints
+			indices=indices.flatten()
+			#print(indices)
+			mask[indices]=False
+
+			res=np.right_shift(rep[mask],4)*(2*0.3838e-3)
+
+			res=np.split(res,nb_measure)
+
+			res=np.mean(res,axis=0)
+
+			res=np.split(res,N_adc_events)
+
+			for i in range(len(ch_vec)):
+
+				I[ch_vec[i]].append(res[i])
+
+
 
 		else:
 
@@ -627,8 +789,213 @@ class RFSoC(VisaInstrument):
 		return I,Q
 
 
+	def get_readout_pulse(self):
+
+		'''
+
+		 This function reformat the data without looping over all the headers by trusting that 
+		 what we set is what we get.
+		 It also assumes that within a sequence every ADC pulses have the same length.
+
+		'''
+
+		self.reset_output_data()
+
+		#for now we consider only the one same type of acq on all adc
+		mode=self.acquisition_mode.get()
+
+		nb_measure=self.nb_measure.get()
+
+		length_vec,ch_vec=self.adc_events()
+		
+		N_adc_events=len(ch_vec)
+		N_acq=np.sum(np.sum(length_vec))
+		
+		#same acquisition length for all ADCs
+		N_acq_single=int(round(N_acq/N_adc_events))
+
+		 
+		# 8 I and Q channels
+		adcdataI = [[],[],[],[],[],[],[],[]]
+		adcdataQ = [[],[],[],[],[],[],[],[]]
+
+		tstart = time.perf_counter()
+		tick = 0.1
+		duree = 2
+
+		rep=[]
+		count_meas=0
+		end_loop=0
+
+		if mode=='SUM':
+
+			self.write("SEQ:START")
+			time.sleep(0.1)
+
+			while (count_meas//(16*N_adc_events))<self.nb_measure.get():
+
+				start_time = datetime.datetime.now()
+				r = self.ask('OUTPUT:DATA?')
+				step_time = datetime.datetime.now()
+				print('get data',len(r)//(16000*N_adc_events),str(step_time-start_time))
+
+				if r == 'ERR':
+
+					log.error('rfSoC: Instrument returned ERR!')
+
+					break
+
+				elif len(r)>1:
+
+					empty_packet_count = 0
+
+					rep = rep+r
+					step_time = datetime.datetime.now()
+					print('add data',str(step_time-start_time))
+
+					count_meas+=len(r)
 
 
+				elif r==[3338]:
+
+					empty_packet_count += 1
+					print('got empty')
+					time.sleep(0.1)
+
+				if empty_packet_count>20:
+
+					log.warning('Data curruption: rfSoC did not send all data points({}).'.format(count_meas//(16*N_adc_events)))
+
+					break
+
+			
+
+		if mode=='RAW':
+
+			self.write("SEQ:START")
+			time.sleep(0.1)
+
+
+			while end_loop==0:
+				time.sleep(0.5)
+				r = self.ask('OUTPUT:DATA?')
+
+				if len(r)>1:
+					# print(len(r))
+					rep = rep+r
+					
+					#to modify manually depending on what we
+					#TODO : figure a way to do it auto depending on the adcs ons and their modes
+					#now for 1 ADC in accum
+					# count_meas+=len(r)//16
+					count_meas+=len(r)//((8+N_acq))
+
+
+				elif r==[3338]:
+
+					# count_meas=nb_measure
+					# count_meas=1
+					end_loop = 1
+
+
+		# while time.perf_counter()<(tstart+duree):
+
+		#     time.sleep(tick)
+		#     r = self.ask('OUTPUT:DATA?')
+		#     if len(r)>1:
+		#         rep = rep+r
+
+		self.write("SEQ:STOP")
+		#we ask for last packet and add it
+		r = self.ask('OUTPUT:DATA?')
+		if len(r)>1:
+				rep = rep+r
+
+		rep=np.array(rep,dtype=int)
+		# np.save('raw_IQ_data_dump_'+str(self.nb_measure.get()),rep)
+
+		#data decoding
+		if mode is 'RAW':
+
+			# removing headers
+
+			mask = np.ones(len(rep), dtype=bool) #initialize array storing which items to keep
+
+			starts = np.arange(0, len(rep), N_acq_single + 8)
+			#print(starts)
+			indices=np.arange(8) + starts[:,np.newaxis] #indeces of headers datapoints
+			indices=indices.flatten()
+			#print(indices)
+			mask[indices]=False
+
+			res=np.right_shift(rep[mask],4)*(2*0.3838e-3)
+
+			res=np.split(res,nb_measure)
+
+			res=np.mean(res,axis=0)
+
+			res=np.split(res,N_adc_events)
+
+			for i in range(len(ch_vec)):
+
+				adcdataI[ch_vec[i]].append(res[i])
+
+
+		if mode is 'SUM':
+
+			# removing headers
+
+			mask = np.ones(len(rep), dtype=bool) #initialize array storing which items to keep
+
+			starts = np.arange(0, len(rep), 8 + 8)
+
+			indices=np.arange(8) + starts[:,np.newaxis] #indices of headers datapoints
+			indices=indices.flatten()
+
+			mask[indices]=False
+
+			res=rep[mask]
+			# print('count_meas={}'.format(count_meas))
+			# print('nb_measure={}'.format(nb_measure))
+			# print('len(res)={}'.format(len(res)))
+
+			#format for unpacking
+			fmt='q'*nb_measure
+	   
+			for i in range(len(ch_vec)):
+
+				maskI= np.zeros(len(res), dtype=bool) #initialize array storing which items to keep
+				maskQ= np.zeros(len(res), dtype=bool) #initialize array storing which items to keep
+
+				starts= np.arange(8*i,len(res), len(ch_vec)*8 )
+
+				indicesI=np.arange(4) + starts[:,np.newaxis]
+				
+				indicesI=indicesI.flatten()
+
+				indicesQ=np.arange(4) + starts[:,np.newaxis] 
+				indicesQ=indicesQ.flatten() + 4    
+
+				maskI[indicesI]=True
+				maskQ[indicesQ]=True
+
+				newI=res[maskI].astype('int16').tobytes()
+				newQ=res[maskQ].astype('int16').tobytes()
+
+				# print('len(newI)={}'.format(len(newI)))
+				# print('len(newQ)={}'.format(len(newQ)))
+
+				newI=np.array(struct.unpack(fmt,newI))*(2*0.3838e-3)/(N_acq_single*2*8)
+				newQ=np.array(struct.unpack(fmt,newQ))*(2*0.3838e-3)/(N_acq_single*2*8)
+				# newI=np.array(struct.unpack(fmt,newI))/(N_acq_single*2)
+				# newQ=np.array(struct.unpack(fmt,newQ))/(N_acq_single*2)
+			  
+
+				adcdataI[ch_vec[i]].append(newI)
+				adcdataQ[ch_vec[i]].append(newQ)
+			  
+
+		return adcdataI,adcdataQ
 
 
 	def ask_raw(self, cmd: str) -> str:
