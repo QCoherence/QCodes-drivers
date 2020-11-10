@@ -337,7 +337,8 @@ class RFSoC(VisaInstrument):
 							set_cmd='OUTPUT:FORMAT ' + '{}',
 							get_cmd='OUTPUT:FORMAT?',
 							#snapshot_get  = False,
-							get_parser=str )
+							get_parser=str,
+							snapshot_value = False)
 
 		self.add_parameter(name='RAW_ALL',
 						   unit='V',
@@ -515,7 +516,23 @@ class RFSoC(VisaInstrument):
 
 					log.error('rfSoC: Instrument returned ERR!')
 
-					break
+					# reset measurement
+					data_unsorted = []
+					count_meas = 0
+					empty_packet_count = 0
+					self.write("SEQ:STOP")
+					time.sleep(2)
+					while True:
+						junk = self.ask('OUTPUT:DATA?')
+						# print(junk)
+						time.sleep(0.1)
+						if junk == [3338]:
+							break
+					junk = []
+					self.write("SEQ:START")
+					time.sleep(0.1)
+
+					continue
 
 				elif len(r)>1:
 
@@ -526,15 +543,32 @@ class RFSoC(VisaInstrument):
 					count_meas+=len(r)
 
 
-				elif r==[3338]:
+				elif r == [3338]:
 
 					empty_packet_count += 1
-					time.sleep(0.1)
+					time.sleep(0.5)
 
 				if empty_packet_count>20:
 
 					log.warning('Data curruption: rfSoC did not send all data points({}).'.format(count_meas//(16*N_adc_events)))
-					break
+					
+					# reset measurement
+					data_unsorted = []
+					count_meas = 0
+					empty_packet_count = 0
+					self.write("SEQ:STOP")
+					time.sleep(2)
+					while True:
+						junk = self.ask('OUTPUT:DATA?')
+						# print(junk)
+						time.sleep(0.1)
+						if junk == [3338]:
+							break
+					junk = []
+					self.write("SEQ:START")
+					time.sleep(0.1)
+
+					continue
 
 			self.write("SEQ:STOP")
 
@@ -630,3 +664,7 @@ class RFSoC(VisaInstrument):
 
 	def int_8(self):
 		return 8
+
+	def get_idn(self):
+		return {'vendor': 'Quantum Coherence Team', 'model': 'rfSoC gen01',
+				'serial': 'NA', 'firmware': None}

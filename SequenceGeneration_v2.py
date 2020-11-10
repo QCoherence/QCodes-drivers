@@ -132,7 +132,7 @@ class Pulse:
 
 		#go through sorted events (the sequence is ... sequential)
 		for gp in sorted_seq:
-			print(last_DAC_channel_event)
+			# print(last_DAC_channel_event)
 			N_wait = int(round(gp[0].t_init/(4.e-9)))
 			ctrl_dac_adc=0
 			N_adc_duration=0
@@ -158,7 +158,7 @@ class Pulse:
 					else :
 						#computing new start adress for the new wform of the DAC
 						new_adress= int(round(last_DAC_channel_event[int(obj.channel[2])-1].t_duration/(4.e-9))) + 1
-						print('new_adress = {}'.format(new_adress))
+						# print('new_adress = {}'.format(new_adress))
 
 						#adding delay or not
 						scpi_str=scpi_str+',{},{}'.format(4096+int(obj.channel[2]),new_adress)
@@ -248,7 +248,7 @@ class Pulse:
 		# scpi_str=scpi_str+',1,{},513,0'.format(1000000-5)
 
 		# print('N_seq_loop={}'.format(N_seq_loop))
-		print('t_seq_loop={} s'.format(N_seq_loop*4.e-9))
+		# print('t_seq_loop={} s'.format(N_seq_loop*4.e-9))
 	
 
 		# print(scpi_str)
@@ -310,7 +310,7 @@ class PulseGeneration(Pulse):
 			t = np.linspace(0, 2 * np.pi,N_point)
 
 			table = (self.DC_offset* 8192/0.926) + DAC_amplitude*np.concatenate((np.sin(n_oscillation*t),np.zeros(N_point%8)))
-			print(table)
+			# print(table)
 			# adding zeros at the end so that N_point_tot is dividable by 8
 			# because the table is to be divided in chunks of 8 values
 
@@ -383,7 +383,7 @@ class PulseGeneration(Pulse):
 			table2=DAC_amp2*np.concatenate((np.sin(n_oscillation2*t),np.zeros(N_point%8)))
 
 			table = table1 + table2
-			print(table)
+			# print(table)
 			# adding zeros at the end so that N_point_tot is dividable by 8
 			# because the table is to be divided in chunks of 8 values
 
