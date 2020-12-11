@@ -1,6 +1,7 @@
 import numpy as np
 from operator import itemgetter, attrgetter
 from itertools import groupby
+import matplotlib.pyplot as plt
 
 import logging
 
@@ -237,8 +238,8 @@ class Pulse:
 		if mix_freq!=0.:
 
 			N_mix=int(round(1./(4.e-9 * mix_freq)))
-			N_add +=(N_mix -  N_seq_loop % N_mix) + N_mix*10
-			N_seq_loop+=(N_mix -  N_seq_loop % N_mix) + N_mix*10
+			N_add +=(N_mix -  N_seq_loop % N_mix) + N_mix*1000  #### 25 points of wait correspond to 1 us acquisition time
+			N_seq_loop+=(N_mix -  N_seq_loop % N_mix) + N_mix*1000
 
 		# print('N_add={}'.format(N_add))
 
@@ -287,15 +288,16 @@ class PulseGeneration(Pulse):
 
 		#check waveform
 		if self.wform=='SIN':
-
-			freq, amplitude = self.params
-
+			###### TO DO add the phase ()
+			# freq, amplitude= self.params
+			freq, amplitude, phase = self.params ### ME (phase must be given in degrees)
 			#size of the memory is 65536 and the time step of the DACS is 500 ps
 
 			#control parameters of the wform
 			#TODO : move those control to the init of the PulseGeneration object
 
-			if freq > 1./0.5e-9 or amplitude > 2 or self.t_duration > 64.e-6:
+			# if freq > 1./0.5e-9 or amplitude > 2 or self.t_duration > 64.e-6:
+			if freq > 1./0.5e-9 or amplitude > 2 or self.t_duration > 64.e-6 or phase > 360 or phase < 0: ### ME
 				raise ValueError('One of the parameters is not correct')
 
 			else :
@@ -304,13 +306,16 @@ class PulseGeneration(Pulse):
 
 			# DAC values are coded on signed 14 bits = +/- 8192
 			DAC_amplitude = amplitude * 8192/0.926
+			phase_rad = phase*2*np.pi/360 ### ME
 
 			N_point = int(round(self.t_duration/0.5e-9))
 			n_oscillation = freq*self.t_duration
 			t = np.linspace(0, 2 * np.pi,N_point)
 
-			table = (self.DC_offset* 8192/0.926) + DAC_amplitude*np.concatenate((np.sin(n_oscillation*t),np.zeros(N_point%8)))
-			# print(table)
+			# table = (self.DC_offset* 8192/0.926) + DAC_amplitude*np.concatenate((np.sin(n_oscillation*t),np.zeros(N_point%8)))
+
+			table = (self.DC_offset* 8192/0.926) + DAC_amplitude*np.concatenate((np.sin(n_oscillation*t + phase_rad),np.zeros(N_point%8))) ### ME
+			# plt.plot(t, table)
 			# adding zeros at the end so that N_point_tot is dividable by 8
 			# because the table is to be divided in chunks of 8 values
 
@@ -353,10 +358,12 @@ class PulseGeneration(Pulse):
 
 			    return memory_table.reshape((1,memory_table.shape[0]*memory_table.shape[1]))[0]
 
+
+
 			#check waveform
 		if self.wform=='SIN+SIN':
 
-			freq1, amp1, freq2, amp2 = self.params
+			freq1, amp1, phase1, freq2, amp2, phase2 = self.params ### phases must be given in degrees
 
 			#size of the memory is 65536 and the time step of the DACS is 500 ps
 
@@ -365,6 +372,8 @@ class PulseGeneration(Pulse):
 
 			if freq1 > 1./0.5e-9 or freq1 > 1./0.5e-9 or amp1 + amp2 > .926 or self.t_duration > 64.e-6:
 				raise ValueError('One of the parameters is not correct')
+			elif  phase1 > 360 or phase1 < 0 or phase2 > 360 or phase2 < 0: ### ME
+				raise ValueError('One of the phase parameters is not correct') ### ME
 
 			else :
 				if freq1 > 1./(4.*0.5e-9) or freq2 > 1./(4.*0.5e-9):
@@ -373,14 +382,16 @@ class PulseGeneration(Pulse):
 			# DAC values are coded on signed 14 bits = +/- 8192
 			DAC_amp1 = amp1 * 8192/0.926
 			DAC_amp2 = amp2 * 8192/0.926
+			phase_rad1 = phase1*2*np.pi/360 ### ME
+			phase_rad2 = phase2*2*np.pi/360 ### ME
 
 			N_point = int(round(self.t_duration/0.5e-9))
 			n_oscillation1 = freq1*self.t_duration
 			n_oscillation2 = freq2*self.t_duration
 			t = np.linspace(0, 2 * np.pi,N_point)
 
-			table1=DAC_amp1*np.concatenate((np.sin(n_oscillation1*t),np.zeros(N_point%8)))
-			table2=DAC_amp2*np.concatenate((np.sin(n_oscillation2*t),np.zeros(N_point%8)))
+			table1=DAC_amp1*np.concatenate((np.sin(n_oscillation1*t + phase_rad1),np.zeros(N_point%8)))
+			table2=DAC_amp2*np.concatenate((np.sin(n_oscillation2*t + phase_rad2),np.zeros(N_point%8)))
 
 			table = table1 + table2
 			# print(table)
@@ -425,6 +436,7 @@ class PulseGeneration(Pulse):
 			            raise ValueError('Wrong trigger value')
 
 			    return memory_table.reshape((1,memory_table.shape[0]*memory_table.shape[1]))[0]
+
 
 
 

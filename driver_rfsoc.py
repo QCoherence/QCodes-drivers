@@ -344,6 +344,7 @@ class RFSoC(VisaInstrument):
 						   unit='V',
 						   label='Raw adc for all channel',
 						   parameter_class=RAW_ALL,
+						   vals=Arrays(shape=(8, 2, self.nb_measure)), ### ME
 						   snapshot_value = False)
 
 		self.add_parameter(name='IQINT_ALL',
@@ -356,6 +357,14 @@ class RFSoC(VisaInstrument):
 						   unit='V',
 						   label='Integrated I Q for all channels with header check',
 						   parameter_class=IQINT_ALL_read_header,
+						   vals=Arrays(shape=(2, 8, 2, self.nb_measure)), ### ME
+						   snapshot_value = False)
+
+		self.add_parameter(name='IQINT_two_mode_squeezing',
+						   unit='V',
+						   label='Integrated I Q for 2 channels with header check',
+						   parameter_class = ManualParameter,
+						   vals=Arrays(shape=(2, 2, 2, self.nb_measure)), ### ME
 						   snapshot_value = False)
 
 		self.add_parameter(name='IQINT_AVG',
@@ -494,6 +503,11 @@ class RFSoC(VisaInstrument):
 		length_vec,ch_vec = self.adc_events()
 		N_adc_events = len(ch_vec)
 		n_pulses = len(length_vec[0])
+
+		ch_active = np.zeros(8,dtype=int)
+		for i in range(8):
+			if len(np.where(ch_vec==i)[0])>0:
+				ch_active[i] = 1
 		
 		if mode == 'SUM':
 			'''
@@ -508,13 +522,79 @@ class RFSoC(VisaInstrument):
 			self.write("SEQ:START")
 			time.sleep(0.1)
 
-			while (count_meas//(16*N_adc_events))<self.nb_measure.get():
+			getting_valid_dataset = True
 
-				r = self.ask('OUTPUT:DATA?')
+			while getting_valid_dataset:
 
-				if r == 'ERR':
+				while (count_meas//(16*N_adc_events))<self.nb_measure.get():
 
-					log.error('rfSoC: Instrument returned ERR!')
+					r = self.ask('OUTPUT:DATA?')
+
+					if r == 'ERR':
+
+						log.error('rfSoC: Instrument returned ERR!')
+
+						# reset measurement
+						data_unsorted = []
+						count_meas = 0
+						empty_packet_count = 0
+						self.write("SEQ:STOP")
+						time.sleep(2)
+						while True:
+							junk = self.ask('OUTPUT:DATA?')
+							# print(junk)
+							time.sleep(0.1)
+							if junk == [3338]:
+								break
+						junk = []
+						self.write("SEQ:START")
+						time.sleep(0.1)
+
+						continue
+
+					elif len(r)>1:
+
+						empty_packet_count = 0
+						# print(datetime.datetime.now())
+						data_unsorted = data_unsorted+r
+						# print(datetime.datetime.now(),'\n')
+						count_meas+=len(r)
+
+
+					elif r == [3338]:
+
+						empty_packet_count += 1
+						time.sleep(0.5)
+
+					if empty_packet_count>20:
+
+						log.error('Data curruption: rfSoC did not send all data points({}/'.format(count_meas//(16*N_adc_events))+str(self.nb_measure.get())+').')
+						
+						# reset measurement
+						data_unsorted = []
+						count_meas = 0
+						empty_packet_count = 0
+						self.write("SEQ:STOP")
+						time.sleep(2)
+						while True:
+							junk = self.ask('OUTPUT:DATA?')
+							# print(junk)
+							time.sleep(0.1)
+							if junk == [3338]:
+								break
+						junk = []
+						self.write("SEQ:START")
+						time.sleep(0.1)
+
+						continue
+
+				if count_meas//(16*N_adc_events) == self.nb_measure.get():
+
+					getting_valid_dataset = False
+
+				else:
+
+					log.error('Data curruption: rfSoC did not send all data points({}/'.format(count_meas//(16*N_adc_events))+str(self.nb_measure.get())+').')
 
 					# reset measurement
 					data_unsorted = []
@@ -531,44 +611,6 @@ class RFSoC(VisaInstrument):
 					junk = []
 					self.write("SEQ:START")
 					time.sleep(0.1)
-
-					continue
-
-				elif len(r)>1:
-
-					empty_packet_count = 0
-					# print(datetime.datetime.now())
-					data_unsorted = data_unsorted+r
-					# print(datetime.datetime.now(),'\n')
-					count_meas+=len(r)
-
-
-				elif r == [3338]:
-
-					empty_packet_count += 1
-					time.sleep(0.5)
-
-				if empty_packet_count>20:
-
-					log.warning('Data curruption: rfSoC did not send all data points({}).'.format(count_meas//(16*N_adc_events)))
-					
-					# reset measurement
-					data_unsorted = []
-					count_meas = 0
-					empty_packet_count = 0
-					self.write("SEQ:STOP")
-					time.sleep(2)
-					while True:
-						junk = self.ask('OUTPUT:DATA?')
-						# print(junk)
-						time.sleep(0.1)
-						if junk == [3338]:
-							break
-					junk = []
-					self.write("SEQ:START")
-					time.sleep(0.1)
-
-					continue
 
 			self.write("SEQ:STOP")
 
@@ -599,22 +641,22 @@ class RFSoC(VisaInstrument):
 
 			I_all_data*ch_1
 
-			I = [np.split((I_all_data*ch_1)[I_all_data*ch_1!=0]-2,n_pulses),
-				 np.split((I_all_data*ch_2)[I_all_data*ch_2!=0]-2,n_pulses),
-				 np.split((I_all_data*ch_3)[I_all_data*ch_3!=0]-2,n_pulses),
-				 np.split((I_all_data*ch_4)[I_all_data*ch_4!=0]-2,n_pulses),
-				 np.split((I_all_data*ch_5)[I_all_data*ch_5!=0]-2,n_pulses),
-				 np.split((I_all_data*ch_6)[I_all_data*ch_6!=0]-2,n_pulses),
-				 np.split((I_all_data*ch_7)[I_all_data*ch_7!=0]-2,n_pulses),
-				 np.split((I_all_data*ch_8)[I_all_data*ch_8!=0]-2,n_pulses)]
-			Q = [np.split((Q_all_data*ch_1)[Q_all_data*ch_1!=0]-2,n_pulses),
-				 np.split((Q_all_data*ch_2)[Q_all_data*ch_2!=0]-2,n_pulses),
-				 np.split((Q_all_data*ch_3)[Q_all_data*ch_3!=0]-2,n_pulses),
-				 np.split((Q_all_data*ch_4)[Q_all_data*ch_4!=0]-2,n_pulses),
-				 np.split((Q_all_data*ch_5)[Q_all_data*ch_5!=0]-2,n_pulses),
-				 np.split((Q_all_data*ch_6)[Q_all_data*ch_6!=0]-2,n_pulses),
-				 np.split((Q_all_data*ch_7)[Q_all_data*ch_7!=0]-2,n_pulses),
-				 np.split((Q_all_data*ch_8)[Q_all_data*ch_8!=0]-2,n_pulses)]
+			I = [((I_all_data*ch_1)[I_all_data*ch_1!=0]-2).reshape(nb_measure*ch_active[0],n_pulses).T,
+				 ((I_all_data*ch_2)[I_all_data*ch_2!=0]-2).reshape(nb_measure*ch_active[1],n_pulses).T,
+				 ((I_all_data*ch_3)[I_all_data*ch_3!=0]-2).reshape(nb_measure*ch_active[2],n_pulses).T,
+				 ((I_all_data*ch_4)[I_all_data*ch_4!=0]-2).reshape(nb_measure*ch_active[3],n_pulses).T,
+				 ((I_all_data*ch_5)[I_all_data*ch_5!=0]-2).reshape(nb_measure*ch_active[4],n_pulses).T,
+				 ((I_all_data*ch_6)[I_all_data*ch_6!=0]-2).reshape(nb_measure*ch_active[5],n_pulses).T,
+				 ((I_all_data*ch_7)[I_all_data*ch_7!=0]-2).reshape(nb_measure*ch_active[6],n_pulses).T,
+				 ((I_all_data*ch_8)[I_all_data*ch_8!=0]-2).reshape(nb_measure*ch_active[7],n_pulses).T]
+			Q = [((Q_all_data*ch_1)[Q_all_data*ch_1!=0]-2).reshape(nb_measure*ch_active[0],n_pulses).T,
+				 ((Q_all_data*ch_2)[Q_all_data*ch_2!=0]-2).reshape(nb_measure*ch_active[1],n_pulses).T,
+				 ((Q_all_data*ch_3)[Q_all_data*ch_3!=0]-2).reshape(nb_measure*ch_active[2],n_pulses).T,
+				 ((Q_all_data*ch_4)[Q_all_data*ch_4!=0]-2).reshape(nb_measure*ch_active[3],n_pulses).T,
+				 ((Q_all_data*ch_5)[Q_all_data*ch_5!=0]-2).reshape(nb_measure*ch_active[4],n_pulses).T,
+				 ((Q_all_data*ch_6)[Q_all_data*ch_6!=0]-2).reshape(nb_measure*ch_active[5],n_pulses).T,
+				 ((Q_all_data*ch_7)[Q_all_data*ch_7!=0]-2).reshape(nb_measure*ch_active[6],n_pulses).T,
+				 ((Q_all_data*ch_8)[Q_all_data*ch_8!=0]-2).reshape(nb_measure*ch_active[7],n_pulses).T]
 
 		elif mode == 'RAW':
 
@@ -717,13 +759,13 @@ class RFSoC(VisaInstrument):
 			self.write("SEQ:START")
 			time.sleep(0.1)
 
-			print(self.nb_measure.get())
+			#print(self.nb_measure.get())
 			while count_meas<self.nb_measure.get():
 
 				r = self.ask('OUTPUT:DATA?')
 
 				if len(r)>1:
-					print(len(r))
+					#print(len(r))
 					rep = rep+r
 					#to modify manually depending on what we
 					#TODO : figure a way to do it auto depending on the adcs ons and their modes
