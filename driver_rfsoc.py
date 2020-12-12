@@ -620,12 +620,18 @@ class RFSoC(VisaInstrument):
 
 			data_unsorted = np.array(data_unsorted,dtype=int)
 
+			# separate header from IQ data
 			raw_IQ_data_dump_header = data_unsorted.reshape(int(len(data_unsorted)/8),8)[0::2]
 			raw_I_data_dump_data = data_unsorted.reshape(int(len(data_unsorted)/8),8)[1::2][:,0:4]
 			raw_Q_data_dump_data = data_unsorted.reshape(int(len(data_unsorted)/8),8)[1::2][:,4:8]
 
+			# extract channel number from first byte of header
 			ch_num = (raw_IQ_data_dump_header%256).T[0]
-			num_points = (raw_IQ_data_dump_header).T[1]+256*(raw_IQ_data_dump_header).T[2]
+
+			# extract number of accumulated points for normalization from 3rd to 6th byte of header 
+			num_points = np.frombuffer(np.stack((raw_IQ_data_dump_header.T[1], raw_IQ_data_dump_header.T[2]), axis=1).astype('int16').tobytes(), dtype=np.long)
+
+			# vectors indicating channel that the data originated from 
 			ch_1 = ch_num*(ch_num == np.ones(len(ch_num)))
 			ch_2 = ch_num*(ch_num == 2*np.ones(len(ch_num)))/2
 			ch_3 = ch_num*(ch_num == 3*np.ones(len(ch_num)))/3
@@ -635,11 +641,9 @@ class RFSoC(VisaInstrument):
 			ch_7 = ch_num*(ch_num == 7*np.ones(len(ch_num)))/7
 			ch_8 = ch_num*(ch_num == 8*np.ones(len(ch_num)))/8
 
-			#data conversion
-			I_all_data = 2 + np.frombuffer(raw_I_data_dump_data.astype('int16').tobytes(), dtype=np.longlong)*(0.3838e-3/16)/num_points
-			Q_all_data = 2 + np.frombuffer(raw_Q_data_dump_data.astype('int16').tobytes(), dtype=np.longlong)*(0.3838e-3/16)/num_points
-
-			I_all_data*ch_1
+			# data conversion form four 16 bit integers to one 64 bit longlong (*(0.3838e-3/16))
+			I_all_data = 2 + np.frombuffer(raw_I_data_dump_data.astype('int16').tobytes(), dtype=np.longlong)*0.3838e-3/num_points
+			Q_all_data = 2 + np.frombuffer(raw_Q_data_dump_data.astype('int16').tobytes(), dtype=np.longlong)*0.3838e-3/num_points
 
 			I = [((I_all_data*ch_1)[I_all_data*ch_1!=0]-2).reshape(nb_measure*ch_active[0],n_pulses).T,
 				 ((I_all_data*ch_2)[I_all_data*ch_2!=0]-2).reshape(nb_measure*ch_active[1],n_pulses).T,
