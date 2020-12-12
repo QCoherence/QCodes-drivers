@@ -642,8 +642,8 @@ class RFSoC(VisaInstrument):
 			ch_8 = ch_num*(ch_num == 8*np.ones(len(ch_num)))/8
 
 			# data conversion form four 16 bit integers to one 64 bit longlong (*(0.3838e-3/16))
-			I_all_data = 2 + np.frombuffer(raw_I_data_dump_data.astype('int16').tobytes(), dtype=np.longlong)*0.3838e-3/num_points
-			Q_all_data = 2 + np.frombuffer(raw_Q_data_dump_data.astype('int16').tobytes(), dtype=np.longlong)*0.3838e-3/num_points
+			I_all_data = 2 + np.frombuffer(raw_I_data_dump_data.astype('int16').tobytes(), dtype=np.longlong)*0.3838e-3/(16*num_points)
+			Q_all_data = 2 + np.frombuffer(raw_Q_data_dump_data.astype('int16').tobytes(), dtype=np.longlong)*0.3838e-3/(16*num_points)
 
 			I = [((I_all_data*ch_1)[I_all_data*ch_1!=0]-2).reshape(nb_measure*ch_active[0],n_pulses).T,
 				 ((I_all_data*ch_2)[I_all_data*ch_2!=0]-2).reshape(nb_measure*ch_active[1],n_pulses).T,
