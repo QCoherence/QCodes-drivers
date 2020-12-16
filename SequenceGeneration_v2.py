@@ -238,8 +238,8 @@ class Pulse:
 		if mix_freq!=0.:
 
 			N_mix=int(round(1./(4.e-9 * mix_freq)))
-			N_add +=(N_mix -  N_seq_loop % N_mix) + N_mix*1000  #### 25 points of wait correspond to 1 us acquisition time
-			N_seq_loop+=(N_mix -  N_seq_loop % N_mix) + N_mix*1000
+			N_add +=(N_mix -  N_seq_loop % N_mix) #+ N_mix*1000  #### 25 points of wait correspond to 1 us acquisition time
+			N_seq_loop+=(N_mix -  N_seq_loop % N_mix) #+ N_mix*1000
 
 		# print('N_add={}'.format(N_add))
 
