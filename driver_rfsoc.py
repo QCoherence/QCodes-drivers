@@ -893,7 +893,7 @@ class RFSoC(VisaInstrument):
 					count += 1
 					self.visa_log.debug(f"Querying: {cmd}")
 					try:
-						response = self.visa_handle.query_binary_values(cmd, datatype="h", is_big_endian=True)
+						response = self.visa_handle.query_binary_values(cmd, datatype="h", is_big_endian=False)
 						self.visa_log.debug(f"Response: {response}")
 					except:
 						response = 'ERR'
