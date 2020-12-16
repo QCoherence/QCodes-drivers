@@ -544,7 +544,7 @@ class RFSoC(VisaInstrument):
 							junk = self.ask('OUTPUT:DATA?')
 							# print(junk)
 							time.sleep(0.1)
-							if junk == [3338]:
+							if junk == [3338] or junk == [2573]:
 								break
 						junk = []
 						self.write("SEQ:START")
@@ -561,7 +561,7 @@ class RFSoC(VisaInstrument):
 						count_meas+=len(r)
 
 
-					elif r == [3338]:
+					elif r == [3338] or r == [2573]: # new empty packet?
 
 						empty_packet_count += 1
 						time.sleep(0.5)
@@ -580,7 +580,7 @@ class RFSoC(VisaInstrument):
 							junk = self.ask('OUTPUT:DATA?')
 							# print(junk)
 							time.sleep(0.1)
-							if junk == [3338]:
+							if junk == [3338] or junk == [2573]:
 								break
 						junk = []
 						self.write("SEQ:START")
@@ -606,7 +606,7 @@ class RFSoC(VisaInstrument):
 						junk = self.ask('OUTPUT:DATA?')
 						# print(junk)
 						time.sleep(0.1)
-						if junk == [3338]:
+						if junk == [3338] or junk == [2573]:
 							break
 					junk = []
 					self.write("SEQ:START")
@@ -664,82 +664,6 @@ class RFSoC(VisaInstrument):
 
 		elif mode == 'RAW':
 
-			# '''
-			# 	Get data
-			# '''
-			# N_acq = np.sum(np.sum(length_vec))
-
-			# data_unsorted = []
-			# count_meas = 0
-			# empty_packet_count = 0
-
-			# self.write("SEQ:START")
-			# time.sleep(0.1)
-
-			# while (count_meas//(16*N_adc_events))<self.nb_measure.get():
-
-			# 	r = self.ask('OUTPUT:DATA?')
-
-			# 	if r == 'ERR':
-
-			# 		log.error('rfSoC: Instrument returned ERR!')
-
-			# 		# reset measurement
-			# 		data_unsorted = []
-			# 		count_meas = 0
-			# 		empty_packet_count = 0
-			# 		self.write("SEQ:STOP")
-			# 		time.sleep(2)
-			# 		while True:
-			# 			junk = self.ask('OUTPUT:DATA?')
-			# 			# print(junk)
-			# 			time.sleep(0.1)
-			# 			if junk == [3338]:
-			# 				break
-			# 		junk = []
-			# 		self.write("SEQ:START")
-			# 		time.sleep(0.1)
-
-			# 		continue
-
-			# 	elif len(r)>1:
-
-			# 		empty_packet_count = 0
-			# 		# print(datetime.datetime.now())
-			# 		data_unsorted = data_unsorted+r
-			# 		# print(datetime.datetime.now(),'\n')
-			# 		count_meas+=len(r)
-
-
-			# 	elif r == [3338]:
-
-			# 		empty_packet_count += 1
-			# 		time.sleep(0.5)
-
-			# 	if empty_packet_count>20:
-
-			# 		log.warning('Data curruption: rfSoC did not send all data points({}).'.format(count_meas//(16*N_adc_events)))
-					
-			# 		# reset measurement
-			# 		data_unsorted = []
-			# 		count_meas = 0
-			# 		empty_packet_count = 0
-			# 		self.write("SEQ:STOP")
-			# 		time.sleep(2)
-			# 		while True:
-			# 			junk = self.ask('OUTPUT:DATA?')
-			# 			# print(junk)
-			# 			time.sleep(0.1)
-			# 			if junk == [3338]:
-			# 				break
-			# 		junk = []
-			# 		self.write("SEQ:START")
-			# 		time.sleep(0.1)
-
-			# 		continue
-
-			# self.write("SEQ:STOP")
-
 
 			self.reset_output_data()
 
@@ -752,121 +676,160 @@ class RFSoC(VisaInstrument):
 
 			N_acq=np.sum(np.sum(length_vec))
 
-			adcdataI = [[],[],[],[],[],[],[],[]]
-			adcdataQ = [[],[],[],[],[],[],[],[]]
+			getting_valid_dataset = True
 
-			rep=[]
-			count_meas=0
+			while getting_valid_dataset:
 
-			empty_packet_count = 0
+				adcdataI = [[],[],[],[],[],[],[],[]]
+				adcdataQ = [[],[],[],[],[],[],[],[]]
 
-			self.write("SEQ:START")
-			time.sleep(0.1)
+				rep=[]
 
-			#print(self.nb_measure.get())
-			while count_meas<self.nb_measure.get():
+				keep_trying = True
+				empty_packet_count = 0
 
-				r = self.ask('OUTPUT:DATA?')
+				self.write("SEQ:START")
+				time.sleep(0.1)
 
-				if len(r)>1:
-					#print(len(r))
-					rep = rep+r
-					#to modify manually depending on what we
-					#TODO : figure a way to do it auto depending on the adcs ons and their modes
-					#now for 1 ADC in accum
-					# count_meas+=len(r)//16
-					count_meas+=len(r)//((8+N_acq))
+				while keep_trying:
 
+					r = self.ask('OUTPUT:DATA?')
 
-				elif r==[3338]:
+					if r == 'ERR':
 
-					count_meas=self.nb_measure.get()
+						log.error('rfSoC: Instrument returned ERR!')
 
-			self.write("SEQ:STOP")
+						# reset measurement
+						rep = []
+						empty_packet_count = 0
+						self.write("SEQ:STOP")
+						time.sleep(2)
+						while True:
+							junk = self.ask('OUTPUT:DATA?')
+							# print(junk)
+							time.sleep(0.1)
+							if junk == [3338] or junk == [2573]:
+								break
+						junk = []
+						self.write("SEQ:START")
+						time.sleep(0.1)
 
-			i=0
-			TSMEM=0
-			while (i + 8 )<= len(rep) : # at least one header left
+						continue
 
-				entete = np.array(rep[i:i+8])
-				X =entete.astype('int16').tobytes()
-				V = X[0]-1 # channel (1 to 8)
-				DSPTYPE = X[1]
-				#N does not have the same meaning depending on DSTYPE
-				N = struct.unpack('I',X[2:6])[0]
-				#number of acquisition points in continuous
-				#depends on the point length
-				NpCont = X[7]*256 + X[6]
-				TS= struct.unpack('Q',X[8:16])[0]
+					if len(r)>1:
 
-				# print the header for each packet
-				# print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
+						rep = rep+r
 
-				TSMEM=TS
+					elif r==[3338] or r==[2573]:
 
-				iStart=i+8
-				# if not in continuous acq mode
-				if ((DSPTYPE &  0x2)!=2):
-					# raw adcdata for each Np points block
-					if ((DSPTYPE  &  0x1)==0):
-						Np=N
-						adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
+						empty_packet_count += 1
+						time.sleep(0.1)
 
-					#in the accumulation mode, only 1 I and Q point even w mixer OFF
-					#mixer ON or OFF
-					if ((DSPTYPE  & 0x01)==0x1):
-						Np=8
-						D=np.array(rep[iStart:iStart+Np])
-						X = D.astype('int16').tobytes()
+						if empty_packet_count>10:
 
-						#I  dvided N and 2 bcse signed 63 bits aligned to the left
-						# mod div by 4 to fix amplitude -Arpit, Martina
-						I=  struct.unpack('q',X[0:8])[0]*(0.3838e-3)/(N*2*4)
-						Q=  struct.unpack('q',X[8:16])[0]*(0.3838e-3)/(N*2*4)
+							keep_trying = False
 
-						# print the point
-						# print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
+				self.write("SEQ:STOP")
 
-						adcdataI[V]=np.append(adcdataI[V], I)
-						adcdataQ[V]=np.append(adcdataQ[V], Q)
+				i=0
+				TSMEM=0
+				while (i + 8 )<= len(rep) : # at least one header left
 
+					entete = np.array(rep[i:i+8])
+					X =entete.astype('int16').tobytes()
+					V = X[0]-1 # channel (1 to 8)
+					DSPTYPE = X[1]
+					#N does not have the same meaning depending on DSTYPE
+					N = struct.unpack('I',X[2:6])[0]
+					#number of acquisition points in continuous
+					#depends on the point length
+					NpCont = X[7]*256 + X[6]
+					TS= struct.unpack('Q',X[8:16])[0]
 
-				#in our case we dont need the continuous mode for now
-				# continuoous acquisition mode with accumulation (reduce the flow of data)
-				elif ((DSPTYPE &  0x3)==0x3):
-					# mixer OFF : onlyI @2Gs/s or 250Ms/s
-					if ((DSPTYPE  & 0x20)==0x0):
-						# points are already averaged in the PS part
-						# format : 16int
-						Np = NpCont
-						adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
+					# print the header for each packet
+					# print("Channel={}; N={}; DSP_type={}; TimeStamp={}; Np_Cont={}; Delta_TimeStamp={}".format(V,N,DSPTYPE,TS,NpCont,TS-TSMEM))
 
-					# mixer ON : I and Q present
-					elif ((DSPTYPE  & 0x20)==0x20):
-						Np = NpCont
-						adcdataI[V]=np.concatenate((adcdataI[V],np.right_shift(rep[iStart:Np:2],4)*0.3838e-3))
-						adcdataQ[V]=np.concatenate((adcdataQ[V], np.right_shift(rep[iStart+1:Np:2],4)*0.3838e-3))
+					TSMEM=TS
 
+					iStart=i+8
+					# if not in continuous acq mode
+					if ((DSPTYPE &  0x2)!=2):
+						# raw adcdata for each Np points block
+						if ((DSPTYPE  &  0x1)==0):
+							Np=N
+							adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
 
-				i = iStart+Np # index of the new data block, new header
+						#in the accumulation mode, only 1 I and Q point even w mixer OFF
+						#mixer ON or OFF
+						if ((DSPTYPE  & 0x01)==0x1):
+							Np=8
+							D=np.array(rep[iStart:iStart+Np])
+							X = D.astype('int16').tobytes()
 
-			# print("********************************************************************")
-			# print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
-			# print("********************************************************************")
+							#I  dvided N and 2 bcse signed 63 bits aligned to the left
+							# mod div by 4 to fix amplitude -Arpit, Martina
+							I=  struct.unpack('q',X[0:8])[0]*(0.3838e-3)/(N*2*4)
+							Q=  struct.unpack('q',X[8:16])[0]*(0.3838e-3)/(N*2*4)
 
-			#reshaping results
+							# print the point
+							# print("I/Q:",I,Q,"Amplitude:",np.sqrt(I*I+Q*Q),"Phase:",180*np.arctan2(I,Q)/np.pi)
 
-			adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),np.sum(length_vec[v],dtype=int)) for v in range(8)]
-
-			# adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),np.sum(np.sum(ch[v],dtype=int))) for v in range(8)]
-			adcdataI=[np.mean(adcdataI[v],axis=0) for v in range(8)]
-
-			adcdataI=np.array([np.split(adcdataI[v],[sum(length_vec[v][0:i+1]) for i in range(len(length_vec[v]))]) for v in range(8)])
+							adcdataI[V]=np.append(adcdataI[V], I)
+							adcdataQ[V]=np.append(adcdataQ[V], Q)
 
 
-			I,Q = adcdataI,adcdataQ
+					#in our case we dont need the continuous mode for now
+					# continuoous acquisition mode with accumulation (reduce the flow of data)
+					elif ((DSPTYPE &  0x3)==0x3):
+						# mixer OFF : onlyI @2Gs/s or 250Ms/s
+						if ((DSPTYPE  & 0x20)==0x0):
+							# points are already averaged in the PS part
+							# format : 16int
+							Np = NpCont
+							adcdataI[V]=np.concatenate((adcdataI[V], np.right_shift(rep[iStart:iStart+Np],4)*0.3838e-3))
+
+						# mixer ON : I and Q present
+						elif ((DSPTYPE  & 0x20)==0x20):
+							Np = NpCont
+							adcdataI[V]=np.concatenate((adcdataI[V],np.right_shift(rep[iStart:Np:2],4)*0.3838e-3))
+							adcdataQ[V]=np.concatenate((adcdataQ[V], np.right_shift(rep[iStart+1:Np:2],4)*0.3838e-3))
 
 
+					i = iStart+Np # index of the new data block, new header
+
+				# print("********************************************************************")
+				# print(len(rep),"Pts treated in ",time.perf_counter()-tstart,"seconds")
+				# print("********************************************************************")
+
+				#reshaping results
+
+				points_rec = 0
+				points_expected = 0
+
+				for index in range(8):
+
+					if len(adcdataI[index]) > 0:
+
+						points_rec += adcdataI[index].size
+					
+					points_expected += int(self.nb_measure() * np.sum(length_vec[index],dtype=int))
+
+				if points_rec == points_expected:
+
+					getting_valid_dataset = False
+
+					adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),np.sum(length_vec[v],dtype=int)) for v in range(8)]
+
+					# adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),np.sum(np.sum(ch[v],dtype=int))) for v in range(8)]
+					adcdataI=[np.mean(adcdataI[v],axis=0) for v in range(8)]
+
+					adcdataI=np.array([np.split(adcdataI[v],[sum(length_vec[v][0:i+1]) for i in range(len(length_vec[v]))]) for v in range(8)])
+
+					I,Q = adcdataI,adcdataQ
+
+				else:
+
+					log.error('Data curruption: rfSoC did not send all data points({}/'.format(points_rec)+str(points_expected)+').')
 
 		else:
 
