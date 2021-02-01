@@ -1,3 +1,11 @@
+# rfSoC driver with inbuilt pulse-generation
+# Recommended practice is to add pulses to parameter snaps.
+#                                        			-- Arpit
+
+
+
+
+
 import time
 import datetime
 import numpy as np
@@ -15,6 +23,10 @@ from qcodes.instrument.parameter import ParameterWithSetpoints, Parameter
 import SequenceGeneration_v2 as sqg
 from qcodes.utils.delaykeyboardinterrupt import DelayedKeyboardInterrupt
 from qcodes.utils.validators import Numbers, Arrays
+
+import plotly.express as px
+import pandas as pd
+from IPython.display import display, HTML
 
 import logging
 log = logging.getLogger(__name__)
@@ -295,29 +307,32 @@ class RFSoC(VisaInstrument):
 
 		self.dummy_array_size_8 = 8
 
+		self.sampling_rate = 2e9
+		self.FPGA_clock = 250e6
+		self.DAC_amplitude_calib = [1.08,1.08,1.08,1.08,1.08,1.08,1.08,1.08]
+
+		self.pulses = pd.DataFrame()
+		self.ADC_ch_active = np.zeros(8)
+		self.length_vec = [[],[],[],[],[],[],[],[]]
+		self.ch_vec = []
+
+		self.debug_mode = False
+		self.debug_mode_plot_waveforms = False
+		self.debug_mode_waveform_string = False
+
 		#Add the channels to the instrument
 		for adc_num in np.arange(1,9):
 			adc_name='ADC{}'.format(adc_num)
 			adc=AcqChannel(self,adc_name,adc_num)
 			self.add_submodule(adc_name, adc)
 
-		#parameters to store the events of a sequence directly as a parameter of the instrument
-		self.add_parameter('events',
-							get_parser=list,
-							initial_value=[],
+
+		self.add_parameter('sequence_str',
+							get_parser=str,
+							initial_value='',
 							parameter_class=ManualParameter)
 
-		self.add_parameter('DAC_events',
-							get_parser=list,
-							initial_value=[],
-							parameter_class=ManualParameter)
-
-		self.add_parameter('ADC_events',
-							get_parser=list,
-							initial_value=[],
-							parameter_class=ManualParameter)
-
-		self.add_parameter('nb_measure',
+		self.add_parameter('n_rep',
 							get_parser=int,
 							initial_value = int(1),
 							parameter_class=ManualParameter)
@@ -325,7 +340,7 @@ class RFSoC(VisaInstrument):
 		self.add_parameter('acquisition_mode',
 							label='ADCs acquisition mode',
 							get_parser=str,
-							vals = vals.Enum('RAW','SUM'),
+							vals = vals.Enum('RAW','IQ'),
 							parameter_class=ManualParameter
 							)
 
@@ -343,7 +358,7 @@ class RFSoC(VisaInstrument):
 						   unit='V',
 						   label='Raw adc for all channel',
 						   parameter_class=RAW_ALL,
-						   vals=Arrays(shape=(8, 2, self.nb_measure)), ### ME
+						   vals=Arrays(shape=(8, 2, self.n_rep)), ### ME
 						   snapshot_value = False)
 
 		self.add_parameter(name='IQINT_ALL',
@@ -356,21 +371,21 @@ class RFSoC(VisaInstrument):
 						   unit='V',
 						   label='Integrated I Q for all channels with header check',
 						   parameter_class=IQINT_ALL_read_header,
-						   vals=Arrays(shape=(2, 8, 2, self.nb_measure)), ### ME
+						   vals=Arrays(shape=(2, 8, 2, self.n_rep)), ### ME
 						   snapshot_value = False)
 
 		self.add_parameter(name='IQINT_two_mode_squeezing',
 						   unit='V',
 						   label='Integrated I Q for 2 channels with header check',
 						   parameter_class = ManualParameter,
-						   vals=Arrays(shape=(2, 2, 2, self.nb_measure)), ### ME
+						   vals=Arrays(shape=(2, 2, 2, self.n_rep)), ### ME
 						   snapshot_value = False)
 
 		self.add_parameter(name='IQINT_AVG',
 						   unit='V',
 						   label='Integrated averaged I Q for all channels',
 						   parameter_class=IQINT_AVG,
-                           vals=Arrays(shape=(2, 8, 2)), ### ME
+						   vals=Arrays(shape=(2, 8, 2)), ### ME
 						   snapshot_value = False)
 
 		self.add_parameter('channel_axis',
@@ -393,56 +408,450 @@ class RFSoC(VisaInstrument):
 						   snapshot_value = False)
 
 		#for now all mixer frequency must be multiples of the base frequency for phase matching
-		self.add_parameter(name='base_fmixer',
+		self.add_parameter(name='freq_sync',
 						   unit='Hz',
-						   label='Reference frequency for all mixers',
+						   label='Reference frequency for synchronizing pulse repetition',
 						   get_parser=float,
 						   parameter_class=ManualParameter,
 						   snapshot_value = False)
 
-		# self.add_parameter(name = 'DC_offset',
-		#                     unit = 'V',
-		#                     label = 'DC offset list for all channels',
-		#                     get_parser = list,
-		#                     parameter_class = ManualParameter)
+
+	
+
+	def process_sequencing(self):
+
+		log.info('Started sequence processing'+'  \n')
+
+		n_rep = self.n_rep()
+		pulses_raw_df = self.pulses
+
+		if len(set(pulses_raw_df['label'])) < len(pulses_raw_df['label']):
+
+			log.error('Duplicate Labels: Labels need to be unique for consistent identification of pulse hierarchy.')
+
+		pulses_raw_df.set_index('label', inplace = True)
+
+		if self.debug_mode:
+
+			display(pulses_raw_df)
+
+		resolve_hierarchy = True
+		while resolve_hierarchy:
+
+			for index, row in pulses_raw_df.iterrows():
+
+				if row['parent'] != None:
+
+					if pulses_raw_df.loc[row['parent']]['parent'] == None:
+
+						pulses_raw_df.loc[index,'start'] = pulses_raw_df.loc[index,'start'] +  pulses_raw_df.loc[row['parent']]['start'] + pulses_raw_df.loc[row['parent']]['length']
+						pulses_raw_df.loc[index,'parent'] = None
+			
+			resolve_hierarchy = False
+			for val in pulses_raw_df['parent']:
+				if val != None:
+					resolve_hierarchy = True
+
+		if self.debug_mode:
+
+			print('Hierarchy resolution...')
+			display(pulses_raw_df)
+
+		pulses_df = pd.DataFrame()
+		time_ADC = [0,0,0,0,0,0,0,0]
+		time_DAC = [0,0,0,0,0,0,0,0]
+		length_vec = [[],[],[],[],[],[],[],[]]
+		ch_vec = []
+		wait_color_count = int("D3D3D3", 16)
+		DAC_color_count = int("306cc7", 16)
+		ADC_color_count = int("db500b", 16)
+		color_dict = {}
+		termination_time = 0
+
+		tmp_df = pulses_raw_df.loc[pulses_raw_df['module'] == 'ADC']
+		for index, row in tmp_df.iterrows():
+			
+			if row['start'] > time_ADC[int(row['channel'])-1]:
+				
+				label = 'wait' + str(wait_color_count-int("D3D3D3", 16)+1)
+				start = time_ADC[int(row['channel'])-1]
+				stop = row['start']
+				time = row['start'] - time_ADC[int(row['channel'])-1]
+				module = row['module']
+				Channel = 'ADC ch' + str(int(row['channel']))
+				mode = 'wait'
+				color = wait_color_count
+				wait_color_count += 1
+				color_dict[str(color)] = '#{0:06X}'.format(color)
+				param = row['param']
+				ch_num = row['channel']
+				
+				pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
+			
+			label = index
+			start = row['start']
+			stop = row['start'] + row['length']
+			time = row['length']
+			module = row['module']
+			Channel = 'ADC ch' + str(int(row['channel']))
+			mode = row['mode']
+			color = ADC_color_count
+			ADC_color_count += 1
+			color_dict[str(color)] = '#{0:06X}'.format(color)
+			param = row['param']
+			ch_num = row['channel']
+
+			pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
+
+			length_vec[int(row['channel'])-1].append(int(time*1e-6*self.sampling_rate))
+			ch_vec.append(int(row['channel'])-1)
+			
+			time_ADC[int(row['channel'])-1] = stop
+			
+			if stop>termination_time:
+				
+				termination_time = stop
+			
+		tmp_df = pulses_raw_df.loc[pulses_raw_df['module'] == 'DAC']
+		for index, row in tmp_df.iterrows():
+			
+			if row['start'] > time_DAC[int(row['channel'])-1]:
+				
+				label = 'wait' + str(wait_color_count-int("D3D3D3", 16)+1)
+				start = time_DAC[int(row['channel'])-1]
+				stop = row['start']
+				time = row['start'] - time_DAC[int(row['channel'])-1]
+				module = row['module']
+				Channel = 'DAC ch' + str(int(row['channel']))
+				mode = 'wait'
+				color = wait_color_count
+				wait_color_count += 1
+				color_dict[str(color)] = '#{0:06X}'.format(color)
+				param = row['param']
+				ch_num = row['channel']
+				
+				pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
+			
+			label = index
+			start = row['start']
+			stop = row['start'] + row['length']
+			time = row['length']
+			module = row['module']
+			Channel = 'DAC ch' + str(int(row['channel']))
+			mode = row['mode']
+			color = DAC_color_count
+			DAC_color_count += 1
+			color_dict[str(color)] = '#{0:06X}'.format(color)
+			param = row['param']
+			ch_num = row['channel']
+
+			pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
+			
+			time_DAC[int(row['channel'])-1] = stop
+			
+			if stop>termination_time:
+				
+				termination_time = stop
+	
+		for ch in range(1,9):
+			
+			if termination_time>time_ADC[ch-1] and time_ADC[ch-1]>0:
+				
+				label = 'wait' + str(wait_color_count-int("D3D3D3", 16)+1)
+				start = time_ADC[ch-1]
+				stop = termination_time
+				time = stop - start
+				module = 'ADC'
+				Channel = 'ADC ch' + str(ch)
+				mode = 'wait'
+				color = wait_color_count
+				wait_color_count += 1
+				color_dict[str(color)] = '#{0:06X}'.format(color)
+				param = row['param']
+				ch_num = ch
+				
+				pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
+				
+		for ch in range(1,9):
+			
+			if termination_time>time_DAC[ch-1] and time_DAC[ch-1]>0:
+				
+				label = 'wait' + str(wait_color_count-int("D3D3D3", 16)+1)
+				start = time_DAC[ch-1]
+				stop = termination_time
+				time = stop - start
+				module = 'DAC'
+				Channel = 'DAC ch' + str(ch)
+				mode = 'wait'
+				color = wait_color_count
+				wait_color_count += 1
+				color_dict[str(color)] = '#{0:06X}'.format(color)
+				param = row['param']
+				ch_num = ch
+				
+				pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
+
+		fig = px.bar(pulses_df, x="time", y="Channel", color='color', orientation='h', text="label",
+					 color_discrete_map=color_dict,
+					 hover_data=["start","stop"],
+					 height=300,
+					 title='test')
+		fig.update_layout(showlegend=False) 
+		fig.show()
+
+		self.length_vec = length_vec
+		self.ch_vec = ch_vec
+
+		event_time_list = list(dict.fromkeys(pulses_df['start']))
+		event_time_list.sort()
+
+		termination_time = np.max(pulses_df['stop'])
+
+		if self.debug_mode:
+
+			display(pulses_df)
+			display(pulses_df.sort_values('start'))
+
+			print('Events detected at: ',event_time_list)
+
+			print('Termination of sequence detected at : ',termination_time)
+
+		global_sequence = np.array([])
+		event_time_prev = 0
+		DAC_pulses_array = [np.array([]),np.array([]),np.array([]),np.array([]),np.array([]),np.array([]),np.array([]),np.array([])]
+		DAC_pulses_pointer = [[],[],[],[],[],[],[],[]]
+		ADC_state = np.array([0,0,0,0,0,0,0,0])
+		self.ADC_ch_active = np.array([0,0,0,0,0,0,0,0])
+		n_clock_cycles = 0
+		n_clock_cycles_global = 0
 
 
-	def write_sequence_and_DAC_memory(self):
+		for event_time in event_time_list:
+			
+			# add wait till this event
+			if event_time>0:
+				
+				global_sequence = np.append(global_sequence,1)
+				global_sequence = np.append(global_sequence,int((event_time-event_time_prev)*250)-1)
+				n_clock_cycles_global = n_clock_cycles_global + int((event_time-event_time_prev)*250)
+				
+			n_clock_cycles = 0
+			event_time_prev = event_time
+			tmp_df = pulses_df.loc[pulses_df['start'] == event_time]
+			
+			
+			for index, row in tmp_df.iterrows():
+				
+				if self.debug_mode:
 
-		self.log.info(__name__+ ' sending sequence'+'  \n')
-		self.write(sqg.Pulse.generate_sequence_and_DAC_memory(self.nb_measure.get()-1,self.acquisition_mode.get(),self.base_fmixer.get()))
+					print(event_time,row['mode'], row['label'])
 
-		for obj in sqg.PulseGeneration.objs:
+				ch_num = int(row['ch_num'])
 
-			self.log.info(__name__+ ' sending DAC {} 2D memory'.format(obj.channel)+'  \n')
-			self.write(obj._DAC_2D_memory)
-			# print('sequence written successfully')## ME
+				if row['module'] == 'DAC':
+						
+					if row['mode'] != 'wait':
+						
+						# generate sequence and add to currosponding channel
+						SCPI_command = self.pulse_gen_SCPI(row['mode'],row['param'],row['time'],ch_num)
+						
+						# adding pointer for this pulse
+						pulse_addr = int(len(DAC_pulses_array[ch_num-1])/11)
+						DAC_pulses_pointer[ch_num-1].append(pulse_addr)
+						
+						# adding pulse to waveform
+						DAC_pulses_array[ch_num-1] = np.append(DAC_pulses_array[ch_num-1],SCPI_command)
+						
+						# adding sequencer command to point to address of this pulse
+						n_clock_cycles += 1
+						global_sequence = np.append(global_sequence,4096+ch_num)
+						global_sequence = np.append(global_sequence,pulse_addr)
+						
+						# adding sequencer command to start output
+						n_clock_cycles += 1
+						bin_trig_cmd = ''.join(ADC_state.astype(str))
+						for i in [8,7,6,5,4,3,2,1]:
+							if i == ch_num:
+								bin_trig_cmd += '011'
+							else:
+								bin_trig_cmd += '000'
+						global_sequence = np.append(global_sequence,4096)
+						global_sequence = np.append(global_sequence,int(bin_trig_cmd,2))
+						
+					elif row['mode'] == 'wait':
+						
+						# adding sequencer command to stop output
+						n_clock_cycles += 1
+						bin_trig_cmd = ''.join(ADC_state.astype(str))
+						for i in [8,7,6,5,4,3,2,1]:
+							if i == ch_num:
+								bin_trig_cmd += '001'
+							else:
+								bin_trig_cmd += '000'
+						global_sequence = np.append(global_sequence,4096)
+						global_sequence = np.append(global_sequence,int(bin_trig_cmd,2))
+						
+					else:
+						
+						log.error('Wrong pulse mode: ',event_time,row['mode'], row['label'])
+						
+				if row['module'] == 'ADC':
+					
+					if row['mode'] != 'wait':
+						
+						# adding sequencer command to set acq points
+						n_clock_cycles += 1
+						global_sequence = np.append(global_sequence,4106+ch_num)
+						global_sequence = np.append(global_sequence,int(row['time']*1e-6*self.sampling_rate))
+						
+						# adding sequencer command to start acq
+						n_clock_cycles += 1
+						ADC_state[7-(ch_num-1)] = 1
+						self.ADC_ch_active[ch_num-1] = 1
+						bin_trig_cmd = ''.join(ADC_state.astype(str))+'000000000000000000000000'
+						global_sequence = np.append(global_sequence,4096)
+						global_sequence = np.append(global_sequence,int(bin_trig_cmd,2))
+						
+					elif row['mode'] == 'wait':
+						
+						# adding sequencer command to stop acq
+						n_clock_cycles += 1
+						ADC_state[7-(ch_num-1)] = 0
+						bin_trig_cmd = ''.join(ADC_state.astype(str))+'000000000000000000000000'
+						global_sequence = np.append(global_sequence,4096)
+						global_sequence = np.append(global_sequence,int(bin_trig_cmd,2))
+						
+					else:
+						
+						log.error('Wrong pulse mode: ',event_time,row['mode'], row['label'])
+						
+			n_clock_cycles_global += n_clock_cycles
+				
+		#terminate the sequence
+		global_sequence = np.append(global_sequence,1)
+		global_sequence = np.append(global_sequence,int((termination_time-event_time_prev)*250)-1)
+		n_clock_cycles_global = n_clock_cycles_global + int((termination_time-event_time_prev)*250)
+		global_sequence = np.append(global_sequence,4096)
+		global_sequence = np.append(global_sequence,0)
+		n_clock_cycles_global += 1
 
-
-	def reset_DAC_2D_memory(self, channel):
-		"""
-			Reset the 2D memory of one DAC
-
-			Input : - channel of the DAC we wantto reset
-		"""
-
-		self.log.info(__name__+ ' reset the 2D memory of DAC channel'+ channel+'  \n')
-
-		if channel in ['CH1','CH2','CH3','CH4','CH5','CH6','CH7','CH8']:
-
-			self.write("DAC:DATA:{}:CLEAR".format(channel))
-
+		if self.acquisition_mode() == 'RAW':
+			acq_mode = 0
+		elif self.acquisition_mode() == 'IQ':
+			acq_mode = 286331153
 		else:
-			raise ValueError('Wrong channel value')
+			log.error('Invalid acquisition mode\n')
+			
+		period_sync = int(self.FPGA_clock/self.freq_sync())
+		wait_sync = period_sync-(n_clock_cycles_global%period_sync)-1
+
+		global_sequence_str = 'SEQ 0,1,9,4106,' + str(acq_mode) + ',257,' + str(int(n_rep-1)) + ',' + ','.join((global_sequence.astype(int)).astype(str)) + ',1,' + str(wait_sync) + ',513,0,0,0'
+
+		# just to keep in log
+		self.sequence_str = global_sequence_str
+
+		if self.debug_mode:
+
+			print('Sequence programmer command: ',global_sequence_str)
+
+		for i in range(8):
+
+			if len(DAC_pulses_array[i])>0:
+
+				self.write('DAC:DATA:CH{}:CLEAR'.format(str(i+1)))
+
+				if self.debug_mode and self.debug_mode_plot_waveforms:
+
+					fig = plt.figure(figsize=(8,5))
+					plt.plot(range(len(DAC_pulses_array[i])),DAC_pulses_array[i])
+					plt.grid()
+					plt.legend(fontsize = 14)
+					plt.show()
+
+				DAC_SCPI_cmd = 'DAC:DATA:CH' + str(i+1) + ' 0,' + ','.join((DAC_pulses_array[i].astype(int)).astype(str)) + ',0,0,0,0,0,0,0,0,0,0,16383'
+
+				if self.debug_mode and self.debug_mode_waveform_string:
+
+					print('DAC sequence for CH '+str(i+1)+': ',DAC_SCPI_cmd)
+
+				log.info('Writing waveform for CH'+str(i+1)+'  \n')
+				self.write(DAC_SCPI_cmd)
+
+		log.info('Writing global sequence' + '\n')
+		self.write(global_sequence_str)
+
+		log.info('Waveform and sequence processing complete' + '\n')
+	
 
 
-	def reset_all_DAC_2D_memory(self):
-		"""
-			Reset the 2D memory of all the DACs
-		"""
-		for channel in ['CH1','CH2','CH3','CH4','CH5','CH6','CH7','CH8']:
+	def pulse_gen_SCPI(self,mode,param,duration,ch):
+	
+		period = 1./self.sampling_rate
+		time_vec = np.arange(period,duration*1e-6+period/2,period)
+		
+		if mode == 'sin+sin':
+			
+			wavepoints1 = (2**13)*self.DAC_amplitude_calib[ch-1]*param['dc_offset1'] + (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp1']*np.sin(param['phase_offset1'] + 2*np.pi*param['freq1']*1e6*time_vec)
+			wavepoints2 = (2**13)*self.DAC_amplitude_calib[ch-1]*param['dc_offset2'] + (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp2']*np.sin(param['phase_offset2'] + 2*np.pi*param['freq2']*1e6*time_vec)
+			
+			wavepoints = wavepoints1 + wavepoints2
+			
+			if self.debug_mode and self.debug_mode_plot_waveforms:
+				print('plot of sinsin mode 1')
+				fig = plt.figure(figsize=(8,5))
+				plt.plot(time_vec,wavepoints1)
+				plt.grid()
+				plt.show()
+				print('plot of sinsin mode 2')
+				fig = plt.figure(figsize=(8,5))
+				plt.plot(time_vec,wavepoints2)
+				plt.grid()
+				plt.show()
+				print('plot of sinsin mode total')
+				fig = plt.figure(figsize=(8,5))
+				plt.plot(time_vec,wavepoints)
+				plt.grid()
+				plt.show()
+				
+				
+			
+		elif mode == 'sin':
+			
+			wavepoints = (2**13)*self.DAC_amplitude_calib[ch-1]*param['dc_offset'] + (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp']*np.sin(param['phase_offset'] + 2*np.pi*param['freq']*1e6*time_vec)
+			
+			if self.debug_mode and self.debug_mode_plot_waveforms:
+				print('plot of sin mode')
+				fig = plt.figure(figsize=(8,5))
+				plt.plot(time_vec,wavepoints)
+				plt.grid()
+				plt.legend(fontsize = 14)
+				plt.show()
+			
+			
+			
+		else:
+			
+			log.error('Wrong waveform mode: ',mode)
+		
+		
+		
+		# adding zeros to make length multiple of 8
+		wavepoints = np.append(wavepoints,np.zeros(len(time_vec)%8))
 
-			self.write("DAC:DATA:{}:CLEAR".format(channel))
+		trig_rep_len = int(len(wavepoints)/8)
+		# adding trigger vectors
+		wavepoints = np.concatenate((wavepoints.reshape(trig_rep_len,8), np.array(np.zeros(trig_rep_len))[:,None]),axis=1)
+		wavepoints = np.concatenate((wavepoints, np.array(np.zeros(trig_rep_len))[:,None]),axis=1)
+
+		# adding repetation (0 for once)
+		wavepoints = np.concatenate((wavepoints, np.array(np.zeros(trig_rep_len))[:,None]),axis=1)
+
+		# convert to 1D array 
+		wavepoints = wavepoints.reshape(1,len(wavepoints)*len(wavepoints[0]))
+		
+		return wavepoints[0]
+
+
 
 
 	def reset_PLL(self):
@@ -458,38 +867,6 @@ class RFSoC(VisaInstrument):
 		self.ask('OUTPUT:DATA?')
 
 
-	def adc_events(self):
-		'''
-		will be used to organize the data saving
-		'''
-		sorted_seq=np.array(sqg.Pulse.sort_and_groupby_timewise())
-		
-		# sorted_seq=np.array(sqg.Pulse.sort_and_groupby_timewise()).flatten()
-		sorted_seq=np.concatenate( sorted_seq, axis=0 )
-		# print('sorted_seq={}'.format(sorted_seq))
-
-		mask=[type(p) is sqg.PulseReadout for p in sorted_seq]
-
-		sorted_adcs=sorted_seq[mask]
-
-		#store the nb of acq point for each unique event of each channel
-		length_vec=[[],[],[],[],[],[],[],[]]
-
-		N_adc_events=len(sorted_adcs)
-
-		#ch vec list of the order of adc ch measured in one loop of the sequence
-		ch_vec=np.zeros(N_adc_events,dtype=int)
-
-		for i in range(len(sorted_adcs)):
-
-			length_vec[int(sorted_adcs[i].channel[2])-1].append(int(round((sorted_adcs[i].t_duration)/0.5e-9)))
-
-			ch_vec[i]=int(sorted_adcs[i].channel[2])-1
-
-		return(length_vec,ch_vec)
-
-
-
 
 
 	def get_readout_pulse(self):
@@ -499,21 +876,18 @@ class RFSoC(VisaInstrument):
 
 		self.reset_output_data()
 		mode = self.acquisition_mode()
-		nb_measure = self.nb_measure()
-		length_vec,ch_vec = self.adc_events()
+		n_rep = self.n_rep()
+		length_vec = self.length_vec
+		ch_vec = self.ch_vec
 		N_adc_events = len(ch_vec)
 		n_pulses = len(length_vec[0])
 
-		ch_active = np.zeros(8,dtype=int)
-		for i in range(8):
-			if len(np.where(ch_vec==i)[0])>0:
-				ch_active[i] = 1
+		ch_active = self.ADC_ch_active
 		
-		if mode == 'SUM':
+		if mode == 'IQ':
 			'''
 				Get data
 			'''
-			N_acq = np.sum(np.sum(length_vec))
 
 			data_unsorted = []
 			count_meas = 0
@@ -526,7 +900,7 @@ class RFSoC(VisaInstrument):
 
 			while getting_valid_dataset:
 
-				while (count_meas//(16*N_adc_events))<self.nb_measure.get():
+				while (count_meas//(16*N_adc_events))<self.n_rep.get():
 
 					r = self.ask('OUTPUT:DATA?')
 
@@ -568,7 +942,7 @@ class RFSoC(VisaInstrument):
 
 					if empty_packet_count>20:
 
-						log.error('Data curruption: rfSoC did not send all data points({}/'.format(count_meas//(16*N_adc_events))+str(self.nb_measure.get())+').')
+						log.error('Data curruption: rfSoC did not send all data points({}/'.format(count_meas//(16*N_adc_events))+str(self.n_rep.get())+').')
 						
 						# reset measurement
 						data_unsorted = []
@@ -588,13 +962,13 @@ class RFSoC(VisaInstrument):
 
 						continue
 
-				if count_meas//(16*N_adc_events) == self.nb_measure.get():
+				if count_meas//(16*N_adc_events) == self.n_rep.get():
 
 					getting_valid_dataset = False
 
 				else:
 
-					log.error('Data curruption: rfSoC did not send all data points({}/'.format(count_meas//(16*N_adc_events))+str(self.nb_measure.get())+').')
+					log.error('Data curruption: rfSoC did not send all data points({}/'.format(count_meas//(16*N_adc_events))+str(self.n_rep.get())+').')
 
 					# reset measurement
 					data_unsorted = []
@@ -645,22 +1019,22 @@ class RFSoC(VisaInstrument):
 			I_all_data = 2 + np.frombuffer(raw_I_data_dump_data.astype('int16').tobytes(), dtype=np.longlong)*0.3838e-3/(16*num_points)
 			Q_all_data = 2 + np.frombuffer(raw_Q_data_dump_data.astype('int16').tobytes(), dtype=np.longlong)*0.3838e-3/(16*num_points)
 
-			I = [((I_all_data*ch_1)[I_all_data*ch_1!=0]-2).reshape(nb_measure*ch_active[0],n_pulses).T,
-				 ((I_all_data*ch_2)[I_all_data*ch_2!=0]-2).reshape(nb_measure*ch_active[1],n_pulses).T,
-				 ((I_all_data*ch_3)[I_all_data*ch_3!=0]-2).reshape(nb_measure*ch_active[2],n_pulses).T,
-				 ((I_all_data*ch_4)[I_all_data*ch_4!=0]-2).reshape(nb_measure*ch_active[3],n_pulses).T,
-				 ((I_all_data*ch_5)[I_all_data*ch_5!=0]-2).reshape(nb_measure*ch_active[4],n_pulses).T,
-				 ((I_all_data*ch_6)[I_all_data*ch_6!=0]-2).reshape(nb_measure*ch_active[5],n_pulses).T,
-				 ((I_all_data*ch_7)[I_all_data*ch_7!=0]-2).reshape(nb_measure*ch_active[6],n_pulses).T,
-				 ((I_all_data*ch_8)[I_all_data*ch_8!=0]-2).reshape(nb_measure*ch_active[7],n_pulses).T]
-			Q = [((Q_all_data*ch_1)[Q_all_data*ch_1!=0]-2).reshape(nb_measure*ch_active[0],n_pulses).T,
-				 ((Q_all_data*ch_2)[Q_all_data*ch_2!=0]-2).reshape(nb_measure*ch_active[1],n_pulses).T,
-				 ((Q_all_data*ch_3)[Q_all_data*ch_3!=0]-2).reshape(nb_measure*ch_active[2],n_pulses).T,
-				 ((Q_all_data*ch_4)[Q_all_data*ch_4!=0]-2).reshape(nb_measure*ch_active[3],n_pulses).T,
-				 ((Q_all_data*ch_5)[Q_all_data*ch_5!=0]-2).reshape(nb_measure*ch_active[4],n_pulses).T,
-				 ((Q_all_data*ch_6)[Q_all_data*ch_6!=0]-2).reshape(nb_measure*ch_active[5],n_pulses).T,
-				 ((Q_all_data*ch_7)[Q_all_data*ch_7!=0]-2).reshape(nb_measure*ch_active[6],n_pulses).T,
-				 ((Q_all_data*ch_8)[Q_all_data*ch_8!=0]-2).reshape(nb_measure*ch_active[7],n_pulses).T]
+			I = [((I_all_data*ch_1)[I_all_data*ch_1!=0]-2).reshape(n_rep*ch_active[0],n_pulses).T,
+				 ((I_all_data*ch_2)[I_all_data*ch_2!=0]-2).reshape(n_rep*ch_active[1],n_pulses).T,
+				 ((I_all_data*ch_3)[I_all_data*ch_3!=0]-2).reshape(n_rep*ch_active[2],n_pulses).T,
+				 ((I_all_data*ch_4)[I_all_data*ch_4!=0]-2).reshape(n_rep*ch_active[3],n_pulses).T,
+				 ((I_all_data*ch_5)[I_all_data*ch_5!=0]-2).reshape(n_rep*ch_active[4],n_pulses).T,
+				 ((I_all_data*ch_6)[I_all_data*ch_6!=0]-2).reshape(n_rep*ch_active[5],n_pulses).T,
+				 ((I_all_data*ch_7)[I_all_data*ch_7!=0]-2).reshape(n_rep*ch_active[6],n_pulses).T,
+				 ((I_all_data*ch_8)[I_all_data*ch_8!=0]-2).reshape(n_rep*ch_active[7],n_pulses).T]
+			Q = [((Q_all_data*ch_1)[Q_all_data*ch_1!=0]-2).reshape(n_rep*ch_active[0],n_pulses).T,
+				 ((Q_all_data*ch_2)[Q_all_data*ch_2!=0]-2).reshape(n_rep*ch_active[1],n_pulses).T,
+				 ((Q_all_data*ch_3)[Q_all_data*ch_3!=0]-2).reshape(n_rep*ch_active[2],n_pulses).T,
+				 ((Q_all_data*ch_4)[Q_all_data*ch_4!=0]-2).reshape(n_rep*ch_active[3],n_pulses).T,
+				 ((Q_all_data*ch_5)[Q_all_data*ch_5!=0]-2).reshape(n_rep*ch_active[4],n_pulses).T,
+				 ((Q_all_data*ch_6)[Q_all_data*ch_6!=0]-2).reshape(n_rep*ch_active[5],n_pulses).T,
+				 ((Q_all_data*ch_7)[Q_all_data*ch_7!=0]-2).reshape(n_rep*ch_active[6],n_pulses).T,
+				 ((Q_all_data*ch_8)[Q_all_data*ch_8!=0]-2).reshape(n_rep*ch_active[7],n_pulses).T]
 
 		elif mode == 'RAW':
 
@@ -669,8 +1043,6 @@ class RFSoC(VisaInstrument):
 
 			#for now we consider only the one same type of acq on all adc
 			mode=self.acquisition_mode.get()
-
-			length_vec,ch_vec=self.adc_events()
 
 			N_adc_events=len(ch_vec)
 
@@ -812,15 +1184,15 @@ class RFSoC(VisaInstrument):
 
 						points_rec += adcdataI[index].size
 					
-					points_expected += int(self.nb_measure() * np.sum(length_vec[index],dtype=int))
+					points_expected += int(self.n_rep() * np.sum(length_vec[index],dtype=int))
 
 				if points_rec == points_expected:
 
 					getting_valid_dataset = False
 
-					adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),np.sum(length_vec[v],dtype=int)) for v in range(8)]
+					adcdataI=[np.array(adcdataI[v]).reshape(self.n_rep.get(),np.sum(length_vec[v],dtype=int)) for v in range(8)]
 
-					# adcdataI=[np.array(adcdataI[v]).reshape(self.nb_measure.get(),np.sum(np.sum(ch[v],dtype=int))) for v in range(8)]
+					# adcdataI=[np.array(adcdataI[v]).reshape(self.n_rep.get(),np.sum(np.sum(ch[v],dtype=int))) for v in range(8)]
 					adcdataI=[np.mean(adcdataI[v],axis=0) for v in range(8)]
 
 					adcdataI=np.array([np.split(adcdataI[v],[sum(length_vec[v][0:i+1]) for i in range(len(length_vec[v]))]) for v in range(8)])

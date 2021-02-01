@@ -21,7 +21,7 @@ class Pulse:
 		#adding the new instance to the objs array
 		Pulse.objs.append(self)
 		#initializing the object attribute
-		#initial time with respect to the parent pulse end
+		#initial time with respect to the parent pulse end #### ME: I think it actually defines the time with respect to the parent pulse beginning 
 		self.t_init = t_init
 		self.t_duration = t_duration
 		self._t_abs=None
@@ -101,7 +101,7 @@ class Pulse:
 
 		Tseq=max([max([p[i]._t_abs + p[i].t_duration for i in range(len(p))]) for  p in sorted_seq])
 		
-		# print('Tseq={}'.format(Tseq))
+		print('Tseq={}'.format(Tseq))
 
 		#initialize the scpi command (memory adress 0 wait 44 ns and set all
 		#beginiing DAC memories to 0)
@@ -155,11 +155,12 @@ class Pulse:
 					if last_DAC_channel_event[int(obj.channel[2])-1]==None:
 				
 						obj._DAC_2D_memory=obj.send_DAC_2D_memory()
+						print('adress=0')
 
 					else :
 						#computing new start adress for the new wform of the DAC
 						new_adress= int(round(last_DAC_channel_event[int(obj.channel[2])-1].t_duration/(4.e-9))) + 1
-						# print('new_adress = {}'.format(new_adress))
+						print('new_adress = {}'.format(new_adress))
 
 						#adding delay or not
 						scpi_str=scpi_str+',{},{}'.format(4096+int(obj.channel[2]),new_adress)
@@ -244,7 +245,7 @@ class Pulse:
 		# print('N_add={}'.format(N_add))
 
 		#16 working
-		scpi_str=scpi_str+',1,{},513,0'.format(N_add+N_data_transfer)
+		scpi_str=scpi_str+',1,{},513,0,0,0'.format(N_add+N_data_transfer)
 
 		# scpi_str=scpi_str+',1,{},513,0'.format(1000000-5)
 
@@ -297,12 +298,13 @@ class PulseGeneration(Pulse):
 			#TODO : move those control to the init of the PulseGeneration object
 
 			# if freq > 1./0.5e-9 or amplitude > 2 or self.t_duration > 64.e-6:
-			if freq > 1./0.5e-9 or amplitude > 2 or self.t_duration > 64.e-6 or phase > 360 or phase < 0: ### ME
-				raise ValueError('One of the parameters is not correct')
+			print(self.channel, ' - DAC duration SIN: ', (self.t_duration)*1e6, ' us; DELAY: ', (self.t_init)*1e6) # ME
+			if freq > 1./0.5e-9 or amplitude > 2 or self.t_duration+self.t_init > 64.e-6 or phase > 360 or phase < 0: ### ME
+				raise ValueError('One of the parameters is not correct, duration:', (self.t_duration+self.t_init)*1e6, ' us')
 
 			else :
 				if freq > 1./(4.*0.5e-9):
-				    log.Warning('Warning : bellow 4 points per period, the signal might be unstable.')
+				    raise ValueError('Warning : bellow 4 points per period, the signal might be unstable.')
 
 			# DAC values are coded on signed 14 bits = +/- 8192
 			DAC_amplitude = amplitude * 8192/0.926
@@ -369,15 +371,15 @@ class PulseGeneration(Pulse):
 
 			#control parameters of the wform
 			#TODO : move those control to the init of the PulseGeneration object
-
-			if freq1 > 1./0.5e-9 or freq1 > 1./0.5e-9 or amp1 + amp2 > .926 or self.t_duration > 64.e-6:
-				raise ValueError('One of the parameters is not correct')
+			print(self.channel, ' - DAC duration SIN+SIN: ', (self.t_duration)*1e6, ' us; DELAY: ', (self.t_init)*1e6) # ME
+			if freq1 > 1./0.5e-9 or freq1 > 1./0.5e-9 or amp1 + amp2 > .926 or self.t_duration+self.t_init > 64.e-6:
+				raise ValueError('One of the parameters is not correct, duration:', (self.t_duration+self.t_init)*1e6, ' us')
 			elif  phase1 > 360 or phase1 < 0 or phase2 > 360 or phase2 < 0: ### ME
 				raise ValueError('One of the phase parameters is not correct') ### ME
 
 			else :
 				if freq1 > 1./(4.*0.5e-9) or freq2 > 1./(4.*0.5e-9):
-				    log.Warning('Warning : bellow 4 points per period, the signal might be unstable.')
+				    raise ValueError('Warning : bellow 4 points per period, the signal might be unstable.')
 
 			# DAC values are coded on signed 14 bits = +/- 8192
 			DAC_amp1 = amp1 * 8192/0.926
