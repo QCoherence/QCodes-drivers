@@ -27,6 +27,7 @@ from qcodes.utils.validators import Numbers, Arrays
 import plotly.express as px
 import pandas as pd
 from IPython.display import display, HTML
+import matplotlib.pyplot as plt
 
 import logging
 log = logging.getLogger(__name__)
@@ -628,16 +629,22 @@ class RFSoC(VisaInstrument):
 
 		for event_time in event_time_list:
 			
-			# add wait till this event
+			# adding wait till this event
 			if event_time>0:
 				
 				global_sequence = np.append(global_sequence,1)
 				global_sequence = np.append(global_sequence,int((event_time-event_time_prev)*250)-1)
 				n_clock_cycles_global = n_clock_cycles_global + int((event_time-event_time_prev)*250)
+
+				if self.debug_mode:
+
+					print('adding wait till this event')
+					print(4096+ch_num,pulse_addr)
 				
 			n_clock_cycles = 0
 			event_time_prev = event_time
 			tmp_df = pulses_df.loc[pulses_df['start'] == event_time]
+			tmp_df = tmp_df.sort_values(by='module', ascending=False)
 			
 			
 			for index, row in tmp_df.iterrows():
@@ -666,6 +673,11 @@ class RFSoC(VisaInstrument):
 						n_clock_cycles += 1
 						global_sequence = np.append(global_sequence,4096+ch_num)
 						global_sequence = np.append(global_sequence,pulse_addr)
+
+						if self.debug_mode:
+
+							print('adding sequencer command to point to address of this pulse')
+							print(4096+ch_num,pulse_addr)
 						
 						# adding sequencer command to start output
 						n_clock_cycles += 1
@@ -677,6 +689,11 @@ class RFSoC(VisaInstrument):
 								bin_trig_cmd += '000'
 						global_sequence = np.append(global_sequence,4096)
 						global_sequence = np.append(global_sequence,int(bin_trig_cmd,2))
+
+						if self.debug_mode:
+
+							print('adding sequencer command to start output')
+							print(4096,int(bin_trig_cmd,2))
 						
 					elif row['mode'] == 'wait':
 						
@@ -690,6 +707,11 @@ class RFSoC(VisaInstrument):
 								bin_trig_cmd += '000'
 						global_sequence = np.append(global_sequence,4096)
 						global_sequence = np.append(global_sequence,int(bin_trig_cmd,2))
+
+						if self.debug_mode:
+
+							print('adding sequencer command to stop output')
+							print(4096,int(bin_trig_cmd,2))
 						
 					else:
 						
@@ -703,6 +725,11 @@ class RFSoC(VisaInstrument):
 						n_clock_cycles += 1
 						global_sequence = np.append(global_sequence,4106+ch_num)
 						global_sequence = np.append(global_sequence,int(row['time']*1e-6*self.sampling_rate))
+
+						if self.debug_mode:
+
+							print('adding sequencer command to set acq points')
+							print(4106+ch_num,int(row['time']*1e-6*self.sampling_rate))
 						
 						# adding sequencer command to start acq
 						n_clock_cycles += 1
@@ -711,6 +738,11 @@ class RFSoC(VisaInstrument):
 						bin_trig_cmd = ''.join(ADC_state.astype(str))+'000000000000000000000000'
 						global_sequence = np.append(global_sequence,4096)
 						global_sequence = np.append(global_sequence,int(bin_trig_cmd,2))
+
+						if self.debug_mode:
+
+							print('adding sequencer command to start acq')
+							print(4096,int(bin_trig_cmd,2))
 						
 					elif row['mode'] == 'wait':
 						
@@ -720,6 +752,11 @@ class RFSoC(VisaInstrument):
 						bin_trig_cmd = ''.join(ADC_state.astype(str))+'000000000000000000000000'
 						global_sequence = np.append(global_sequence,4096)
 						global_sequence = np.append(global_sequence,int(bin_trig_cmd,2))
+
+						if self.debug_mode:
+
+							print('adding sequencer command to stop acq')
+							print(4096,int(bin_trig_cmd,2))
 						
 					else:
 						
@@ -1183,7 +1220,7 @@ class RFSoC(VisaInstrument):
 					if len(adcdataI[index]) > 0:
 
 						points_rec += adcdataI[index].size
-					
+
 					points_expected += int(self.n_rep() * np.sum(length_vec[index],dtype=int))
 
 				if points_rec == points_expected:
