@@ -260,8 +260,8 @@ class AcqChannel(InstrumentChannel):
 		self.add_parameter(name='fmixer',
 						   label = 'ADC{} mixer frequency'.format(self._adc_channel),
 						   set_cmd='ADC:ADC{}:MIXER {}'.format(self._adc_channel,'{:.4f}'),
-						   get_parser = self.MHz_to_Hz,
-						   set_parser = self.Hz_to_MHz,
+						   # get_parser = self.MHz_to_Hz,
+						   # set_parser = self.Hz_to_MHz,
 						   snapshot_value = False
 						   )
 
@@ -317,6 +317,7 @@ class RFSoC(VisaInstrument):
 		self.length_vec = [[],[],[],[],[],[],[],[]]
 		self.ch_vec = []
 
+		self.display_sequence = True
 		self.debug_mode = False
 		self.debug_mode_plot_waveforms = False
 		self.debug_mode_waveform_string = False
@@ -592,13 +593,15 @@ class RFSoC(VisaInstrument):
 				
 				pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
 
-		fig = px.bar(pulses_df, x="time", y="Channel", color='color', orientation='h', text="label",
-					 color_discrete_map=color_dict,
-					 hover_data=["start","stop"],
-					 height=300,
-					 title='test')
-		fig.update_layout(showlegend=False) 
-		fig.show()
+		if self.display_sequence:
+
+			fig = px.bar(pulses_df, x="time", y="Channel", color='color', orientation='h', text="label",
+						 color_discrete_map=color_dict,
+						 hover_data=["start","stop"],
+						 height=300,
+						 title='test')
+			fig.update_layout(showlegend=False) 
+			fig.show()
 
 		self.length_vec = length_vec
 		self.ch_vec = ch_vec
@@ -639,7 +642,7 @@ class RFSoC(VisaInstrument):
 				if self.debug_mode:
 
 					print('adding wait till this event')
-					print(4096+ch_num,pulse_addr)
+					print(1,int((event_time-event_time_prev)*250)-1)
 				
 			n_clock_cycles = 0
 			event_time_prev = event_time
@@ -659,7 +662,7 @@ class RFSoC(VisaInstrument):
 						
 					if row['mode'] != 'wait':
 						
-						# generate sequence and add to currosponding channel
+						# generate sequence and add to corresponding channel
 						SCPI_command = self.pulse_gen_SCPI(row['mode'],row['param'],row['time'],ch_num)
 						
 						# adding pointer for this pulse
@@ -780,7 +783,7 @@ class RFSoC(VisaInstrument):
 			log.error('Invalid acquisition mode\n')
 			
 		period_sync = int(self.FPGA_clock/self.freq_sync())
-		wait_sync = period_sync-(n_clock_cycles_global%period_sync)-1
+		wait_sync = period_sync-(n_clock_cycles_global%period_sync)-1 -2 #(2 clock cycles for jump)
 
 		global_sequence_str = 'SEQ 0,1,9,4106,' + str(acq_mode) + ',257,' + str(int(n_rep-1)) + ',' + ','.join((global_sequence.astype(int)).astype(str)) + ',1,' + str(wait_sync) + ',513,0,0,0'
 
