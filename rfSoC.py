@@ -198,7 +198,7 @@ class ADC_power(ParameterWithSetpoints):
 
 		for i in range(8):
 
-			if len(PSD[i]) == 0:
+			if PSD[i][0] != PSD[i][0]:
 
 				PSD[i] = 0
 
@@ -599,7 +599,7 @@ class RFSoC(VisaInstrument):
 						 color_discrete_map=color_dict,
 						 hover_data=["start","stop"],
 						 height=300,
-						 title='test')
+						 title='pulse sequence')
 			fig.update_layout(showlegend=False) 
 			fig.show()
 
@@ -831,10 +831,10 @@ class RFSoC(VisaInstrument):
 		
 		if mode == 'sin+sin':
 			
-			wavepoints1 = (2**13)*self.DAC_amplitude_calib[ch-1]*param['dc_offset1'] + (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp1']*np.sin(param['phase_offset1'] + 2*np.pi*param['freq1']*1e6*time_vec)
-			wavepoints2 = (2**13)*self.DAC_amplitude_calib[ch-1]*param['dc_offset2'] + (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp2']*np.sin(param['phase_offset2'] + 2*np.pi*param['freq2']*1e6*time_vec)
+			wavepoints1 = (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp1']*np.sin(-param['phase_offset1'] + 2*np.pi*param['freq1']*1e6*time_vec)
+			wavepoints2 = (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp2']*np.sin(-param['phase_offset2'] + 2*np.pi*param['freq2']*1e6*time_vec)
 			
-			wavepoints = wavepoints1 + wavepoints2
+			wavepoints = (2**13)*self.DAC_amplitude_calib[ch-1]*param['dc_offset'] + wavepoints1 + wavepoints2
 			
 			if self.debug_mode and self.debug_mode_plot_waveforms:
 				print('plot of sinsin mode 1')
@@ -857,7 +857,7 @@ class RFSoC(VisaInstrument):
 			
 		elif mode == 'sin':
 			
-			wavepoints = (2**13)*self.DAC_amplitude_calib[ch-1]*param['dc_offset'] + (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp']*np.sin(param['phase_offset'] + 2*np.pi*param['freq']*1e6*time_vec)
+			wavepoints = (2**13)*self.DAC_amplitude_calib[ch-1]*param['dc_offset'] + (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp']*np.sin(-param['phase_offset'] + 2*np.pi*param['freq']*1e6*time_vec)
 			
 			if self.debug_mode and self.debug_mode_plot_waveforms:
 				print('plot of sin mode')
