@@ -172,41 +172,71 @@ class IQINT_AVG(Parameter):
 		return Sq_I,Sq_Q
 
 
-class ADC_power(ParameterWithSetpoints):
+class ADC_power(Parameter):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 
 	def get_raw(self):
 
-		Sq_I = [[],[],[],[],[],[],[],[]]
-		Sq_Q = [[],[],[],[],[],[],[],[]]
-		PSD = [[],[],[],[],[],[],[],[]]
-
 		time.sleep(0.2)
 
-		data_retI, data_retQ = self._instrument.get_readout_pulse()
+		data_retI, data_retQ = self._instrument.get_readout_pulse()#.get_readout_pulse() ###### Martina 08/11/2020
+
+		Sq_I_list = [[],[],[],[],[],[],[],[]]
+		Sq_Q_list = [[],[],[],[],[],[],[],[]]
+		Pow = [[],[],[],[],[],[],[],[]]
 
 		for i in range(8):
 
 			if len(data_retI[i])>0:
 
-				Sq_I[i] = data_retI[i][0]**2
-				Sq_Q[i] = data_retQ[i][0]**2
+				for j in range(len(data_retI[i])):
 
-				PSD[i] = [np.mean(Sq_I[i]+Sq_Q[i])/50]
+					if len(data_retI[i][j])>0:
+
+						Sq_I_list[i].append(np.mean(data_retI[i][j]**2))
+						Sq_Q_list[i].append(np.mean(data_retQ[i][j]**2))
+								
+		for i in range(8):
+			
+			Pow[i] = (np.array(Sq_I_list[i]) + np.array(Sq_Q_list[i]))/50
+
+		return Pow
+
+
+class ADC_power_dBm(Parameter):
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+
+	def get_raw(self):
+
+		time.sleep(0.2)
+
+		data_retI, data_retQ = self._instrument.get_readout_pulse()#.get_readout_pulse() ###### Martina 08/11/2020
+
+		Sq_I_list = [[],[],[],[],[],[],[],[]]
+		Sq_Q_list = [[],[],[],[],[],[],[],[]]
+		Pow = [[],[],[],[],[],[],[],[]]
 
 		for i in range(8):
 
-			if PSD[i][0] != PSD[i][0]:
+			if len(data_retI[i])>0:
 
-				PSD[i] = 0
+				for j in range(len(data_retI[i])):
 
-			else:
+					if len(data_retI[i][j])>0:
 
-				PSD[i] = PSD[i][0]
+						Sq_I_list[i].append(np.mean(data_retI[i][j]**2))
+						Sq_Q_list[i].append(np.mean(data_retQ[i][j]**2))
+								
+		for i in range(8):
+			
+			Pow[i] = 10*np.log10(1e3*(np.array(Sq_I_list[i]) + np.array(Sq_Q_list[i]))/50)
 
-		return np.array(PSD)
+		return Pow
+
 
 
 
@@ -403,10 +433,16 @@ class RFSoC(VisaInstrument):
 
 		self.add_parameter(name='ADC_power',
 						   unit='W',
-						   setpoints=(self.channel_axis,),
-						   label='Array of incident power on ADC channels, (works only in single pulse sequence)',
+						   label='Array of incident power on ADC channels',
 						   parameter_class=ADC_power,
-						   vals=Arrays(shape=(self.dummy_array_size_8,)),
+						   # vals=Arrays(shape=(self.dummy_array_size_8,)),
+						   snapshot_value = False)
+
+		self.add_parameter(name='ADC_power_dBm',
+						   unit='W',
+						   label='Array of incident power on ADC channels',
+						   parameter_class=ADC_power_dBm,
+						   # vals=Arrays(shape=(self.dummy_array_size_8,)),
 						   snapshot_value = False)
 
 		#for now all mixer frequency must be multiples of the base frequency for phase matching
