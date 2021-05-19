@@ -435,14 +435,15 @@ class RFSoC(VisaInstrument):
 						   unit='W',
 						   label='Array of incident power on ADC channels',
 						   parameter_class=ADC_power,
+						   vals=Arrays(shape=(self.dummy_array_size_8,)),
 						   # vals=Arrays(shape=(self.dummy_array_size_8,)),
 						   snapshot_value = False)
 
 		self.add_parameter(name='ADC_power_dBm',
-						   unit='W',
+						   unit='dBm',
 						   label='Array of incident power on ADC channels',
 						   parameter_class=ADC_power_dBm,
-						   # vals=Arrays(shape=(self.dummy_array_size_8,)),
+						   vals=Arrays(shape=(self.dummy_array_size_8,)),
 						   snapshot_value = False)
 
 		#for now all mixer frequency must be multiples of the base frequency for phase matching
