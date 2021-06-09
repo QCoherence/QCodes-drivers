@@ -27,7 +27,15 @@ from qcodes.utils.validators import Numbers, Arrays
 import plotly.express as px
 import pandas as pd
 from IPython.display import display, HTML
+from ipywidgets import IntProgress
 import matplotlib.pyplot as plt
+
+import functools
+import operator
+from itertools import chain
+
+sys.path.append('C:\\QCodes drivers and scripts\\Scripts\\Arpit\\Modules')
+from progress_barV2 import bar
 
 import logging
 log = logging.getLogger(__name__)
@@ -348,6 +356,7 @@ class RFSoC(VisaInstrument):
 		self.ch_vec = []
 
 		self.display_sequence = True
+		self.display_IQ_progress = True
 		self.debug_mode = False
 		self.debug_mode_plot_waveforms = False
 		self.debug_mode_waveform_string = False
@@ -966,20 +975,31 @@ class RFSoC(VisaInstrument):
 				Get data
 			'''
 
-			data_unsorted = []
+			data_unsorted = {}
 			count_meas = 0
 			empty_packet_count = 0
+			run_num = 0
 
 			self.write("SEQ:START")
 			time.sleep(0.1)
 
 			getting_valid_dataset = True
 
+			if self.display_IQ_progress:
+
+				self.display_IQ_progress_bar = IntProgress(min=0, max=self.n_rep.get()) # instantiate the bar
+				display(self.display_IQ_progress_bar) # display the bar
+
 			while getting_valid_dataset:
 
 				while (count_meas//(16*N_adc_events))<self.n_rep.get():
 
+					a = datetime.datetime.now()
+
 					r = self.ask('OUTPUT:DATA?')
+
+					b = datetime.datetime.now()
+					# print('\nget data: ',b-a)
 
 					if r == 'ERR':
 
@@ -989,6 +1009,7 @@ class RFSoC(VisaInstrument):
 						data_unsorted = []
 						count_meas = 0
 						empty_packet_count = 0
+						run_num = 0
 						self.write("SEQ:STOP")
 						time.sleep(2)
 						while True:
@@ -1005,26 +1026,35 @@ class RFSoC(VisaInstrument):
 
 					elif len(r)>1:
 
+						a = datetime.datetime.now()
 						empty_packet_count = 0
-						# print(datetime.datetime.now())
-						data_unsorted = data_unsorted+r
-						# print(datetime.datetime.now(),'\n')
-						count_meas+=len(r)
+						data_unsorted['{}'.format(run_num)] = r
+						r_size = len(r)
+						count_meas += r_size
+						if self.display_IQ_progress:
+							self.display_IQ_progress_bar.value = count_meas//(16*N_adc_events)
+						run_num += 1
+						b = datetime.datetime.now()
+						# print('end storing: ',b-a)
+
+						time.sleep(0.01)
 
 
 					elif r == [3338] or r == [2573]: # new empty packet?
 
+						log.warning('Received empty packet.')
 						empty_packet_count += 1
-						time.sleep(0.5)
+						time.sleep(0.1)
 
 					if empty_packet_count>20:
 
 						log.error('Data curruption: rfSoC did not send all data points({}/'.format(count_meas//(16*N_adc_events))+str(self.n_rep.get())+').')
 						
 						# reset measurement
-						data_unsorted = []
+						data_unsorted = {}
 						count_meas = 0
 						empty_packet_count = 0
+						run_num = 0
 						self.write("SEQ:STOP")
 						time.sleep(2)
 						while True:
@@ -1069,6 +1099,8 @@ class RFSoC(VisaInstrument):
 				Process data
 			'''
 
+			# data_unsorted = list(chain.from_iterable(data_unsorted.values()))
+			data_unsorted = functools.reduce(operator.iconcat, list(data_unsorted.values()), [])
 			data_unsorted = np.array(data_unsorted,dtype=int)
 
 			# separate header from IQ data
@@ -1285,6 +1317,26 @@ class RFSoC(VisaInstrument):
 			log.error('rfSoC: Instrument mode not recognized.')
 
 		return I,Q
+
+
+
+
+	def transfer_speed(self, block_size=100):
+
+		block_n = int(block_size/10)
+		a = datetime.datetime.now()
+		for i in bar(range(block_n)):
+
+			data = self.ask('OUTPUT:DATATEST?')
+
+		b = datetime.datetime.now()
+		del_t = (b-a).seconds
+		speed = round(10*block_n/del_t,2)
+		event_rate = round(1000*speed/32,2)
+		pulse_length = round(1000/event_rate,2)
+		print('Transfer speed: '+str(speed)+' MBps')
+		print('Event rate: '+str(event_rate)+' K/s')
+		print('Minimum size of one ADC pulse: '+str(pulse_length)+' us per active channel')
 
 
 

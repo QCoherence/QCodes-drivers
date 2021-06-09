@@ -87,3 +87,16 @@ class Vaunix_phase_shifter(Instrument):
 		for i in range(0,dev_info):
 			ser_num = vnx.fnLPS_GetSerialNumber(Devices[i])
 			print('    '+str(i+1)+'. ', str(ser_num))
+
+	def connected_devices_class(self):
+		vnx=cdll.VNX_dps64
+		#vnx.fnLPS_SetTestMode(False)
+		DeviceIDArray = c_int * 20
+		Devices = DeviceIDArray()
+		numDevices = vnx.fnLPS_GetNumDevices()
+		print(str(numDevices)+'  phase shifter(s) found with serial number(s):\n')
+		dev_info = vnx.fnLPS_GetDevInfo(Devices)
+		# print('GetDevInfo returned', str(dev_info))
+		for i in range(0,dev_info):
+			ser_num = vnx.fnLPS_GetSerialNumber(Devices[i])
+			print('    '+str(i+1)+'. ', str(ser_num))

@@ -272,8 +272,8 @@ class gain_signal_idler_cls:
 
 		self.rfsoc_device = rfsoc_device
 		self.amp_if = 0
-		self.nu_if = 160
-		self.delta = 50
+		self.nu_if = 271
+		self.delta = 220
 
 		self.phase_offset_if = 0    # degrees
 		self.phase_offset_sig = 0    # degrees
@@ -312,6 +312,8 @@ class gain_signal_idler_cls:
 
 		mem_display_sequence = rfsoc_device.display_sequence
 		rfsoc_device.display_sequence = False
+
+		print(nu_if, delta, phase_offset_if)
 
 		param_sinsin_I = {'amp1':amp_coeff,
 						'phase_offset1':0,
@@ -566,14 +568,435 @@ class gain_signal_idler_cls:
 		
 		data_sig = np.array(rfsoc_device.ADC_power_dBm()[0:2])
 		
-#             data_tmp.append(data_sig)
+             # data_tmp.append(data_sig)
 		
 		
 		gain_sig = data_sig[0,0]-data_sig[0,1]
 		gain_idl = data_idl[1,0]-data_idl[1,1]
+
+		gain_sig_with_idler_input = data_idl[0,0]-data_idl[0,1]
+		gain_idl_with_sig_input = data_sig[1,0]-data_sig[1,1]
 		
-		data_save = np.array([np.array([gain_sig,gain_idl]),np.array([data_sig[0,0],data_idl[1,0]]),np.array([data_sig[0,1],data_idl[1,1]])])
+		data_save = np.array([np.array([gain_sig,gain_idl]),np.array([gain_sig_with_idler_input,gain_idl_with_sig_input]), np.array([data_sig[0,0],data_sig[0,1]]), np.array([data_sig[1,0],data_sig[1,1]]),np.array([data_idl[0,0],data_idl[0,1]]), np.array([data_idl[1,0],data_idl[1,1]])])
 
 		rfsoc_device.display_sequence = mem_display_sequence
 
 		return(data_save)
+
+
+
+class pump_cancellation_cls:
+
+	def __init__(self, rfsoc_device, Vaunix_Att_device, Vaunix_FS_device):
+
+		self.rfsoc_device = rfsoc_device
+		self.Vaunix_Att_device = Vaunix_Att_device
+		self.Vaunix_FS_device = Vaunix_FS_device
+
+		self.display_plots = True
+
+		self.amp_if = 0
+		self.nu_if = 271
+		self.delta = 220
+
+		self.iter_depth = 2
+
+		self.phase_range = (0,360)
+		self.phase_window_narrowing = 20 # percent of previous range
+		self.phase_points = 21 
+
+		self.attn_range = (0,50)
+		self.attn_window_narrowing = 20 # percent of previous range
+		self.attn_points = 21 
+
+		self.phase_offset_if = 0    # degrees
+		self.dc_offset_I = 8 # mV
+		self.dc_offset_Q = 6 # mV
+
+		self.acq_length = 10.0
+		self.wait_time = 2.0
+		self.num_rep = 20
+
+
+	def get_optimal_attn_phase(self):
+
+		rfsoc_device = self.rfsoc_device
+		Vaunix_Att_device = self.Vaunix_Att_device
+		Vaunix_FS_device = self.Vaunix_FS_device
+		
+		display_plots = self.display_plots
+
+		amp_if = self.amp_if
+		nu_if = self.nu_if
+		delta = self.delta
+
+		iter_depth = self.iter_depth
+
+		phase_range = self.phase_range
+		phase_window_narrowing = self.phase_window_narrowing
+		phase_points = self.phase_points
+
+		attn_range = self.attn_range
+		attn_window_narrowing = self.attn_window_narrowing
+		attn_points = self.attn_points
+
+		phase_offset_if = self.phase_offset_if
+		dc_offset_I = self.dc_offset_I
+		dc_offset_Q = self.dc_offset_Q
+
+		acq_length = self.acq_length
+		wait_time = self.wait_time
+		num_rep = self.num_rep
+
+		mem_display_sequence = rfsoc_device.display_sequence
+		mem_display_IQ_progress = rfsoc_device.display_IQ_progress
+		rfsoc_device.display_sequence = False
+		rfsoc_device.display_IQ_progress = False
+
+
+
+		adc_start = wait_time/2
+
+		param_sin_I = {'amp':amp_if,
+		             'freq':nu_if,
+		             'dc_offset':dc_offset_I*1e-3,
+		             'phase_offset':0}
+
+		param_sin_Q = {'amp':amp_if,
+		             'freq':nu_if,
+		             'dc_offset':dc_offset_Q*1e-3,
+		             'phase_offset':np.pi*phase_offset_if/180}
+
+
+		pulse_sin = dict(label='pump', 
+		                      module='DAC', 
+		                      channel=1, 
+		                      mode='sin', 
+		                      start=0, 
+		                      length=acq_length+wait_time, 
+		                      param=param_sin_I, 
+		                      parent=None)
+
+		record_sin = dict(label='record_signal', 
+		                      module='ADC', 
+		                      channel=1, 
+		                      mode='IQ', 
+		                      start=adc_start, 
+		                      length=acq_length, 
+		                      param=None, 
+		                      parent=None)
+
+		pulse_sin2 = dict(label='pump2', 
+		                      module='DAC', 
+		                      channel=2, 
+		                      mode='sin', 
+		                      start=0, 
+		                      length=acq_length+wait_time, 
+		                      param=param_sin_Q, 
+		                      parent=None)
+
+		record_sin2 = dict(label='record_signal2', 
+		                      module='ADC', 
+		                      channel=2, 
+		                      mode='IQ', 
+		                      start=adc_start, 
+		                      length=acq_length, 
+		                      param=None, 
+		                      parent=None)
+
+
+		pulses = pd.DataFrame()
+		pulses = pulses.append(pulse_sin, ignore_index=True)
+		pulses = pulses.append(record_sin, ignore_index=True)
+		pulses = pulses.append(pulse_sin2, ignore_index=True)
+		pulses = pulses.append(record_sin2, ignore_index=True)
+
+		rfsoc_device.pulses = pulses
+
+		rfsoc_device.acquisition_mode('IQ')
+
+		rfsoc_device.ADC1.fmixer(nu_if)
+		rfsoc_device.ADC2.fmixer(nu_if)
+		rfsoc_device.ADC1.decfact(1)
+		rfsoc_device.ADC2.decfact(1)
+		rfsoc_device.freq_sync(1e6)
+		rfsoc_device.ADC1.status('ON')
+		rfsoc_device.ADC2.status('ON')
+		rfsoc_device.output_format('BIN')
+		rfsoc_device.n_rep(num_rep)
+
+		rfsoc_device.process_sequencing()
+
+		for iter_n in range(iter_depth):
+
+			# optimize phase 
+
+			phase_vec_org = np.linspace(phase_range[0],phase_range[1],phase_points)
+			phase_vec = self.process_phase(phase_vec_org)
+			pow_vec_0 = np.array([])
+			pow_vec_1 = np.array([])
+			for phase in phase_vec:
+
+				Vaunix_FS_device.phase_shift(phase)
+				pow_tmp = rfsoc_device.ADC_power_dBm()
+				pow_vec_0 = np.append(pow_vec_0,pow_tmp[0][0])
+				pow_vec_1 = np.append(pow_vec_1,pow_tmp[1][0])
+
+				# IQ_data = []
+				# data_out_I,data_out_Q = rfsoc_device.IQINT_AVG()
+				# data_out1 = np.zeros((2, 8, 2))
+				# data_out1[0][0] = data_out_I[0]
+				# data_out1[1][0] = data_out_Q[0]
+				# IQ_data.append(list(data_out1))
+				# IQ_data = np.array(IQ_data)
+				# I_ch1_on = IQ_data[:, 0, 0, 0]
+				# I_ch2_on = IQ_data[:, 0, 1, 0]
+				# Q_ch1_on = IQ_data[:, 1, 0, 0]
+				# Q_ch2_on = IQ_data[:, 1, 1, 0]
+				# Mag_ch2_on = (I_ch2_on**2 + Q_ch2_on**2)/50 ## W
+				# Mag_ch2_on_dBm = 10 * np.log10(Mag_ch2_on*1e3) 
+				# Mag_ch1_on = (I_ch1_on**2 + Q_ch1_on**2)/50 ## W
+				# Mag_ch1_on_dBm = 10 * np.log10(Mag_ch1_on*1e3) 
+				# pow_vec_0 = np.append(pow_vec_0,Mag_ch1_on_dBm)
+				# pow_vec_1 = np.append(pow_vec_1,Mag_ch2_on_dBm)
+
+			if display_plots:
+
+				fig = plt.figure(figsize=(16,12))
+				ax3 = fig.add_subplot(221)
+				ax3.plot(phase_vec_org,pow_vec_0, label='ch1',  marker = '.', color = 'orange')
+				ax3.plot(phase_vec_org,pow_vec_1, label='ch2',  marker = '.', color = 'blue')
+				plt.legend()
+				plt.xlabel('Phase [degree]', fontsize = 14)
+				plt.ylabel('Power (dBm)', fontsize = 14)
+				plt.grid()
+				plt.show()
+
+			phase_min = phase_vec[np.argmin(pow_vec_0)]
+			Vaunix_FS_device.phase_shift(phase_min)
+			phase_sweep_mag = (phase_range[1]-phase_range[0])*phase_window_narrowing/100
+			if phase_sweep_mag<phase_points:
+				phase_sweep_mag = phase_points
+			phase_range = (phase_min-0.5*phase_sweep_mag,phase_min+0.5*phase_sweep_mag)
+
+			# optimize attn 
+
+			attn_vec = np.linspace(attn_range[0],attn_range[1],attn_points)
+			pow_vec_0 = np.array([])
+			pow_vec_1 = np.array([])
+			for attn in attn_vec:
+
+				Vaunix_Att_device.attn(attn)
+				pow_tmp = rfsoc_device.ADC_power_dBm()
+				pow_vec_0 = np.append(pow_vec_0,pow_tmp[0][0])
+				pow_vec_1 = np.append(pow_vec_1,pow_tmp[1][0])
+
+			if display_plots:
+
+				fig = plt.figure(figsize=(16,12))
+				ax3 = fig.add_subplot(221)
+				ax3.plot(attn_vec,pow_vec_0, label='ch1',  marker = '.', color = 'orange')
+				ax3.plot(attn_vec,pow_vec_1, label='ch2',  marker = '.', color = 'blue')
+				plt.legend()
+				plt.xlabel('Attenuation [dB]', fontsize = 14)
+				plt.ylabel('Power (dBm)', fontsize = 14)
+				plt.grid()
+				plt.show()
+
+			attn_min = attn_vec[np.argmin(pow_vec_0)]
+			Vaunix_Att_device.attn(attn_min)
+			attn_sweep_mag = (attn_range[1]-attn_range[0])*attn_window_narrowing/100
+			if attn_sweep_mag<attn_points*0.1:
+				attn_sweep_mag = attn_points*0.1
+			attn_range = (attn_min-0.5*attn_sweep_mag,attn_min+0.5*attn_sweep_mag)
+
+
+		rfsoc_device.display_sequence = mem_display_sequence
+		rfsoc_device.display_IQ_progress = mem_display_IQ_progress
+
+		return(phase_min,attn_min)
+
+
+	def process_phase(self,phase_arr):
+
+		phase_arr_out = np.array([])
+
+		for angle in phase_arr:
+
+			while angle < 0:
+			    angle += 360 
+			while angle > 360 :
+			    angle -= 360 
+			phase_arr_out = np.append(phase_arr_out,int(angle))
+
+		return phase_arr_out
+
+
+
+
+
+
+
+class check_ADC_meas_freq_cls:
+
+	def __init__(self, rfsoc_device):
+
+		self.rfsoc_device = rfsoc_device
+
+		self.display_plots = True
+
+		self.amp_if = 0.1
+
+		self.iter_num = 5
+		self.tolerance = 10 # percent
+
+		self.phase_offset_if = 0    # degrees
+		self.dc_offset_I = 8 # mV
+		self.dc_offset_Q = 6 # mV
+
+		self.acq_length = 10.0
+		self.wait_time = 2.0
+		self.num_rep = 100
+
+
+
+
+	def check_freq(self,freq_list):
+
+
+		mem_display_sequence = rfsoc_device.display_sequence
+		mem_display_IQ_progress = rfsoc_device.display_IQ_progress
+		rfsoc_device.display_sequence = False
+		rfsoc_device.display_IQ_progress = False
+
+		rfsoc_device = self.rfsoc_device
+
+		display_plots = self.display_plots
+
+		amp_if = self.amp_if
+
+		iter_num = self.iter_num
+		tolerance = self.tolerance
+
+		phase_offset_if = self.phase_offset_if
+		dc_offset_I = self.dc_offset_I
+		dc_offset_Q = self.dc_offset_Q
+
+		acq_length = self.acq_length
+		wait_time = self.wait_time
+		num_rep = self.num_rep
+
+		adc_start = wait_time/2
+
+		sweep_mem_ch1 = {}
+		sweep_mem_ch2 = {}
+
+		for iter_n in range(iter_num):
+
+			sweep_mem_ch1[iter_n] = []
+			sweep_mem_ch2[iter_n] = []
+
+			for nu_if in freq_list:
+
+				param_sin_I = {'amp':amp_if,
+				             'freq':nu_if,
+				             'dc_offset':dc_offset_I*1e-3,
+				             'phase_offset':0}
+
+				param_sin_Q = {'amp':amp_if,
+				             'freq':nu_if,
+				             'dc_offset':dc_offset_Q*1e-3,
+				             'phase_offset':np.pi*phase_offset_if/180}
+
+
+				pulse_sin = dict(label='pump', 
+				                      module='DAC', 
+				                      channel=1, 
+				                      mode='sin', 
+				                      start=0, 
+				                      length=acq_length+wait_time, 
+				                      param=param_sin_I, 
+				                      parent=None)
+
+				record_sin = dict(label='record_signal', 
+				                      module='ADC', 
+				                      channel=1, 
+				                      mode='IQ', 
+				                      start=adc_start, 
+				                      length=acq_length, 
+				                      param=None, 
+				                      parent=None)
+
+				pulse_sin2 = dict(label='pump2', 
+				                      module='DAC', 
+				                      channel=2, 
+				                      mode='sin', 
+				                      start=0, 
+				                      length=acq_length+wait_time, 
+				                      param=param_sin_Q, 
+				                      parent=None)
+
+				record_sin2 = dict(label='record_signal2', 
+				                      module='ADC', 
+				                      channel=2, 
+				                      mode='IQ', 
+				                      start=adc_start, 
+				                      length=acq_length, 
+				                      param=None, 
+				                      parent=None)
+
+
+				pulses = pd.DataFrame()
+				pulses = pulses.append(pulse_sin, ignore_index=True)
+				pulses = pulses.append(record_sin, ignore_index=True)
+				pulses = pulses.append(pulse_sin2, ignore_index=True)
+				pulses = pulses.append(record_sin2, ignore_index=True)
+
+				rfsoc_device.pulses = pulses
+
+				rfsoc_device.acquisition_mode('IQ')
+
+				rfsoc_device.ADC1.fmixer(nu_if)
+				rfsoc_device.ADC2.fmixer(nu_if)
+				rfsoc_device.ADC1.decfact(1)
+				rfsoc_device.ADC2.decfact(1)
+				rfsoc_device.freq_sync(1e6)
+				rfsoc_device.ADC1.status('ON')
+				rfsoc_device.ADC2.status('ON')
+				rfsoc_device.output_format('BIN')
+				rfsoc_device.n_rep(num_rep)
+
+				rfsoc_device.process_sequencing()
+
+				pow_tmp = rfsoc_device.ADC_power_dBm()
+
+				sweep_mem_ch1[iter_n].append(pow_tmp[0][0])
+				sweep_mem_ch2[iter_n].append(pow_tmp[1][0])
+
+			if display_plots:
+
+					fig = plt.figure(figsize=(16,12))
+					ax3 = fig.add_subplot(221)
+					ax3.plot(freq_list,sweep_mem_ch1[iter_n], label='ch1',  marker = '.', color = 'orange')
+					ax3.plot(freq_list,sweep_mem_ch2[iter_n], label='ch2',  marker = '.', color = 'blue')
+					plt.legend()
+					plt.xlabel('Frequency [MHz]', fontsize = 14)
+					plt.ylabel('Power (dBm)', fontsize = 14)
+					plt.grid()
+					plt.show()
+
+
+
+		if display_plots:
+
+			fig = plt.figure(figsize=(16,12))
+			ax3 = fig.add_subplot(221)
+			for iter_n in range(iter_num):
+				ax3.plot(freq_list,sweep_mem_ch1[iter_n], label='ch1',  marker = '.', color = 'orange')
+				ax3.plot(freq_list,sweep_mem_ch2[iter_n], label='ch2',  marker = '.', color = 'blue')
+			plt.legend()
+			plt.xlabel('Frequency [MHz]', fontsize = 14)
+			plt.ylabel('Power (dBm)', fontsize = 14)
+			plt.grid()
+			plt.show()
+
