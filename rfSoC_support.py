@@ -129,24 +129,34 @@ def optimize_IQ_balance(rfsoc_device,nu,nu_det_offset,display_plots=False,amp=0.
 
 	if display_plots:
 
-		plt.figure(figsize=(14, 10), dpi= 80) #facecolor='w', edgecolor='k'
-		x_label='Phase [degree]'
-		y_label='PSD [dBm]'
-
-		plt.rc('axes', labelsize=10)    # fontsize of the x and y labels
-		plt.rc('xtick', labelsize=12)    # fontsize of the tick labels
-		plt.rc('ytick', labelsize=12)    # fontsize of the tick labels
-		plt.rc('grid', linestyle="--")
-		plt.grid(True)
-
-		plt.plot(phase_vec,data_down,label='data_ch1')
-		plt.plot(phase_vec,data_up,label='data_ch2')
-
-		plt.xlabel(x_label, size=14)
-		plt.ylabel(y_label, size=14)
-
-		plt.legend(fontsize = 12)
+		fig = plt.figure(figsize=(16,12))
+		ax3 = fig.add_subplot(221)
+		ax3.plot(phase_vec,data_down, label='ch1',  marker = '.', color = 'orange')
+		ax3.plot(phase_vec,data_up, label='ch2',  marker = '.', color = 'blue')
+		plt.legend()
+		plt.xlabel('Phase [degree]', fontsize = 14)
+		plt.ylabel('PSD (dBm)', fontsize = 14)
+		plt.grid()
 		plt.show()
+
+		# plt.figure(figsize=(14, 10), dpi= 80) #facecolor='w', edgecolor='k'
+		# x_label='Phase [degree]'
+		# y_label='PSD [dBm]'
+
+		# plt.rc('axes', labelsize=10)    # fontsize of the x and y labels
+		# plt.rc('xtick', labelsize=12)    # fontsize of the tick labels
+		# plt.rc('ytick', labelsize=12)    # fontsize of the tick labels
+		# plt.rc('grid', linestyle="--")
+		# plt.grid(True)
+
+		# plt.plot(phase_vec,data_down,label='data_ch1')
+		# plt.plot(phase_vec,data_up,label='data_ch2')
+
+		# plt.xlabel(x_label, size=14)
+		# plt.ylabel(y_label, size=14)
+
+		# plt.legend(fontsize = 12)
+		# plt.show()
 
 	optimal_phase_1 = phase_vec[find_nearest(data_up,np.min(data_up))]
 
@@ -236,24 +246,34 @@ def optimize_IQ_balance(rfsoc_device,nu,nu_det_offset,display_plots=False,amp=0.
 
 	if display_plots:
 
-		plt.figure(figsize=(14, 10), dpi= 80) #facecolor='w', edgecolor='k'
-		x_label='Phase [degree]'
-		y_label='PSD [dBm]'
-
-		plt.rc('axes', labelsize=10)    # fontsize of the x and y labels
-		plt.rc('xtick', labelsize=12)    # fontsize of the tick labels
-		plt.rc('ytick', labelsize=12)    # fontsize of the tick labels
-		plt.rc('grid', linestyle="--")
-		plt.grid(True)
-
-		plt.plot(phase_vec,data_down,label='data_ch1')
-		plt.plot(phase_vec,data_up,label='data_ch2')
-
-		plt.xlabel(x_label, size=14)
-		plt.ylabel(y_label, size=14)
-
-		plt.legend(fontsize = 12)
+		fig = plt.figure(figsize=(16,12))
+		ax3 = fig.add_subplot(221)
+		ax3.plot(phase_vec,data_down, label='ch1',  marker = '.', color = 'orange')
+		ax3.plot(phase_vec,data_up, label='ch2',  marker = '.', color = 'blue')
+		plt.legend()
+		plt.xlabel('Phase [degree]', fontsize = 14)
+		plt.ylabel('PSD (dBm)', fontsize = 14)
+		plt.grid()
 		plt.show()
+
+		# plt.figure(figsize=(14, 10), dpi= 80) #facecolor='w', edgecolor='k'
+		# x_label='Phase [degree]'
+		# y_label='PSD [dBm]'
+
+		# plt.rc('axes', labelsize=10)    # fontsize of the x and y labels
+		# plt.rc('xtick', labelsize=12)    # fontsize of the tick labels
+		# plt.rc('ytick', labelsize=12)    # fontsize of the tick labels
+		# plt.rc('grid', linestyle="--")
+		# plt.grid(True)
+
+		# plt.plot(phase_vec,data_down,label='data_ch1')
+		# plt.plot(phase_vec,data_up,label='data_ch2')
+
+		# plt.xlabel(x_label, size=14)
+		# plt.ylabel(y_label, size=14)
+
+		# plt.legend(fontsize = 12)
+		# plt.show()
 
 	rfsoc_device.display_sequence = mem_seq_display
 
@@ -864,11 +884,6 @@ class check_ADC_meas_freq_cls:
 	def check_freq(self,freq_list):
 
 
-		mem_display_sequence = rfsoc_device.display_sequence
-		mem_display_IQ_progress = rfsoc_device.display_IQ_progress
-		rfsoc_device.display_sequence = False
-		rfsoc_device.display_IQ_progress = False
-
 		rfsoc_device = self.rfsoc_device
 
 		display_plots = self.display_plots
@@ -886,17 +901,22 @@ class check_ADC_meas_freq_cls:
 		wait_time = self.wait_time
 		num_rep = self.num_rep
 
+		mem_display_sequence = rfsoc_device.display_sequence
+		mem_display_IQ_progress = rfsoc_device.display_IQ_progress
+		rfsoc_device.display_sequence = False
+		rfsoc_device.display_IQ_progress = False
+
 		adc_start = wait_time/2
 
 		sweep_mem_ch1 = {}
 		sweep_mem_ch2 = {}
 
-		for iter_n in range(iter_num):
+		for iter_n in bar(range(iter_num)):
 
 			sweep_mem_ch1[iter_n] = []
 			sweep_mem_ch2[iter_n] = []
 
-			for nu_if in freq_list:
+			for nu_if in bar(freq_list):
 
 				param_sin_I = {'amp':amp_if,
 				             'freq':nu_if,

@@ -37,18 +37,26 @@ class simulation_sweeps(Instrument):
 							parameter_class=ManualParameter)
 
 		self.add_parameter('x1_array',
-							vals=Arrays(shape=(self.x1_size,1)),
-						   	snapshot_value = False)
+							parameter_class=ManualParameter,
+							snapshot_value = False,
+							vals=Arrays(shape=(self.x1_size.get_latest,)))
 
 		self.add_parameter('x2_array',
-							vals=Arrays(shape=(self.x2_size,1)),
-						   	snapshot_value = False)
+							vals=Arrays(shape=(self.x2_size.get_latest,)),
+							parameter_class=ManualParameter,
+							snapshot_value = False)
 
 		self.add_parameter('y_1D_array',
-							vals=Arrays(shape=(self.x1_size,1)),
-						   	snapshot_value = False)
+							vals=Arrays(shape=(self.x1_size.get_latest,)),
+							parameter_class=ManualParameter,
+							snapshot_value = False)
 
 		self.add_parameter('y_2D_array',
-							vals=Arrays(shape=(self.x1_size,self.x2_size)),
-						   	snapshot_value = False)
+							vals=Arrays(shape=(self.x1_size,self.x2_size.get_latest)),
+							parameter_class=ManualParameter,
+							snapshot_value = False)
+
+		self.add_parameter('freq_axis',
+							parameter_class=ManualParameter,
+							vals=Arrays(shape=(self.x1_size.get_latest,)))
 

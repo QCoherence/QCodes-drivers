@@ -173,7 +173,7 @@ class RS_FSQ(VisaInstrument):
 
 		self.add_parameter( name = 'span',  
 							label = 'Span',
-							vals = vals.Numbers(20,26.5e9),
+							vals = vals.Numbers(0,26.5e9),
 							unit   = 'Hz',
 							set_cmd='SENSe'+str(self.sense_num)+':FREQuency:SPAN ' + '{:.12f}',
 							get_cmd='SENSe'+str(self.sense_num)+':FREQuency:SPAN?'

@@ -1042,7 +1042,7 @@ class RFSoC(VisaInstrument):
 
 					elif r == [3338] or r == [2573]: # new empty packet?
 
-						log.warning('Received empty packet.')
+						# log.warning('Received empty packet.')
 						empty_packet_count += 1
 						time.sleep(0.1)
 
