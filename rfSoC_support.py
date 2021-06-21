@@ -291,7 +291,7 @@ class gain_signal_idler_cls:
 	def __init__(self, rfsoc_device):
 
 		self.rfsoc_device = rfsoc_device
-		self.amp_if = 0
+		self.amp_if = 0.15
 		self.nu_if = 271
 		self.delta = 220
 
@@ -301,7 +301,7 @@ class gain_signal_idler_cls:
 		self.dc_offset_I = 8 # mV
 		self.dc_offset_Q = 6 # mV
 
-		self.amp_sig = 0.0005
+		self.amp_sig = 0.01*self.amp_if/0.15
 		self.acq_length = 10.0
 		self.adc_start = 1.0
 		self.wait_between_pulses = 0
@@ -452,6 +452,8 @@ class gain_signal_idler_cls:
 		rfsoc_device.ADC1.decfact(1)
 		rfsoc_device.ADC2.decfact(1)
 		rfsoc_device.freq_sync(1e6)
+		rfsoc_device.ADC1.fmixer(nu_sig)
+		rfsoc_device.ADC2.fmixer(nu_idl)
 		rfsoc_device.ADC1.status('ON')
 		rfsoc_device.ADC2.status('ON')
 		rfsoc_device.output_format('BIN')
@@ -580,6 +582,8 @@ class gain_signal_idler_cls:
 		rfsoc_device.ADC1.decfact(1)
 		rfsoc_device.ADC2.decfact(1)
 		rfsoc_device.freq_sync(1e6)
+		rfsoc_device.ADC1.fmixer(nu_sig)
+		rfsoc_device.ADC2.fmixer(nu_idl)
 		rfsoc_device.ADC1.status('ON')
 		rfsoc_device.ADC2.status('ON')
 		rfsoc_device.output_format('BIN')
@@ -588,7 +592,7 @@ class gain_signal_idler_cls:
 		
 		data_sig = np.array(rfsoc_device.ADC_power_dBm()[0:2])
 		
-             # data_tmp.append(data_sig)
+			 # data_tmp.append(data_sig)
 		
 		
 		gain_sig = data_sig[0,0]-data_sig[0,1]
@@ -678,51 +682,51 @@ class pump_cancellation_cls:
 		adc_start = wait_time/2
 
 		param_sin_I = {'amp':amp_if,
-		             'freq':nu_if,
-		             'dc_offset':dc_offset_I*1e-3,
-		             'phase_offset':0}
+					 'freq':nu_if,
+					 'dc_offset':dc_offset_I*1e-3,
+					 'phase_offset':0}
 
 		param_sin_Q = {'amp':amp_if,
-		             'freq':nu_if,
-		             'dc_offset':dc_offset_Q*1e-3,
-		             'phase_offset':np.pi*phase_offset_if/180}
+					 'freq':nu_if,
+					 'dc_offset':dc_offset_Q*1e-3,
+					 'phase_offset':np.pi*phase_offset_if/180}
 
 
 		pulse_sin = dict(label='pump', 
-		                      module='DAC', 
-		                      channel=1, 
-		                      mode='sin', 
-		                      start=0, 
-		                      length=acq_length+wait_time, 
-		                      param=param_sin_I, 
-		                      parent=None)
+							  module='DAC', 
+							  channel=1, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_I, 
+							  parent=None)
 
 		record_sin = dict(label='record_signal', 
-		                      module='ADC', 
-		                      channel=1, 
-		                      mode='IQ', 
-		                      start=adc_start, 
-		                      length=acq_length, 
-		                      param=None, 
-		                      parent=None)
+							  module='ADC', 
+							  channel=1, 
+							  mode='IQ', 
+							  start=adc_start, 
+							  length=acq_length, 
+							  param=None, 
+							  parent=None)
 
 		pulse_sin2 = dict(label='pump2', 
-		                      module='DAC', 
-		                      channel=2, 
-		                      mode='sin', 
-		                      start=0, 
-		                      length=acq_length+wait_time, 
-		                      param=param_sin_Q, 
-		                      parent=None)
+							  module='DAC', 
+							  channel=2, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_Q, 
+							  parent=None)
 
 		record_sin2 = dict(label='record_signal2', 
-		                      module='ADC', 
-		                      channel=2, 
-		                      mode='IQ', 
-		                      start=adc_start, 
-		                      length=acq_length, 
-		                      param=None, 
-		                      parent=None)
+							  module='ADC', 
+							  channel=2, 
+							  mode='IQ', 
+							  start=adc_start, 
+							  length=acq_length, 
+							  param=None, 
+							  parent=None)
 
 
 		pulses = pd.DataFrame()
@@ -844,9 +848,9 @@ class pump_cancellation_cls:
 		for angle in phase_arr:
 
 			while angle < 0:
-			    angle += 360 
+				angle += 360 
 			while angle > 360 :
-			    angle -= 360 
+				angle -= 360 
 			phase_arr_out = np.append(phase_arr_out,int(angle))
 
 		return phase_arr_out
@@ -919,51 +923,51 @@ class check_ADC_meas_freq_cls:
 			for nu_if in bar(freq_list):
 
 				param_sin_I = {'amp':amp_if,
-				             'freq':nu_if,
-				             'dc_offset':dc_offset_I*1e-3,
-				             'phase_offset':0}
+							 'freq':nu_if,
+							 'dc_offset':dc_offset_I*1e-3,
+							 'phase_offset':0}
 
 				param_sin_Q = {'amp':amp_if,
-				             'freq':nu_if,
-				             'dc_offset':dc_offset_Q*1e-3,
-				             'phase_offset':np.pi*phase_offset_if/180}
+							 'freq':nu_if,
+							 'dc_offset':dc_offset_Q*1e-3,
+							 'phase_offset':np.pi*phase_offset_if/180}
 
 
 				pulse_sin = dict(label='pump', 
-				                      module='DAC', 
-				                      channel=1, 
-				                      mode='sin', 
-				                      start=0, 
-				                      length=acq_length+wait_time, 
-				                      param=param_sin_I, 
-				                      parent=None)
+									  module='DAC', 
+									  channel=1, 
+									  mode='sin', 
+									  start=0, 
+									  length=acq_length+wait_time, 
+									  param=param_sin_I, 
+									  parent=None)
 
 				record_sin = dict(label='record_signal', 
-				                      module='ADC', 
-				                      channel=1, 
-				                      mode='IQ', 
-				                      start=adc_start, 
-				                      length=acq_length, 
-				                      param=None, 
-				                      parent=None)
+									  module='ADC', 
+									  channel=1, 
+									  mode='IQ', 
+									  start=adc_start, 
+									  length=acq_length, 
+									  param=None, 
+									  parent=None)
 
 				pulse_sin2 = dict(label='pump2', 
-				                      module='DAC', 
-				                      channel=2, 
-				                      mode='sin', 
-				                      start=0, 
-				                      length=acq_length+wait_time, 
-				                      param=param_sin_Q, 
-				                      parent=None)
+									  module='DAC', 
+									  channel=2, 
+									  mode='sin', 
+									  start=0, 
+									  length=acq_length+wait_time, 
+									  param=param_sin_Q, 
+									  parent=None)
 
 				record_sin2 = dict(label='record_signal2', 
-				                      module='ADC', 
-				                      channel=2, 
-				                      mode='IQ', 
-				                      start=adc_start, 
-				                      length=acq_length, 
-				                      param=None, 
-				                      parent=None)
+									  module='ADC', 
+									  channel=2, 
+									  mode='IQ', 
+									  start=adc_start, 
+									  length=acq_length, 
+									  param=None, 
+									  parent=None)
 
 
 				pulses = pd.DataFrame()
