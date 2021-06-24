@@ -44,6 +44,11 @@ class SpectrumTrace(ParameterWithSetpoints):
         data = self._instrument.get_trace()
         return data
 
+class HarmonicTrace(ParameterWithSetpoints):
+
+    def get_raw(self):
+        data = self._instrument.get_harmonic()
+        return data
 
 
 
@@ -120,6 +125,17 @@ class RS_FSQ(VisaInstrument):
 							# set_parser =self.,
 							# get_parser=self.
 							)
+
+
+		self.add_parameter( name = 'sweep_time_direct',  
+							label = 'Sweep time without sense',
+							vals = vals.Numbers(1e-6,16e3),
+							unit   = 'us',
+							set_cmd='SWEep:TIME ' + '{:.12f}'+' us',
+							get_cmd='SWEep:TIME?'
+							# set_parser =self.,
+							# get_parser=self.
+							)		
 
 		self.add_parameter( name = 'input_att',  
 							label = 'Input attenuation',
@@ -232,12 +248,100 @@ class RS_FSQ(VisaInstrument):
 							numpointsparam=self.n_points,
 							vals=Arrays(shape=(self.n_points.get_latest,)))
 
+
+		self.add_parameter( name = 'n_harmonics',  
+							label = 'No.of harmonic',
+							vals = vals.Numbers(1,26),
+							# unit   = 'Hz',
+							set_cmd='CALC:MARK:FUNC:HARM:NHAR ' + '{:.12f}',
+							# set_parser =self.,
+							get_parser=float
+							)	
+
+		self.add_parameter('freq_axis_harmonic',
+							unit='Hz',
+							label='Freq Axis_harmonic',
+							parameter_class=GeneratedSetPoints,
+							startparam=self.center_freq,
+							stopparam=self.center_freq,
+							numpointsparam=(self.n_harmonics),
+							vals=Arrays(shape=(self.n_harmonics.get_latest,)))
+
 		self.add_parameter('spectrum',
 							unit='dBm',
 							setpoints=(self.freq_axis,),
 							label='Spectrum',
 							parameter_class=SpectrumTrace,
 							vals=Arrays(shape=(self.n_points.get_latest,)))
+
+
+
+		self.add_parameter( name = 'set_harmonic',  
+							label = 'Harmonic function ON',
+							# vals = vals.Numbers(10,50e6),
+							vals = vals.Enum('ON','OFF'),
+							#unit   = 'Hz',
+							set_cmd='CALC:MARK:FUNC:HARM:STAT '+ '{} '
+							# get_cmd='BANDwidth:RESolution?'
+							# set_parser =self.,
+							# get_parser=self.
+							)
+
+		# self.add_parameter( name = 'reset_harmonic',  
+		# 					label = 'Harmonic function OFF',
+		# 					# vals = vals.Numbers(10,50e6),
+		# 					#unit   = 'Hz',
+		# 					set_cmd='CALC:MARK:FUNC:HARM:STAT OFF '
+		# 					# get_cmd='BANDwidth:RESolution?'
+		# 					# set_parser =self.,
+		# 					# get_parser=self.
+							# )
+
+		
+
+		# self.add_parameter( name = 'time_harmonic',  
+		# 					label = 'sweep time harmonic',
+		# 					vals = vals.Numbers(10,1000),
+		# 					# unit   = 'Hz',
+		# 					set_cmd='SWE:TIME ' + '{:.12f}'+ 'us',
+		# 					# set_parser =self.,
+		# 					# get_parser=float
+		# 					)
+		self.add_parameter( 'harmonic',
+							unit='dBm/c',
+							setpoints=(self.freq_axis_harmonic,),
+							label='Spectrum',
+							parameter_class=HarmonicTrace,
+							vals=Arrays(shape=(self.n_harmonics.get_latest,))
+
+			                # name = 'meas_harmonic',  
+							# label = 'Meausure harmonics', # values in dBc
+							# vals = vals.Numbers(10,50e6),
+							#unit   = 'Hz',
+							# get_cmd='CALC:MARK:FUNC:HARM:LIST?'
+							# set_parser =self.,
+							# get_parser=self.
+							)
+
+		self.add_parameter( name = 'setauto_rbw_harmonic',  
+							label = 'Resolution bandwidth harmonic',
+							vals = vals.Enum('ON','OFF'),
+							# unit   = 'Hz',
+							set_cmd='CALC:MARK:FUNC:HARM:BAND:AUTO ' +'{}'
+							# set_parser =self.,
+							# get_parser=float
+							)
+
+		# self.add_parameter( name = 'unsetauto_rbw_harmonic',  
+		# 					label = 'Resolution bandwidth harmonic',
+		# 					# unit   = 'Hz',
+		# 					set_cmd='CALC:MARK:FUNC:HARM:BAND:AUTO OFF' ,
+		# 					# set_parser =self.,
+		# 					# get_parser=float
+		# 					)
+
+
+
 
 		self.connect_message()
 
@@ -250,6 +354,22 @@ class RS_FSQ(VisaInstrument):
 		while self.ask('*ESR?') == '0': 
 		    sleep(1) # we wait until the register is 1
 		datastr = self.ask(':TRAC? TRACE'+str(1))
+		datalist = datastr.split(",")
+		dataflt = []
+		for val in datalist:
+		    dataflt.append(float(val))
+		dataflt=np.array(dataflt)
+		return dataflt
+
+
+	def get_harmonic(self):
+		self.write('*CLS')
+		# self.write(':INIT:CONT OFF')
+		# self.write(':INIT:IMMediate;*OPC')
+		datastr=self.ask('CALC:MARK:FUNC:HARM:LIST?') 
+		    # sleep(1) # we wait until the register is 1
+		# datastr = self.ask(':TRAC? TRACE'+str(1))
+
 		datalist = datastr.split(",")
 		dataflt = []
 		for val in datalist:
