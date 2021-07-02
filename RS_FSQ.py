@@ -111,9 +111,10 @@ class RS_FSQ(VisaInstrument):
 							vals = vals.Numbers(1,30e6),
 							unit   = 'Hz',
 							set_cmd='SENSe'+str(self.sense_num)+':BANDwidth:VIDeo ' + '{:.12f}',
-							get_cmd='SENSe'+str(self.sense_num)+':BANDwidth:VIDeo?'
+							get_cmd='SENSe'+str(self.sense_num)+':BANDwidth:VIDeo?',
 							# set_parser =self.,
 							# get_parser=self.
+							snapshot_value = False
 							)
 
 		self.add_parameter( name = 'sweep_time',  
@@ -121,7 +122,8 @@ class RS_FSQ(VisaInstrument):
 							vals = vals.Numbers(1e-6,16e3),
 							unit   = 's',
 							set_cmd='SENSe'+str(self.sense_num)+'SWEep:TIME ' + '{:.12f}',
-							get_cmd='SENSe'+str(self.sense_num)+'SWEep:TIME?'
+							get_cmd='SENSe'+str(self.sense_num)+'SWEep:TIME?',
+							snapshot_value = False
 							# set_parser =self.,
 							# get_parser=self.
 							)
@@ -142,7 +144,8 @@ class RS_FSQ(VisaInstrument):
 							vals = vals.Numbers(0,50),
 							unit   = 'dB',
 							set_cmd='SENSe'+str(self.sense_num)+':POWer:RF:ATTenuation ' + '{:.12f}',
-							get_cmd='SENSe'+str(self.sense_num)+':POWer:RF:ATTenuation?'
+							get_cmd='SENSe'+str(self.sense_num)+':POWer:RF:ATTenuation?',
+							snapshot_value = False
 							# set_parser =self.,
 							# get_parser=self.
 							)
@@ -154,7 +157,8 @@ class RS_FSQ(VisaInstrument):
 							set_cmd='SENSe'+str(self.sense_num)+':POWer:RF:ATTenuation:AUTO ' + '{:.12f}',
 							get_cmd='SENSe'+str(self.sense_num)+':POWer:RF:ATTenuation:AUTO?',
 							set_parser =self.caps,
-							get_parser=self.caps_dag
+							get_parser=self.caps_dag,
+							snapshot_value = False
 							)
 
 		self.add_parameter( name = 'center_freq',  
@@ -192,7 +196,8 @@ class RS_FSQ(VisaInstrument):
 							vals = vals.Numbers(0,26.5e9),
 							unit   = 'Hz',
 							set_cmd='SENSe'+str(self.sense_num)+':FREQuency:SPAN ' + '{:.12f}',
-							get_cmd='SENSe'+str(self.sense_num)+':FREQuency:SPAN?'
+							get_cmd='SENSe'+str(self.sense_num)+':FREQuency:SPAN?',
+							snapshot_value = False
 							# set_parser =self.,
 							# get_parser=self.
 							)
@@ -214,7 +219,8 @@ class RS_FSQ(VisaInstrument):
 							set_cmd='SENSe'+str(self.sense_num)+':FREQuency:STARt ' + '{:.12f}',
 							get_cmd='SENSe'+str(self.sense_num)+':FREQuency:STARt?',
 							# set_parser =self.,
-							get_parser=float
+							get_parser=float,
+							snapshot_value = False
 							)
 
 		self.add_parameter( name = 'f_stop',  
@@ -224,7 +230,8 @@ class RS_FSQ(VisaInstrument):
 							set_cmd='SENSe'+str(self.sense_num)+':FREQuency:STOP ' + '{:.12f}',
 							get_cmd='SENSe'+str(self.sense_num)+':FREQuency:STOP?',
 							# set_parser =self.,
-							get_parser=float
+							get_parser=float,
+							snapshot_value = False
 							)
 
 		self.add_parameter( name = 'ref_level',  
@@ -246,7 +253,8 @@ class RS_FSQ(VisaInstrument):
 							startparam=self.f_start,
 							stopparam=self.f_stop,
 							numpointsparam=self.n_points,
-							vals=Arrays(shape=(self.n_points.get_latest,)))
+							vals=Arrays(shape=(self.n_points.get_latest,)),
+							snapshot_value = False)
 
 
 		self.add_parameter( name = 'n_harmonics',  
@@ -255,17 +263,19 @@ class RS_FSQ(VisaInstrument):
 							# unit   = 'Hz',
 							set_cmd='CALC:MARK:FUNC:HARM:NHAR ' + '{:.12f}',
 							# set_parser =self.,
-							get_parser=float
+							get_parser=float,
+							snapshot_value = False
 							)	
 
 		self.add_parameter('freq_axis_harmonic',
 							unit='Hz',
 							label='Freq Axis_harmonic',
 							parameter_class=GeneratedSetPoints,
-							startparam=self.center_freq,
-							stopparam=self.center_freq,
+							startparam=self.get_1,
+							stopparam=self.n_harmonics,
 							numpointsparam=(self.n_harmonics),
-							vals=Arrays(shape=(self.n_harmonics.get_latest,)))
+							vals=Arrays(shape=(self.n_harmonics.get_latest,)),
+							snapshot_value = False)
 
 		self.add_parameter('spectrum',
 							unit='dBm',
@@ -347,6 +357,11 @@ class RS_FSQ(VisaInstrument):
 
 
 
+	def get_1(self):
+		return 1
+
+
+		
 	def get_trace(self):
 		self.write('*CLS')
 		self.write(':INIT:CONT OFF')
