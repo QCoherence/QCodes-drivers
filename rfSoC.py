@@ -208,7 +208,7 @@ class ADC_power(Parameter):
 								
 		for i in range(8):
 			
-			Pow[i] = (np.array(Sq_I_list[i]) + np.array(Sq_Q_list[i]))/50
+			Pow[i] = (np.array(Sq_I_list[i]) + np.array(Sq_Q_list[i]))/(50*2)	# RMS power
 
 		return Pow
 
@@ -241,7 +241,7 @@ class ADC_power_dBm(Parameter):
 								
 		for i in range(8):
 			
-			Pow[i] = 10*np.log10(1e3*(np.array(Sq_I_list[i]) + np.array(Sq_Q_list[i]))/50)
+			Pow[i] = 10*np.log10(1e3*(np.array(Sq_I_list[i]) + np.array(Sq_Q_list[i]))/(50*2))		# RMS power
 
 		return Pow
 
