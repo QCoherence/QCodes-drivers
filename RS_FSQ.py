@@ -173,7 +173,7 @@ class RS_FSQ(VisaInstrument):
 
 		self.add_parameter( name = 'averages',  
 							label = 'Averages',
-							vals = vals.Numbers(20,26.5e9),
+							vals = vals.Numbers(0,1000),
 							unit   = 'NA',
 							set_cmd='SENSe'+str(self.sense_num)+':AVERage:COUNt ' + '{:.12f}',
 							get_cmd='SENSe'+str(self.sense_num)+':AVERage:COUNt?'
