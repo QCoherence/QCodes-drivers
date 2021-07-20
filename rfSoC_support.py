@@ -9,7 +9,6 @@ from qcodes.logger.logger import start_all_logging
 import datetime
 from qcodes.dataset.plotting import plot_dataset
 import numpy as np
-import matplotlib.pyplot as plt
 #qcodes.config.subscription.default_subscribers = ["Plottr"]
 from time import sleep
 import time
@@ -37,7 +36,7 @@ import matplotlib.pyplot as plt
 
 
 
-def optimize_IQ_balance(rfsoc_device,nu,nu_det_offset,display_plots=False,amp=0.05,dc_offset_I=8,dc_offset_Q=6,active_mode='lower',acq_length = 10, adc_start = 1.0):
+def optimize_IQ_balance(rfsoc_device,nu,nu_det_offset,display_plots=False,pump_sig_ch=[1,2],amp=0.05,dc_offset_I=8,dc_offset_Q=6,active_mode='lower',acq_length = 10, adc_start = 1.0):
 
 	mem_seq_display = rfsoc_device.display_sequence
 	rfsoc_device.display_sequence = False
@@ -46,6 +45,8 @@ def optimize_IQ_balance(rfsoc_device,nu,nu_det_offset,display_plots=False,amp=0.
 	data_down = np.array([])
 	data_up = np.array([])
 	num_repetitions = 10_000
+
+	[ch_1,ch_2] = pump_sig_ch
 
 	for phase_offset in phase_vec:
 			
@@ -63,7 +64,7 @@ def optimize_IQ_balance(rfsoc_device,nu,nu_det_offset,display_plots=False,amp=0.
 		
 		pulse_sin = dict(label='signal+pump', 
 							  module='DAC', 
-							  channel=1, 
+							  channel=ch_1, 
 							  mode='sin', 
 							  start=0, 
 							  length=acq_length+2, 
@@ -81,7 +82,7 @@ def optimize_IQ_balance(rfsoc_device,nu,nu_det_offset,display_plots=False,amp=0.
 
 		pulse_sin2 = dict(label='signal+pump2', 
 							  module='DAC', 
-							  channel=2, 
+							  channel=ch_2, 
 							  mode='sin', 
 							  start=0, 
 							  length=acq_length+2, 
