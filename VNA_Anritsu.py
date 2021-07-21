@@ -150,6 +150,7 @@ class AnritsuChannel(InstrumentChannel):
 
 		"""
 		n = channel
+		n_fixed = n
 		self._instrument_channel = channel
 
 		if vna_parameter is None:
@@ -173,14 +174,15 @@ class AnritsuChannel(InstrumentChannel):
 						   label='VNA parameter',
 						   get_cmd="CALC{}:PAR:DEF? '{}'".format(self._instrument_channel,
 																  self._tracename),
-						   get_parser=self._strip
+						   get_parser=self._strip,
+						   snapshot_value = False
 						   )
 
 		self.add_parameter(name='power',
 						   label='Power',
 						   unit='dBm',
-						   get_cmd='SOUR{}:POW:PORT1?'.format(n),
-						   set_cmd='SOUR{}:POW:PORT1 {{:.4f}}'.format(n),
+						   get_cmd='SOUR{}:POW:PORT1?'.format(n_fixed),
+						   set_cmd='SOUR{}:POW:PORT1 {{:.4f}}'.format(n_fixed),
 						   get_parser=float,
 						   vals=vals.Numbers(self._min_source_power, 30))
 		
@@ -188,51 +190,52 @@ class AnritsuChannel(InstrumentChannel):
 		self.add_parameter(name='bandwidth',
 						   label='Bandwidth',
 						   unit='Hz',
-						   get_cmd='SENS{}:BWID?'.format(n),
-						   set_cmd='SENS{}:BWID {{:.4f}}'.format(n),
+						   get_cmd='SENS{}:BWID?'.format(n_fixed),
+						   set_cmd='SENS{}:BWID {{:.4f}}'.format(n_fixed),
 						   get_parser=int,
-						   vals=vals.Enum(10,20,30,50,70,100, 200, 300,500,700, 1e3,3e3,5e3, 7e3, 10e3, 30e3, 50e3, 70e3, 100e3, 300e3, 500e3  ))
+						   vals=vals.Enum(10,20,30,50,70,100, 200, 300,500,700, 1e3,3e3,5e3, 7e3, 10e3, 30e3, 50e3, 70e3, 100e3, 300e3, 500e3  ),
+						   snapshot_value = False)
 
 		self.add_parameter(name='avg',
 						   label='Averages',
 						   unit='',
-						   get_cmd='SENS{}:AVER:COUN?'.format(n),
-						   set_cmd='SENS{}:AVER:COUN {{:.4f}}'.format(n),
+						   get_cmd='SENS{}:AVER:COUN?'.format(n_fixed),
+						   set_cmd='SENS{}:AVER:COUN {{:.4f}}'.format(n_fixed),
 						   get_parser=int,
 						   vals=vals.Ints(1, 5000))
 
 		self.add_parameter(name='start',
-						   get_cmd='SENS{}:FREQ:START?'.format(n),
+						   get_cmd='SENS{}:FREQ:START?'.format(n_fixed),
 						   set_cmd=self._set_start,
 						   get_parser=float,
 						   vals=vals.Numbers(self._parent._min_freq, self._parent._max_freq - 10))
 
 		self.add_parameter(name='stop',
-						   get_cmd='SENS{}:FREQ:STOP?'.format(n),
+						   get_cmd='SENS{}:FREQ:STOP?'.format(n_fixed),
 						   set_cmd=self._set_stop,
 						   get_parser=float,
 						   vals=vals.Numbers(self._parent._min_freq + 1, self._parent._max_freq))
 
 		self.add_parameter(name='center',
-						   get_cmd='SENS{}:FREQ:CENT?'.format(n),
+						   get_cmd='SENS{}:FREQ:CENT?'.format(n_fixed),
 						   set_cmd=self._set_center,
 						   get_parser=float,
 						   vals=vals.Numbers(self._parent._min_freq + 0.5, self._parent._max_freq - 10))
 
 		self.add_parameter(name='span',
-						   get_cmd='SENS{}:FREQ:SPAN?'.format(n),
+						   get_cmd='SENS{}:FREQ:SPAN?'.format(n_fixed),
 						   set_cmd=self._set_span,
 						   get_parser=float,
 						   vals=vals.Numbers(1, self._parent._max_freq - self._parent._min_freq))
 
 		self.add_parameter(name='npts',
-						   get_cmd='SENS{}:SWE:POIN?'.format(n),
+						   get_cmd='SENS{}:SWE:POIN?'.format(n_fixed),
 						   set_cmd=self._set_npts,
 						   get_parser=int)
 
 		# self.add_parameter(name='status',
-		#                    get_cmd='CONF:CHAN{}:MEAS?'.format(n),
-		#                    set_cmd='CONF:CHAN{}:MEAS {{}}'.format(n),
+		#                    get_cmd='CONF:CHAN{}:MEAS?'.format(n_fixed),
+		#                    set_cmd='CONF:CHAN{}:MEAS {{}}'.format(n_fixed),
 		#                    get_parser=int)
 
 		self.add_parameter(name='format',
@@ -250,7 +253,8 @@ class AnritsuChannel(InstrumentChannel):
 										'Imaginary': 'IMAG',
 										'Delay': "GDEL",
 										'Complex': "COMP"
-										})
+										},
+							snapshot_value = False)
 
 		self.add_parameter(name='trace_mag_phase',
 						   start=self.start(),
@@ -268,7 +272,7 @@ class AnritsuChannel(InstrumentChannel):
 
 		self.add_parameter(name='avgcount',
 						   label='Average counter',
-						   get_cmd=':SENS{}:AVER:SWE?'.format(n) ,
+						   get_cmd=':SENS{}:AVER:SWE?'.format(n_fixed) ,
 						   get_parser=int
 						   )
 
@@ -292,23 +296,23 @@ class AnritsuChannel(InstrumentChannel):
 
 		self.add_parameter( name = 'cw_mode',
 							label = 'on/off status of the CW sweep mode',
-							get_cmd = ':SENSe{}:SWEep:CW?'.format(n),
-							set_cmd = ':SENSe{}:SWEep:CW '.format(n)+'{}',
+							get_cmd = ':SENSe{}:SWEep:CW?'.format(n_fixed),
+							set_cmd = ':SENSe{}:SWEep:CW '.format(n_fixed)+'{}',
 							val_mapping={'on': '1',
 										 'off' : '0'})
 
 		self.add_parameter( name = 'cw_frequency',
 							label = 'CW frequency',
 							unit = 'Hz',
-							get_cmd = ':SENSe{}:FREQuency:CW?'.format(n) ,
+							get_cmd = ':SENSe{}:FREQuency:CW?'.format(n_fixed) ,
 							set_cmd=self._set_cw_freq,
 							get_parser=float,
 							vals=vals.Numbers(self._parent._min_freq, self._parent._max_freq ) )
 
 		self.add_parameter( name = 'npts_cw',
 							label = 'CW sweep mode number of points',
-							get_cmd = ':SENSe{}:SWEep:CW:POINt?'.format(n),
-							set_cmd = ':SENSe{}:SWEep:CW:POINt '.format(n)+'{}',
+							get_cmd = ':SENSe{}:SWEep:CW:POINt?'.format(n_fixed),
+							set_cmd = ':SENSe{}:SWEep:CW:POINt '.format(n_fixed)+'{}',
 							get_parser = int)
 							# set_perser = int,
 							# vals = vals.Numbers(1, 20001) )
@@ -328,7 +332,8 @@ class AnritsuChannel(InstrumentChannel):
 							startparam=self.f_start_CW,
 							stopparam=self.f_stop_CW,
 							numpointsparam=self.npts_cw,
-							vals=Arrays(shape=(self.npts_cw.get_latest,)))
+							vals=Arrays(shape=(self.npts_cw.get_latest,)),
+							snapshot_value = False)
 
 		self.add_parameter(name='trace_CWphase',
 						   setpoints=(self.freq_axis_CW,),
