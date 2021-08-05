@@ -12,6 +12,7 @@ import numpy as np
 import sys
 import struct
 import ctypes  # only for DLL-based instrument
+import pickle as pk
 
 import qcodes as qc
 from qcodes import (Instrument, VisaInstrument,
@@ -360,6 +361,8 @@ class RFSoC(VisaInstrument):
 		self.debug_mode = False
 		self.debug_mode_plot_waveforms = False
 		self.debug_mode_waveform_string = False
+
+		self.raw_dump_location = "C:/Data_tmp"
 
 		#Add the channels to the instrument
 		for adc_num in np.arange(1,9):
@@ -1006,7 +1009,7 @@ class RFSoC(VisaInstrument):
 						log.error('rfSoC: Instrument returned ERR!')
 
 						# reset measurement
-						data_unsorted = []
+						data_unsorted = {}
 						count_meas = 0
 						empty_packet_count = 0
 						run_num = 0
@@ -1319,6 +1322,143 @@ class RFSoC(VisaInstrument):
 		return I,Q
 
 
+
+	def dump_raw_readout_pulse(self):
+		'''
+		 This function dumps raw data to drive to avoid RAM clogging.
+		'''
+		self.reset_output_data()
+		mode = self.acquisition_mode()
+		n_rep = self.n_rep()
+		length_vec = self.length_vec
+		ch_vec = self.ch_vec
+		N_adc_events = len(ch_vec)
+		n_pulses = len(length_vec[0])
+		location = self.raw_dump_location
+
+		ch_active = self.ADC_ch_active
+		
+		if mode == 'IQ':
+			'''
+				Get data
+			'''
+
+			count_meas = 0
+			empty_packet_count = 0
+			run_num = 0
+
+			self.write("SEQ:START")
+			time.sleep(0.1)
+
+			getting_valid_dataset = True
+
+			if self.display_IQ_progress:
+
+				self.display_IQ_progress_bar = IntProgress(min=0, max=self.n_rep.get()) # instantiate the bar
+				display(self.display_IQ_progress_bar) # display the bar
+
+			while getting_valid_dataset:
+
+				while (count_meas//(16*N_adc_events))<self.n_rep.get():
+
+					a = datetime.datetime.now()
+
+					r = self.ask('OUTPUT:DATA?')
+
+					b = datetime.datetime.now()
+					# print('\nget data: ',b-a)
+
+					if r == 'ERR':
+
+						log.error('rfSoC: Instrument returned ERR!')
+
+						# reset measurement
+						count_meas = 0
+						empty_packet_count = 0
+						run_num = 0
+						self.write("SEQ:STOP")
+						time.sleep(2)
+						while True:
+							junk = self.ask('OUTPUT:DATA?')
+							# print(junk)
+							time.sleep(0.1)
+							if junk == [3338] or junk == [2573]:
+								break
+						junk = []
+						self.write("SEQ:START")
+						time.sleep(0.1)
+
+						continue
+
+					elif len(r)>1:
+
+						a = datetime.datetime.now()
+						empty_packet_count = 0
+						r_size = len(r)
+						pk.dump(r, open(location+"/raw_"+str(run_num)+".pkl","wb"))
+						count_meas += r_size
+						if self.display_IQ_progress:
+							self.display_IQ_progress_bar.value = count_meas//(16*N_adc_events)
+						run_num += 1
+						b = datetime.datetime.now()
+						# print('end storing: ',b-a)
+
+						time.sleep(0.01)
+
+
+					elif r == [3338] or r == [2573]: # new empty packet?
+
+						# log.warning('Received empty packet.')
+						empty_packet_count += 1
+						time.sleep(0.1)
+
+					if empty_packet_count>20:
+
+						log.error('Data curruption: rfSoC did not send all data points({}/'.format(count_meas//(16*N_adc_events))+str(self.n_rep.get())+').')
+						
+						# reset measurement
+						count_meas = 0
+						empty_packet_count = 0
+						run_num = 0
+						self.write("SEQ:STOP")
+						time.sleep(2)
+						while True:
+							junk = self.ask('OUTPUT:DATA?')
+							# print(junk)
+							time.sleep(0.1)
+							if junk == [3338] or junk == [2573]:
+								break
+						junk = []
+						self.write("SEQ:START")
+						time.sleep(0.1)
+
+						continue
+
+				if count_meas//(16*N_adc_events) == self.n_rep.get():
+
+					getting_valid_dataset = False
+
+				else:
+
+					log.error('Data curruption: rfSoC did not send all data points({}/'.format(count_meas//(16*N_adc_events))+str(self.n_rep.get())+').')
+
+					# reset measurement
+					data_unsorted = []
+					count_meas = 0
+					empty_packet_count = 0
+					self.write("SEQ:STOP")
+					time.sleep(2)
+					while True:
+						junk = self.ask('OUTPUT:DATA?')
+						# print(junk)
+						time.sleep(0.1)
+						if junk == [3338] or junk == [2573]:
+							break
+					junk = []
+					self.write("SEQ:START")
+					time.sleep(0.1)
+
+			self.write("SEQ:STOP")
 
 
 	def transfer_speed(self, block_size=100):
