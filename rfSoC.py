@@ -1460,6 +1460,8 @@ class RFSoC(VisaInstrument):
 
 			self.write("SEQ:STOP")
 
+		return run_num
+
 
 	def transfer_speed(self, block_size=100):
 
