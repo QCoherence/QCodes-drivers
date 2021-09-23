@@ -131,7 +131,7 @@ class RS_FSQ(VisaInstrument):
 
 		self.add_parameter( name = 'sweep_time_direct',  
 							label = 'Sweep time without sense',
-							vals = vals.Numbers(1e-6,16e3),
+							vals = vals.Numbers(1e-6,16e6),
 							unit   = 'us',
 							set_cmd='SWEep:TIME ' + '{:.12f}'+' us',
 							get_cmd='SWEep:TIME?'
@@ -381,6 +381,8 @@ class RS_FSQ(VisaInstrument):
 		self.write('*CLS')
 		# self.write(':INIT:CONT OFF')
 		# self.write(':INIT:IMMediate;*OPC')
+        #while self.ask('*ESR?') == '0': 
+		    #sleep(1) # we wait until the register is 1
 		datastr=self.ask('CALC:MARK:FUNC:HARM:LIST?') 
 		    # sleep(1) # we wait until the register is 1
 		# datastr = self.ask(':TRAC? TRACE'+str(1))

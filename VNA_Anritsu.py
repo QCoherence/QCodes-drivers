@@ -515,7 +515,7 @@ class AnritsuChannel(InstrumentChannel):
 			# data_str = self.ask(
 			#     'CALC{}:DATA:{}?'.format(self._instrument_channel,
 			#                              data_format_command))
-			#print(data_str)
+			# print(data)
 			# data = np.array(data_str.rstrip().split(',')).astype('float64')
 			# data = np.array(data_str).astype('float64')
 			# data = np.array(data_str.rstrip().split('\\n')).astype('float64')
