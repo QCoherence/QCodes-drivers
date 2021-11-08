@@ -646,7 +646,7 @@ class MS46522B(VisaInstrument):
 		self.add_function('display_single_window',
 						  call_cmd='DISP:WIND:SPLIT R2C1')
 		self.add_function('display_dual_window',
-						  call_cmd='DISP:WIND:SPLIT R2C2')
+						  call_cmd='DISPlay:COUNt 2')
 		self.add_function('rf_off', call_cmd=':SYST:HOLD:RF OFF')
 		self.add_function('rf_on', call_cmd=':SYST:HOLD:RF ON')
 		if reset_channels:
@@ -669,27 +669,20 @@ class MS46522B(VisaInstrument):
 			self.rf_off()
 		self.connect_message()
 
-	# def display_grid(self, rows: int, cols: int):
-	#     """
-	#     Display a grid of channels rows by cols
-	#     """
-	#     self.write('DISP:LAY GRID;:DISP:LAY:GRID {},{}'.format(rows, cols))
+	def add_channel(self, channel_name: str, **kwargs):
 
-	def add_channel(self, channel_name: str, **kwargs):    # check trigger part
 		i_channel = len(self.channels) + 1
+		self.write('DISPlay:COUNt {}'.format(i_channel))
 		channel = self.CHANNEL_CLASS(self, channel_name, i_channel, **kwargs)
 		self.channels.append(channel)
-		if i_channel == 1:
-			self.display_single_window()
-		if i_channel == 2:
-			self.display_dual_window()
+
+
 		# shortcut
 		setattr(self, channel_name, channel)
 		# initialising channel
 		self.write('SENS{}:SWE:TYP LIN'.format(i_channel)) # done
-		# self.write('SENS{}:SWE:TIME:AUTO ON'.format(i_channel))
-		# self.write('TRIG{}:SEQ:SOUR IMM'.format(i_channel))#TRIG:IMM
-		self.write('TRIG: IMM')#TRIG:IMM
+		self.write('TRIG: IMM')
+		self.write('SENS{}:AVER:TYPe SWEepbysweep'.format(i_channel))
 		self.write('SENS{}:AVER:STAT ON'.format(i_channel))
 
 	def clear_channels(self):
@@ -704,3 +697,9 @@ class MS46522B(VisaInstrument):
 				submodule._channels = []
 				submodule._channel_mapping = {}
 				submodule._locked = False
+
+
+	def manual_mode(self):
+
+		self.write(':DISPlay:COUNt 1')
+		self.channels.S21.write(':DISPlay:WINDow1:SPLit R1C1')
