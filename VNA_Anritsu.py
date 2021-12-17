@@ -164,8 +164,10 @@ class AnritsuChannel(InstrumentChannel):
 			print('what to do?')
 
 
-		self._min_source_power: float
+		# self._min_source_power: float
+		# do not modify unless you know what you are doing!
 		self._min_source_power = -30
+		self.max_source_power = 10
 
 
 		#----------------------------------------------------- start updating
@@ -184,7 +186,7 @@ class AnritsuChannel(InstrumentChannel):
 						   get_cmd='SOUR{}:POW:PORT1?'.format(n_fixed),
 						   set_cmd='SOUR{}:POW:PORT1 {{:.4f}}'.format(n_fixed),
 						   get_parser=float,
-						   vals=vals.Numbers(self._min_source_power, 30))
+						   vals=vals.Numbers(self._min_source_power, self.max_source_power))
 		
 		# there is an 'increased bandwidth option' (p. 4 of manual) that does not get taken into account here
 		self.add_parameter(name='bandwidth',
@@ -231,7 +233,8 @@ class AnritsuChannel(InstrumentChannel):
 		self.add_parameter(name='npts',
 						   get_cmd='SENS{}:SWE:POIN?'.format(n_fixed),
 						   set_cmd=self._set_npts,
-						   get_parser=int)
+						   get_parser=int,
+						   vals=vals.Ints(2, 20_001))
 
 		# self.add_parameter(name='status',
 		#                    get_cmd='CONF:CHAN{}:MEAS?'.format(n_fixed),
