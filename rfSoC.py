@@ -1315,6 +1315,13 @@ class RFSoC(VisaInstrument):
 
 					log.error('Data curruption: rfSoC did not send all data points({}/'.format(points_rec)+str(points_expected)+').')
 
+					# adcdataI=[np.mean(adcdataI[v],axis=0) for v in range(8)]
+
+					# adcdataI=np.array([np.split(adcdataI[v],[sum(length_vec[v][0:i+1]) for i in range(len(length_vec[v]))]) for v in range(8)])
+
+					I,Q = adcdataI,adcdataQ
+					print(I,Q)
+
 		else:
 
 			log.error('rfSoC: Instrument mode not recognized.')

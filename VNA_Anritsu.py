@@ -167,7 +167,7 @@ class AnritsuChannel(InstrumentChannel):
 		# self._min_source_power: float
 		# do not modify unless you know what you are doing!
 		self._min_source_power = -30
-		self.max_source_power = 10
+		self.max_source_power = 16
 
 
 		#----------------------------------------------------- start updating
