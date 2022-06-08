@@ -378,6 +378,12 @@ class SignalHound_USB_SA124B(Instrument):
 
 		self.connect_message()
 
+	def mod_rbd_process(self):
+
+		if self.mod_rbw_mult() != 1:
+
+			self.span(int(self.span()/self.mod_rbw_mult()+1e6)*self.mod_rbw_mult()-1e6)
+
 	def _set_ctypes_argtypes(self) -> None:
 		"""
 		Set the expected argtypes for function calls in the sa_api dll
@@ -422,6 +428,8 @@ class SignalHound_USB_SA124B(Instrument):
 			self.sync_parameters()
 		sweep_info = self.QuerySweep()
 		sweep_len = sweep_info[0]
+		if self.mod_rbw_mult() !=1:
+			sweep_len = int(sweep_len/self.mod_rbw_mult())
 		return sweep_len
 
 	def _update_trace(self) -> None:
@@ -666,27 +674,30 @@ class SignalHound_USB_SA124B(Instrument):
 		returns:
 			datamin numpy array
 		"""
-		if self.mod_rbw_mult() == 1:
-			if not self._parameters_synced:
-				self.sync_parameters()
-			sweep_len, _, _ = self.QuerySweep()
+		
+		if not self._parameters_synced:
+			self.sync_parameters()
+		sweep_len, _, _ = self.QuerySweep()
 
-			data = np.zeros(sweep_len)
-			Navg = self.avg()
-			for i in range(Navg):
+		data = np.zeros(sweep_len)
+		Navg = self.avg()
+		for i in range(Navg):
 
-				datamin = np.zeros((sweep_len), dtype=np.float32)
-				datamax = np.zeros((sweep_len), dtype=np.float32)
+			datamin = np.zeros((sweep_len), dtype=np.float32)
+			datamax = np.zeros((sweep_len), dtype=np.float32)
 
-				minarr = datamin.ctypes.data_as(ct.POINTER(ct.c_float))
-				maxarr = datamax.ctypes.data_as(ct.POINTER(ct.c_float))
+			minarr = datamin.ctypes.data_as(ct.POINTER(ct.c_float))
+			maxarr = datamax.ctypes.data_as(ct.POINTER(ct.c_float))
 
-				sleep(self.sleep_time.get())  # Added extra sleep for updating issue
-				err = self.dll.saGetSweep_32f(self.deviceHandle, minarr, maxarr)
-				self.check_for_error(err, 'saGetSweep_32f')
-				data += datamin
-		else:
-			data = 0
+			sleep(self.sleep_time.get())  # Added extra sleep for updating issue
+			err = self.dll.saGetSweep_32f(self.deviceHandle, minarr, maxarr)
+			self.check_for_error(err, 'saGetSweep_32f')
+			data += datamin
+
+		if self.mod_rbw_mult() != 1:
+			
+			data = np.mean(data.reshape(int(sweep_len/self.mod_rbw_mult()),self.mod_rbw_mult()),axis=1)
+
 		return data / Navg
 
 	def _get_power_at_freq(self) -> float:
@@ -762,14 +773,17 @@ class SignalHound_USB_SA124B(Instrument):
 
 
 	def _get_freq_axis(self) -> np.ndarray:
-		if self.mod_rbw_mult() == 1:
-			if not self._parameters_synced:
-				self.sync_parameters()
-			sweep_len, start_freq, stepsize = self.QuerySweep()
-			end_freq = start_freq + stepsize*(sweep_len-1)
-			freq_points = np.linspace(start_freq, end_freq, sweep_len)
-		else:
-			freq_points=0
+
+		if not self._parameters_synced:
+			self.sync_parameters()
+		sweep_len, start_freq, stepsize = self.QuerySweep()
+		end_freq = start_freq + stepsize*(sweep_len-1)
+		freq_points = np.linspace(start_freq, end_freq, sweep_len)
+
+		if self.mod_rbw_mult() != 1:
+			
+			freq_points = np.mean(freq_points.reshape(int(sweep_len/self.mod_rbw_mult()),self.mod_rbw_mult()),axis=1)
+
 		return freq_points
 
 
