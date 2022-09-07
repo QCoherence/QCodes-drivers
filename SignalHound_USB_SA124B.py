@@ -279,8 +279,8 @@ class SignalHound_USB_SA124B(Instrument):
 		self.add_parameter('rbw',
 						   label='Resolution Bandwidth',
 						   unit='Hz',
-						   initial_value=1e3,
-						   vals=vals.Numbers(0.1, 250e3),
+						   initial_value=10e3,
+						   vals=vals.Numbers(10e3, 6e6),	# for freq in GHz
 						   parameter_class=TraceParameter,
 						   docstring='Resolution Bandwidth (RBW) is'
 									 'the bandwidth of '
@@ -289,8 +289,8 @@ class SignalHound_USB_SA124B(Instrument):
 		self.add_parameter('vbw',
 						   label='Video Bandwidth',
 						   unit='Hz',
-						   initial_value=1e3,
-						   vals=vals.Numbers(),
+						   initial_value=10e3,
+						   vals=vals.Numbers(6.5e3,100e3),	# for freq in GHz
 						   parameter_class=TraceParameter,
 						   docstring='The video bandwidth (VBW) is applied '
 									 'after the signal has been converted to '
@@ -354,6 +354,7 @@ class SignalHound_USB_SA124B(Instrument):
 						   vals=vals.Arrays(shape=(self.npts,)),
 						   snapshot_value=False
 						   )
+
 		self.add_parameter('freq_sweep',
 						   label='Power',
 						   unit='depends on mode',
@@ -364,10 +365,24 @@ class SignalHound_USB_SA124B(Instrument):
 						   setpoints=(self.frequency_axis,),
 						   snapshot_value=False)
 
+		self.add_parameter('mod_rbw_mult',
+						   label='mod_rbw_mult',
+						   initial_value=1,
+						   get_cmd=None,
+						   set_cmd=None,
+						   vals=vals.Ints(),
+						   docstring='Combine sweep points to get higher rbw')
+
 		self.openDevice()
 		self.configure()
 
 		self.connect_message()
+
+	def mod_rbd_process(self):
+
+		if self.mod_rbw_mult() != 1:
+
+			self.span(int(self.span()/self.mod_rbw_mult()+1e6)*self.mod_rbw_mult()-1e6)
 
 	def _set_ctypes_argtypes(self) -> None:
 		"""
@@ -413,6 +428,8 @@ class SignalHound_USB_SA124B(Instrument):
 			self.sync_parameters()
 		sweep_info = self.QuerySweep()
 		sweep_len = sweep_info[0]
+		if self.mod_rbw_mult() !=1:
+			sweep_len = int(sweep_len/self.mod_rbw_mult())
 		return sweep_len
 
 	def _update_trace(self) -> None:
@@ -657,6 +674,7 @@ class SignalHound_USB_SA124B(Instrument):
 		returns:
 			datamin numpy array
 		"""
+		
 		if not self._parameters_synced:
 			self.sync_parameters()
 		sweep_len, _, _ = self.QuerySweep()
@@ -675,6 +693,10 @@ class SignalHound_USB_SA124B(Instrument):
 			err = self.dll.saGetSweep_32f(self.deviceHandle, minarr, maxarr)
 			self.check_for_error(err, 'saGetSweep_32f')
 			data += datamin
+
+		if self.mod_rbw_mult() != 1:
+			
+			data = np.mean(data.reshape(int(sweep_len/self.mod_rbw_mult()),self.mod_rbw_mult()),axis=1)
 
 		return data / Navg
 
@@ -751,11 +773,17 @@ class SignalHound_USB_SA124B(Instrument):
 
 
 	def _get_freq_axis(self) -> np.ndarray:
+
 		if not self._parameters_synced:
 			self.sync_parameters()
 		sweep_len, start_freq, stepsize = self.QuerySweep()
 		end_freq = start_freq + stepsize*(sweep_len-1)
 		freq_points = np.linspace(start_freq, end_freq, sweep_len)
+
+		if self.mod_rbw_mult() != 1:
+			
+			freq_points = np.mean(freq_points.reshape(int(sweep_len/self.mod_rbw_mult()),self.mod_rbw_mult()),axis=1)
+
 		return freq_points
 
 

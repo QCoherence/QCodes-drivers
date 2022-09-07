@@ -120,7 +120,7 @@ class iMACRT_MGC3(Instrument):
 		do = 'nothing' 
 
 	def _set_setpoint(self, setpoint):
-		self._serial_send_only(2,setpoint*1e-6)
+		self._serial_send_only(2,setpoint)
 
 	def _get_setpoint(self):
 		# get not working
