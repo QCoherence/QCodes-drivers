@@ -45,6 +45,11 @@ class SpectrumTrace(ParameterWithSetpoints):
         return data
 
 class HarmonicTrace(ParameterWithSetpoints):
+class HarmonicTrace(ParameterWithSetpoints):
+
+    def get_raw(self):
+        data = self._instrument.get_harmonic()
+        return data
 
     def get_raw(self):
         data = self._instrument.get_harmonic()
@@ -52,36 +57,14 @@ class HarmonicTrace(ParameterWithSetpoints):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-class RS_FSQ(VisaInstrument): 
+class RS_FSQ(VisaInstrument):
 
 	sense_num=1
-	
+
 	"""
 	QCoDeS driver for the R&S FSQ Signal Analyzer
 	"""
-	
+
 	# all instrument constructors should accept **kwargs and pass them on to
 	# super().__init__
 
@@ -96,7 +79,7 @@ class RS_FSQ(VisaInstrument):
 		# 					vals=vals.MultiType(vals.Numbers(min_value=0),vals.Enum(None))
 		# 					)
 
-		self.add_parameter( name = 'res_BW',  
+		self.add_parameter( name = 'res_BW',
 							label = 'Resolution bandwidth',
 							vals = vals.Numbers(10,50e6),
 							unit   = 'Hz',
@@ -106,7 +89,7 @@ class RS_FSQ(VisaInstrument):
 							# get_parser=self.
 							)
 
-		self.add_parameter( name = 'video_BW',  
+		self.add_parameter( name = 'video_BW',
 							label = 'Video bandwidth',
 							vals = vals.Numbers(1,30e6),
 							unit   = 'Hz',
@@ -139,18 +122,19 @@ class RS_FSQ(VisaInstrument):
 							# get_parser=self.
 							)		
 
-		self.add_parameter( name = 'input_att',  
+		self.add_parameter( name = 'input_att',
 							label = 'Input attenuation',
 							vals = vals.Numbers(0,50),
 							unit   = 'dB',
 							set_cmd='SENSe'+str(self.sense_num)+':POWer:RF:ATTenuation ' + '{:.12f}',
 							get_cmd='SENSe'+str(self.sense_num)+':POWer:RF:ATTenuation?',
+							snapshot_value = False,
 							snapshot_value = False
 							# set_parser =self.,
 							# get_parser=self.
 							)
 
-		self.add_parameter( name = 'input_att_mode',  
+		self.add_parameter( name = 'input_att_mode',
 							label = 'Input attenuation mode',
 							vals = vals.Enum('auto','man'),
 							unit   = 'NA',
@@ -158,10 +142,11 @@ class RS_FSQ(VisaInstrument):
 							get_cmd='SENSe'+str(self.sense_num)+':POWer:RF:ATTenuation:AUTO?',
 							set_parser =self.caps,
 							get_parser=self.caps_dag,
+							snapshot_value = False,
 							snapshot_value = False
 							)
 
-		self.add_parameter( name = 'center_freq',  
+		self.add_parameter( name = 'center_freq',
 							label = 'Center Frequency',
 							vals = vals.Numbers(20,26.5e9),
 							unit   = 'Hz',
@@ -171,7 +156,7 @@ class RS_FSQ(VisaInstrument):
 							# get_parser=self.
 							)
 
-		self.add_parameter( name = 'averages',  
+		self.add_parameter( name = 'averages',
 							label = 'Averages',
 							vals = vals.Numbers(0,1000),
 							unit   = 'NA',
@@ -181,7 +166,7 @@ class RS_FSQ(VisaInstrument):
 							# get_parser=self.
 							)
 
-		self.add_parameter( name = 'n_points',  
+		self.add_parameter( name = 'n_points',
 							label = 'Number of points in trace',
 							vals = vals.Numbers(155,30001),
 							unit   = '',
@@ -191,28 +176,29 @@ class RS_FSQ(VisaInstrument):
 							get_parser=int
 							)
 
-		self.add_parameter( name = 'span',  
+		self.add_parameter( name = 'span',
 							label = 'Span',
 							vals = vals.Numbers(0,26.5e9),
 							unit   = 'Hz',
 							set_cmd='SENSe'+str(self.sense_num)+':FREQuency:SPAN ' + '{:.12f}',
 							get_cmd='SENSe'+str(self.sense_num)+':FREQuency:SPAN?',
+							snapshot_value = False,
 							snapshot_value = False
 							# set_parser =self.,
 							# get_parser=self.
 							)
 
-		self.add_parameter( name = 'average_type',  
+		self.add_parameter( name = 'average_type',
 							label = 'Average type',
 							vals = vals.Enum('rms','log','scalar'),
 							unit   = 'NA',
-							set_cmd='SENSe'+str(self.sense_num)+':AVERage:TYPE ' + '{:.12f}',
+							set_cmd=self._set_average_type,
 							get_cmd='SENSe'+str(self.sense_num)+':AVERage:TYPE?'
 							# set_parser =self.,
 							# get_parser=self.
 							)
 
-		self.add_parameter( name = 'f_start',  
+		self.add_parameter( name = 'f_start',
 							label = 'Start frequency',
 							vals = vals.Numbers(20,26.5e9),
 							unit   = 'Hz',
@@ -223,7 +209,7 @@ class RS_FSQ(VisaInstrument):
 							snapshot_value = False
 							)
 
-		self.add_parameter( name = 'f_stop',  
+		self.add_parameter( name = 'f_stop',
 							label = 'Stop frequency',
 							vals = vals.Numbers(20,26.5e9),
 							unit   = 'Hz',
@@ -234,7 +220,7 @@ class RS_FSQ(VisaInstrument):
 							snapshot_value = False
 							)
 
-		self.add_parameter( name = 'ref_level',  
+		self.add_parameter( name = 'ref_level',
 							label = 'Reference level(AMPT)',
 							vals = vals.Numbers(-130,30),
 							unit   = 'dBm',
@@ -360,13 +346,16 @@ class RS_FSQ(VisaInstrument):
 	def get_1(self):
 		return 1
 
+	def _set_average_type(self,val : str):
+		sense_num = self.sense_num
+		self.write(f"SENSe{sense_num}:AVERage:TYPE {val}")
 
-		
 	def get_trace(self):
 		self.write('*CLS')
+		self.write('SYST:DISP:UPD ON')
 		self.write(':INIT:CONT OFF')
 		self.write(':INIT:IMMediate;*OPC')
-		while self.ask('*ESR?') == '0': 
+		while self.ask('*ESR?') == '0':
 		    sleep(1) # we wait until the register is 1
 		datastr = self.ask(':TRAC? TRACE'+str(1))
 		datalist = datastr.split(",")
