@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 
 
 
-class SMB100A(VisaInstrument): 
+class SGS100A(VisaInstrument): 
 	"""
 	QCoDeS driver for the Rohde and Schwarz SMB 100A MW source
 	"""
@@ -40,7 +40,7 @@ class SMB100A(VisaInstrument):
 
 		self.add_parameter( name = 'power',  
 							label = 'Output power in dBm',
-							vals = vals.Numbers(-120,30),
+							vals = vals.Numbers(-20,25),
 							unit   = 'dBm',
 							set_cmd='power ' + '{:.12f}',
 							get_cmd='power?',
@@ -65,64 +65,6 @@ class SMB100A(VisaInstrument):
 							get_cmd='output?',
 							set_parser =self.easy_read_status,
 							get_parser=self.easy_read_status_read
-							)
-
-		self.add_parameter( name = 'freq_start',  
-							label = 'Sweep: start frequency in Hz',
-							vals = vals.Numbers(100e3,20e9),
-							unit   = 'Hz',
-							set_cmd='FREQ:START ' + '{:.12f}' + 'Hz',
-							get_cmd='FREQ:START?'
-							)
-
-		self.add_parameter( name = 'freq_stop',  
-							label = 'Sweep: stop frequency in Hz',
-							vals = vals.Numbers(100e3,20e9),
-							unit   = 'Hz',
-							set_cmd='FREQ:STOP ' + '{:.12f}' + 'Hz',
-							get_cmd='FREQ:STOP?'
-							)
-
-		self.add_parameter( name = 'freq_step',  
-							label = 'Sweep: frequency step',
-							vals = vals.Numbers(100e3,20e9),
-							unit   = 'Hz',
-							set_cmd='SWE:STEP ' + '{:.12f}' + 'Hz',
-							get_cmd='SWE:STEP?'
-							)
-
-		self.add_parameter( name = 'freq_points',  
-							label = 'Sweep: frequency points',
-							vals = vals.Numbers(2,20e9),
-							unit   = 'Hz',
-							set_cmd='SWE:POIN ' + '{:.12f}',
-							get_cmd='SWE:POIN?'
-							)
-
-		self.add_parameter( name = 'dwell_time',  
-							label = 'Sweep: dwell time',
-							vals = vals.Numbers(5e-3,1000),
-							unit   = 's',
-							set_cmd='SWE:DWEL ' + '{:.12f}' + 's',
-							get_cmd='SWE:DWEL?'
-							)
-
-		self.add_parameter( name = 'sourcemode',  
-							label = 'Set source mode',
-							vals = vals.Enum('CW','sweep'),
-							set_cmd='SOURce:FREQuency:MODE '+ '{}',
-							get_cmd='SOURce:FREQuency:MODE?',
-							set_parser =self.freqsweep_set,
-							get_parser=self.freqsweep_get
-							)
-
-		self.add_parameter( name = 'sweepmode',  
-							label = 'Set frequency sweep mode',
-							vals = vals.Enum('auto','single'),
-							set_cmd='TRIG:FSW:SOUR '+ '{}',
-							get_cmd='TRIG:FSW:SOUR?',
-							set_parser =self.sweepmode_set,
-							get_parser=self.sweepmode_get
 							)
 
 		# good idea to call connect_message at the end of your constructor.
@@ -154,8 +96,8 @@ class SMB100A(VisaInstrument):
 		return ret
 
 	def warn_over_range(self, power):
-		if power>16:
-			log.warning('Power over range (limit to 16 dBm).')
+		if power*1000%10 != 0:
+			log.warning('Power resolution out of limit (allowed setp size is 0.01).')
 		return power
 
 	def freqsweep_set(self,sweep_status):
