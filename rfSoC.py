@@ -832,7 +832,7 @@ class RFSoC(VisaInstrument):
 			log.error('Invalid acquisition mode\n')
 			
 		period_sync = int(self.FPGA_clock/self.freq_sync())
-		wait_sync = period_sync-(n_clock_cycles_global%period_sync)-1 -2 #(2 clock cycles for jump)
+		wait_sync = period_sync-(n_clock_cycles_global%period_sync)-1 -3 #(2 clock cycles for jump)
 
 		global_sequence_str = 'SEQ 0,1,9,4106,' + str(acq_mode) + ',257,' + str(int(n_rep-1)) + ',' + ','.join((global_sequence.astype(int)).astype(str)) + ',1,' + str(wait_sync) + ',513,0,0,0'
 
