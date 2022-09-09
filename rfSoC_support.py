@@ -310,10 +310,10 @@ class gain_signal_idler_cls:
 		self.wait_between_pulses = 0
 		self.num_rep = 10_000
 
-		self.ch_out_weak_I = 5
-		self.ch_out_weak_Q = 6
-		self.ch_out_pump_I = 1
-		self.ch_out_pump_Q = 2
+		self.ch_out_weak_I = None
+		self.ch_out_weak_Q = None
+		self.ch_out_pump_I = None
+		self.ch_out_pump_Q = None
 
 
 	def g(self):
@@ -577,7 +577,12 @@ class pump_cancellation_cls:
 		self.attn_window_narrowing = 20 # percent of previous range
 		self.attn_points = 21 
 
+		self.amp_if_cancel_range = (0.1,1)
+		self.amp_if_cancel_window_narrowing = 40
+		self.amp_if_cancel_points = 21
+
 		self.phase_offset_if = 0    # degrees
+		self.angle_amp_if = 45 # degrees
 		self.dc_offset_I_pump = 8
 		self.dc_offset_Q_pump = 6
 		self.dc_offset_I_weak = 0
@@ -589,11 +594,272 @@ class pump_cancellation_cls:
 
 		self.dac_pump_I = 1
 		self.dac_pump_Q = 2
-		self.dac_weak_I = 5
-		self.dac_weak_Q = 6
+		self.dac_weak_I = 3
+		self.dac_weak_Q = 4
+		self.dac_pump_cancel = 5
 
 
 	def get_optimal_attn_phase(self):
+
+		rfsoc_device = self.rfsoc_device
+		Vaunix_Att_device = self.Vaunix_Att_device
+		Vaunix_FS_device = self.Vaunix_FS_device
+		
+		display_plots = self.display_plots
+
+		amp_if = self.amp_if
+		nu_if = self.nu_if
+		delta = self.delta
+
+		iter_depth = self.iter_depth
+
+		phase_range = self.phase_range
+		phase_window_narrowing = self.phase_window_narrowing
+		phase_points = self.phase_points
+
+		attn_range = self.attn_range
+		attn_window_narrowing = self.attn_window_narrowing
+		attn_points = self.attn_points
+
+		phase_offset_if = self.phase_offset_if
+		angle_amp_if = self.angle_amp_if
+		dc_offset_I_pump = self.dc_offset_I_pump
+		dc_offset_Q_pump = self.dc_offset_Q_pump
+		dc_offset_I_weak = self.dc_offset_I_weak
+		dc_offset_Q_weak = self.dc_offset_Q_weak
+
+		acq_length = self.acq_length
+		wait_time = self.wait_time
+		num_rep = self.num_rep
+
+		mem_display_sequence = rfsoc_device.display_sequence
+		mem_display_IQ_progress = rfsoc_device.display_IQ_progress
+		rfsoc_device.display_sequence = False
+		rfsoc_device.display_IQ_progress = False
+
+
+
+		adc_start = wait_time/2
+
+		# param_sin_I_pump = {'amp':(1/np.sqrt(2))*amp_if*np.cos(np.pi*angle_amp_if/180),
+		# 			 'freq':nu_if,
+		# 			 'dc_offset':self.dc_offset_I_pump*1e-3,
+		# 			 'phase_offset':0}
+
+		# param_sin_Q_pump = {'amp':(1/np.sqrt(2))*amp_if*np.sin(np.pi*angle_amp_if/180),
+		# 			 'freq':nu_if,
+		# 			 'dc_offset':self.dc_offset_Q_pump*1e-3,
+		# 			 'phase_offset':np.pi*phase_offset_if/180}
+
+		param_sin_I_pump = {'amp':amp_if,
+					 'freq':nu_if,
+					 'dc_offset':self.dc_offset_I_pump*1e-3,
+					 'phase_offset':0}
+
+		param_sin_Q_pump = {'amp':amp_if,
+					 'freq':nu_if,
+					 'dc_offset':self.dc_offset_Q_pump*1e-3,
+					 'phase_offset':np.pi*phase_offset_if/180}
+
+		param_sin_I_weak = {'amp':0,
+					 'freq':0,
+					 'dc_offset':self.dc_offset_I_weak*1e-3,
+					 'phase_offset':0}
+
+		param_sin_Q_weak = {'amp':0,
+					 'freq':0,
+					 'dc_offset':self.dc_offset_Q_weak*1e-3,
+					 'phase_offset':np.pi*0/180}
+
+
+		pulse_pump_I = dict(label='pumpI', 
+							  module='DAC', 
+							  channel=self.dac_pump_I, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_I_pump, 
+							  parent=None)
+
+		pulse_pump_Q = dict(label='pumpQ',
+							  module='DAC',
+							  channel=self.dac_pump_Q, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_Q_pump, 
+							  parent=None)
+
+		pulse_weak_I = dict(label='weakI', 
+							  module='DAC', 
+							  channel=self.dac_weak_I, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_I_weak, 
+							  parent=None)
+
+		pulse_weak_Q = dict(label='weakQ', 
+							  module='DAC', 
+							  channel=self.dac_weak_Q, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_Q_weak, 
+							  parent=None)
+
+		record_both = dict(label='record_both', 
+							  module='ADC', 
+							  channel=1, 
+							  mode='raw', 
+							  start=adc_start, 
+							  length=acq_length, 
+							  param=None, 
+							  parent=None)
+
+		record_both2 = dict(label='record_both2', 
+							  module='ADC', 
+							  channel=2, 
+							  mode='raw', 
+							  start=adc_start, 
+							  length=acq_length, 
+							  param=None, 
+							  parent=None)
+
+
+
+		pulses = pd.DataFrame()
+		pulses = pulses.append(pulse_pump_I, ignore_index=True)
+		pulses = pulses.append(pulse_pump_Q, ignore_index=True)
+		pulses = pulses.append(pulse_weak_I, ignore_index=True)
+		pulses = pulses.append(pulse_weak_Q, ignore_index=True)
+		pulses = pulses.append(record_both, ignore_index=True)
+		pulses = pulses.append(record_both2, ignore_index=True)
+
+		rfsoc_device.pulses = pulses
+
+		rfsoc_device.acquisition_mode('IQ')
+
+		rfsoc_device.ADC1.fmixer(nu_if)
+		rfsoc_device.ADC2.fmixer(nu_if)
+		rfsoc_device.ADC1.decfact(1)
+		rfsoc_device.ADC2.decfact(1)
+		rfsoc_device.freq_sync(1e6)
+		rfsoc_device.ADC1.status('ON')
+		rfsoc_device.ADC2.status('ON')
+		rfsoc_device.output_format('BIN')
+		rfsoc_device.n_rep(num_rep)
+
+		rfsoc_device.process_sequencing()
+
+		for iter_n in range(iter_depth):
+
+			# optimize phase 
+
+			phase_vec_org = np.linspace(phase_range[0],phase_range[1],phase_points)
+			phase_vec = self.process_phase(phase_vec_org)
+			pow_vec_0 = np.array([])
+			pow_vec_1 = np.array([])
+			for phase in phase_vec:
+
+				Vaunix_FS_device.phase_shift(phase)
+				pow_tmp = rfsoc_device.ADC_power_dBm()
+				pow_vec_0 = np.append(pow_vec_0,pow_tmp[0][0])
+				pow_vec_1 = np.append(pow_vec_1,pow_tmp[1][0])
+
+				# IQ_data = []
+				# data_out_I,data_out_Q = rfsoc_device.IQINT_AVG()
+				# data_out1 = np.zeros((2, 8, 2))
+				# data_out1[0][0] = data_out_I[0]
+				# data_out1[1][0] = data_out_Q[0]
+				# IQ_data.append(list(data_out1))
+				# IQ_data = np.array(IQ_data)
+				# I_ch1_on = IQ_data[:, 0, 0, 0]
+				# I_ch2_on = IQ_data[:, 0, 1, 0]
+				# Q_ch1_on = IQ_data[:, 1, 0, 0]
+				# Q_ch2_on = IQ_data[:, 1, 1, 0]
+				# Mag_ch2_on = (I_ch2_on**2 + Q_ch2_on**2)/50 ## W
+				# Mag_ch2_on_dBm = 10 * np.log10(Mag_ch2_on*1e3) 
+				# Mag_ch1_on = (I_ch1_on**2 + Q_ch1_on**2)/50 ## W
+				# Mag_ch1_on_dBm = 10 * np.log10(Mag_ch1_on*1e3) 
+				# pow_vec_0 = np.append(pow_vec_0,Mag_ch1_on_dBm)
+				# pow_vec_1 = np.append(pow_vec_1,Mag_ch2_on_dBm)
+
+			if display_plots:
+
+				fig = plt.figure(figsize=(16,12))
+				ax3 = fig.add_subplot(221)
+				ax3.plot(phase_vec_org,pow_vec_0, label='ch1',  marker = '.', color = 'orange')
+				ax3.plot(phase_vec_org,pow_vec_1, label='ch2',  marker = '.', color = 'blue')
+				plt.legend()
+				plt.xlabel('Phase [degree]', fontsize = 14)
+				plt.ylabel('Power (dBm)', fontsize = 14)
+				plt.grid()
+				plt.show()
+
+			phase_min = phase_vec[np.argmin(pow_vec_0)]
+			Vaunix_FS_device.phase_shift(phase_min)
+			phase_sweep_mag = (phase_range[1]-phase_range[0])*phase_window_narrowing/100
+			if phase_sweep_mag<phase_points:
+				phase_sweep_mag = phase_points
+			phase_range = (phase_min-0.5*phase_sweep_mag,phase_min+0.5*phase_sweep_mag)
+
+			# optimize attn 
+
+			attn_vec = np.linspace(attn_range[0],attn_range[1],attn_points)
+			pow_vec_0 = np.array([])
+			pow_vec_1 = np.array([])
+			for attn in attn_vec:
+				if attn < 0.0:
+					attn = 0.0
+					print('attn cannot be < 0, set to be = 0')
+				Vaunix_Att_device.attn(attn)
+				pow_tmp = rfsoc_device.ADC_power_dBm()
+				pow_vec_0 = np.append(pow_vec_0,pow_tmp[0][0])
+				pow_vec_1 = np.append(pow_vec_1,pow_tmp[1][0])
+
+			if display_plots:
+
+				fig = plt.figure(figsize=(16,12))
+				ax3 = fig.add_subplot(221)
+				ax3.plot(attn_vec,pow_vec_0, label='ch1',  marker = '.', color = 'orange')
+				ax3.plot(attn_vec,pow_vec_1, label='ch2',  marker = '.', color = 'blue')
+				plt.legend()
+				plt.xlabel('Attenuation [dB]', fontsize = 14)
+				plt.ylabel('Power (dBm)', fontsize = 14)
+				plt.grid()
+				plt.show()
+
+			attn_min = int(attn_vec[np.argmin(pow_vec_0)])
+			if attn_min < 0:
+				attn_min = 0
+				print('attn_min cannot be < 0, set to be = 0')
+
+
+			Vaunix_Att_device.attn(attn_min)
+			attn_sweep_mag = (attn_range[1]-attn_range[0])*attn_window_narrowing/100
+			if attn_sweep_mag<attn_points*0.1:
+				attn_sweep_mag = attn_points*0.1
+			if (attn_min+0.5*attn_sweep_mag) > 50:
+				attn_range = (attn_min-0.5*attn_sweep_mag,50)
+			elif (attn_min-0.5*attn_sweep_mag)<0:
+				attn_range = (0,attn_min+0.5*attn_sweep_mag)
+			else:
+				attn_range = (attn_min-0.5*attn_sweep_mag,attn_min+0.5*attn_sweep_mag)
+			
+		pow_min = pow_vec_0[np.argmin(pow_vec_0)]
+
+
+		rfsoc_device.display_sequence = mem_display_sequence
+		rfsoc_device.display_IQ_progress = mem_display_IQ_progress
+
+		
+
+
+		return(phase_min,attn_min)
+
+
+	def get_optimal_attn_phase_test_Giulio_Gwenael(self):
 
 		rfsoc_device = self.rfsoc_device
 		Vaunix_Att_device = self.Vaunix_Att_device
@@ -793,7 +1059,9 @@ class pump_cancellation_cls:
 			pow_vec_0 = np.array([])
 			pow_vec_1 = np.array([])
 			for attn in attn_vec:
-
+				if attn < 0.0:
+					attn = 0.0
+					print('attn cannot be < 0, set to be = 0')
 				Vaunix_Att_device.attn(attn)
 				pow_tmp = rfsoc_device.ADC_power_dBm()
 				pow_vec_0 = np.append(pow_vec_0,pow_tmp[0][0])
@@ -812,17 +1080,606 @@ class pump_cancellation_cls:
 				plt.show()
 
 			attn_min = attn_vec[np.argmin(pow_vec_0)]
+			if attn_min < 0:
+				attn_min = 0
+				print('attn_min cannot be < 0, set to be = 0')
+
+
 			Vaunix_Att_device.attn(attn_min)
 			attn_sweep_mag = (attn_range[1]-attn_range[0])*attn_window_narrowing/100
 			if attn_sweep_mag<attn_points*0.1:
 				attn_sweep_mag = attn_points*0.1
 			attn_range = (attn_min-0.5*attn_sweep_mag,attn_min+0.5*attn_sweep_mag)
+			
+		pow_min = pow_vec_0[np.argmin(pow_vec_0)]
 
 
 		rfsoc_device.display_sequence = mem_display_sequence
 		rfsoc_device.display_IQ_progress = mem_display_IQ_progress
 
-		return(phase_min,attn_min)
+		
+
+
+		return(phase_min,attn_min, pow_min)
+
+
+	def get_pump_cancel_rfsoc(self):
+
+		rfsoc_device = self.rfsoc_device
+		
+		
+		display_plots = self.display_plots
+
+		amp_if = self.amp_if
+		nu_if = self.nu_if
+		delta = self.delta
+
+
+
+		iter_depth = self.iter_depth
+
+		phase_range = self.phase_range
+		phase_window_narrowing = self.phase_window_narrowing
+		phase_points = self.phase_points
+
+		amp_if_cancel_range = self.amp_if_cancel_range
+		amp_if_cancel_window_narrowing = self.amp_if_cancel_window_narrowing
+		amp_if_cancel_points = self.amp_if_cancel_points
+
+		phase_offset_if = self.phase_offset_if
+		angle_amp_if = self.angle_amp_if
+		dc_offset_I_pump = self.dc_offset_I_pump
+		dc_offset_Q_pump = self.dc_offset_Q_pump
+		dc_offset_I_weak = self.dc_offset_I_weak
+		dc_offset_Q_weak = self.dc_offset_Q_weak
+
+		acq_length = self.acq_length
+		wait_time = self.wait_time
+		num_rep = self.num_rep
+
+		mem_display_sequence = rfsoc_device.display_sequence
+		mem_display_IQ_progress = rfsoc_device.display_IQ_progress
+		rfsoc_device.display_sequence = False
+		rfsoc_device.display_IQ_progress = False
+
+
+
+		adc_start = wait_time/2
+
+		# param_sin_I_pump = {'amp':(1/np.sqrt(2))*amp_if*np.cos(np.pi*angle_amp_if/180),
+		# 			 'freq':nu_if,
+		# 			 'dc_offset':self.dc_offset_I_pump*1e-3,
+		# 			 'phase_offset':0}
+
+		# param_sin_Q_pump = {'amp':(1/np.sqrt(2))*amp_if*np.sin(np.pi*angle_amp_if/180),
+		# 			 'freq':nu_if,
+		# 			 'dc_offset':self.dc_offset_Q_pump*1e-3,
+		# 			 'phase_offset':np.pi*phase_offset_if/180}
+
+		amp_min = amp_if_cancel_range[0]
+
+		for iter_n in range(iter_depth):
+
+			# optimize phase 
+
+			phase_vec_org = np.linspace(phase_range[0],phase_range[1],phase_points)
+			phase_vec = self.process_phase(phase_vec_org)
+			pow_vec_0 = np.array([])
+			pow_vec_1 = np.array([])
+
+			print('Optimal DAC voltage = ' +str(amp_min))
+
+			for phase in bar(phase_vec):
+
+
+
+				param_sin_I_pump = {'amp':amp_if,
+					 'freq':nu_if,
+					 'dc_offset':self.dc_offset_I_pump*1e-3,
+					 'phase_offset':0}
+
+				param_sin_Q_pump = {'amp':amp_if,
+					 'freq':nu_if,
+					 'dc_offset':self.dc_offset_Q_pump*1e-3,
+					 'phase_offset':np.pi*phase_offset_if/180}
+
+
+				param_sin_cancel = {'amp':amp_min,
+					 'freq':nu_if,
+					 'dc_offset':0,
+					 'phase_offset':np.pi*phase/180}
+
+				pulse_pump_I = dict(label='pumpI', 
+							  module='DAC', 
+							  channel=self.dac_pump_I, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_I_pump, 
+							  parent=None)
+
+				pulse_pump_Q = dict(label='pumpQ',
+							  module='DAC',
+							  channel=self.dac_pump_Q, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_Q_pump, 
+							  parent=None)
+
+				pulse_cancel_pump = dict(label='cancel_pump',
+							  module='DAC',
+							  channel=self.dac_pump_cancel, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_cancel, 
+							  parent=None)
+				
+
+				record_both = dict(label='record_both', 
+							  module='ADC', 
+							  channel=1, 
+							  mode='raw', 
+							  start=adc_start, 
+							  length=acq_length, 
+							  param=None, 
+							  parent=None)
+
+				record_both2 = dict(label='record_both2', 
+							  module='ADC', 
+							  channel=2, 
+							  mode='raw', 
+							  start=adc_start, 
+							  length=acq_length, 
+							  param=None, 
+							  parent=None)
+
+
+
+				pulses = pd.DataFrame()
+				pulses = pulses.append(pulse_pump_I, ignore_index=True)
+				pulses = pulses.append(pulse_pump_Q, ignore_index=True)
+				pulses = pulses.append(pulse_cancel_pump, ignore_index=True)
+				pulses = pulses.append(record_both, ignore_index=True)
+				pulses = pulses.append(record_both2, ignore_index=True)
+
+				rfsoc_device.pulses = pulses
+
+				rfsoc_device.acquisition_mode('IQ')
+
+				rfsoc_device.ADC1.fmixer(nu_if)
+				rfsoc_device.ADC2.fmixer(nu_if)
+				rfsoc_device.ADC1.decfact(1)
+				rfsoc_device.ADC2.decfact(1)
+				rfsoc_device.freq_sync(1e6)
+				rfsoc_device.ADC1.status('ON')
+				rfsoc_device.ADC2.status('ON')
+				rfsoc_device.output_format('BIN')
+				rfsoc_device.n_rep(num_rep)
+
+				rfsoc_device.process_sequencing()
+
+
+				pow_tmp = rfsoc_device.ADC_power_dBm()
+				pow_vec_0 = np.append(pow_vec_0,pow_tmp[0][0])
+				pow_vec_1 = np.append(pow_vec_1,pow_tmp[1][0])
+
+				# IQ_data = []
+				# data_out_I,data_out_Q = rfsoc_device.IQINT_AVG()
+				# data_out1 = np.zeros((2, 8, 2))
+				# data_out1[0][0] = data_out_I[0]
+				# data_out1[1][0] = data_out_Q[0]
+				# IQ_data.append(list(data_out1))
+				# IQ_data = np.array(IQ_data)
+				# I_ch1_on = IQ_data[:, 0, 0, 0]
+				# I_ch2_on = IQ_data[:, 0, 1, 0]
+				# Q_ch1_on = IQ_data[:, 1, 0, 0]
+				# Q_ch2_on = IQ_data[:, 1, 1, 0]
+				# Mag_ch2_on = (I_ch2_on**2 + Q_ch2_on**2)/50 ## W
+				# Mag_ch2_on_dBm = 10 * np.log10(Mag_ch2_on*1e3) 
+				# Mag_ch1_on = (I_ch1_on**2 + Q_ch1_on**2)/50 ## W
+				# Mag_ch1_on_dBm = 10 * np.log10(Mag_ch1_on*1e3) 
+				# pow_vec_0 = np.append(pow_vec_0,Mag_ch1_on_dBm)
+				# pow_vec_1 = np.append(pow_vec_1,Mag_ch2_on_dBm)
+
+			if display_plots:
+
+				fig = plt.figure(figsize=(16,12))
+				ax3 = fig.add_subplot(221)
+				ax3.plot(phase_vec_org,pow_vec_0, label='ch1',  marker = '.', color = 'orange')
+				ax3.plot(phase_vec_org,pow_vec_1, label='ch2',  marker = '.', color = 'blue')
+				plt.legend()
+				plt.xlabel('Phase [degree]', fontsize = 14)
+				plt.ylabel('Power (dBm)', fontsize = 14)
+				plt.grid()
+				plt.show()
+
+			phase_min = phase_vec[np.argmin(pow_vec_0)]
+			
+			phase_sweep_mag = (phase_range[1]-phase_range[0])*phase_window_narrowing/100
+			if phase_sweep_mag<phase_points:
+				phase_sweep_mag = phase_points
+			phase_range = (phase_min-0.5*phase_sweep_mag,phase_min+0.5*phase_sweep_mag)
+
+			# optimize DAc voltage 
+
+			dac_v_vec = np.linspace(amp_if_cancel_range[0],amp_if_cancel_range[1],amp_if_cancel_points)
+			pow_vec_0 = np.array([])
+			pow_vec_1 = np.array([]) 
+			
+			print('Optimal phase = ' +str(phase_min))
+
+			for amp in bar(dac_v_vec):
+				
+				
+				
+
+				param_sin_I_pump = {'amp':amp_if,
+					 'freq':nu_if,
+					 'dc_offset':self.dc_offset_I_pump*1e-3,
+					 'phase_offset':0}
+
+				param_sin_Q_pump = {'amp':amp_if,
+					 'freq':nu_if,
+					 'dc_offset':self.dc_offset_Q_pump*1e-3,
+					 'phase_offset':np.pi*phase_offset_if/180}
+
+
+				param_sin_cancel = {'amp':amp,
+					 'freq':nu_if,
+					 'dc_offset':0,
+					 'phase_offset':np.pi*phase_min/180}
+
+				pulse_pump_I = dict(label='pumpI', 
+							  module='DAC', 
+							  channel=self.dac_pump_I, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_I_pump, 
+							  parent=None)
+
+				pulse_pump_Q = dict(label='pumpQ',
+							  module='DAC',
+							  channel=self.dac_pump_Q, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_Q_pump, 
+							  parent=None)
+
+				pulse_cancel_pump = dict(label='cancel_pump',
+							  module='DAC',
+							  channel=self.dac_pump_cancel, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_cancel, 
+							  parent=None)
+				
+
+				record_both = dict(label='record_both', 
+							  module='ADC', 
+							  channel=1, 
+							  mode='raw', 
+							  start=adc_start, 
+							  length=acq_length, 
+							  param=None, 
+							  parent=None)
+
+				record_both2 = dict(label='record_both2', 
+							  module='ADC', 
+							  channel=2, 
+							  mode='raw', 
+							  start=adc_start, 
+							  length=acq_length, 
+							  param=None, 
+							  parent=None)
+
+
+
+				pulses = pd.DataFrame()
+				pulses = pulses.append(pulse_pump_I, ignore_index=True)
+				pulses = pulses.append(pulse_pump_Q, ignore_index=True)
+				pulses = pulses.append(pulse_cancel_pump, ignore_index=True)
+				pulses = pulses.append(record_both, ignore_index=True)
+				pulses = pulses.append(record_both2, ignore_index=True)
+
+				rfsoc_device.pulses = pulses
+
+				rfsoc_device.acquisition_mode('IQ')
+
+				rfsoc_device.ADC1.fmixer(nu_if)
+				rfsoc_device.ADC2.fmixer(nu_if)
+				rfsoc_device.ADC1.decfact(1)
+				rfsoc_device.ADC2.decfact(1)
+				rfsoc_device.freq_sync(1e6)
+				rfsoc_device.ADC1.status('ON')
+				rfsoc_device.ADC2.status('ON')
+				rfsoc_device.output_format('BIN')
+				rfsoc_device.n_rep(num_rep)
+
+				rfsoc_device.process_sequencing()
+
+				pow_tmp = rfsoc_device.ADC_power_dBm()
+				pow_vec_0 = np.append(pow_vec_0,pow_tmp[0][0])
+				pow_vec_1 = np.append(pow_vec_1,pow_tmp[1][0])
+
+			if display_plots:
+
+				fig = plt.figure(figsize=(16,12))
+				ax3 = fig.add_subplot(221)
+				ax3.plot(dac_v_vec,pow_vec_0, label='ch1',  marker = '.', color = 'orange')
+				ax3.plot(dac_v_vec,pow_vec_1, label='ch2',  marker = '.', color = 'blue')
+				plt.legend()
+				plt.xlabel('Dac voltage [V]', fontsize = 14)
+				plt.ylabel('Power (dBm)', fontsize = 14)
+				plt.grid()
+				plt.show()
+
+			amp_min = dac_v_vec[np.argmin(pow_vec_0)]
+			
+
+
+			
+			amp_if_cancel_sweep_mag = (amp_if_cancel_range[1]-amp_if_cancel_range[0])*amp_if_cancel_window_narrowing/100
+			amp_if_cancel_range = (amp_min-0.5*amp_if_cancel_sweep_mag,amp_min+0.5*amp_if_cancel_sweep_mag)
+			
+		pow_min = pow_vec_0[np.argmin(pow_vec_0)]
+
+
+		rfsoc_device.display_sequence = mem_display_sequence
+		rfsoc_device.display_IQ_progress = mem_display_IQ_progress
+
+		
+
+
+		return(phase_min,amp_min)
+
+
+
+
+
+	def get_pump_pow_max(self):
+
+		rfsoc_device = self.rfsoc_device
+		Vaunix_Att_device = self.Vaunix_Att_device
+		Vaunix_FS_device = self.Vaunix_FS_device
+		
+		display_plots = self.display_plots
+
+		amp_if = self.amp_if
+		nu_if = self.nu_if
+		delta = self.delta
+
+		iter_depth = self.iter_depth
+
+		phase_range = self.phase_range
+		phase_window_narrowing = self.phase_window_narrowing
+		phase_points = self.phase_points
+
+		attn_range = self.attn_range
+		attn_window_narrowing = self.attn_window_narrowing
+		attn_points = self.attn_points
+
+		phase_offset_if = self.phase_offset_if
+		dc_offset_I_pump = self.dc_offset_I_pump
+		dc_offset_Q_pump = self.dc_offset_Q_pump
+		dc_offset_I_weak = self.dc_offset_I_weak
+		dc_offset_Q_weak = self.dc_offset_Q_weak
+
+		acq_length = self.acq_length
+		wait_time = self.wait_time
+		num_rep = self.num_rep
+
+		mem_display_sequence = rfsoc_device.display_sequence
+		mem_display_IQ_progress = rfsoc_device.display_IQ_progress
+		rfsoc_device.display_sequence = False
+		rfsoc_device.display_IQ_progress = False
+
+
+
+		adc_start = wait_time/2
+
+		param_sin_I_pump = {'amp':amp_if,
+					 'freq':nu_if,
+					 'dc_offset':self.dc_offset_I_pump*1e-3,
+					 'phase_offset':0}
+
+		param_sin_Q_pump = {'amp':amp_if,
+					 'freq':nu_if,
+					 'dc_offset':self.dc_offset_Q_pump*1e-3,
+					 'phase_offset':np.pi*phase_offset_if/180}
+
+		param_sin_I_weak = {'amp':0,
+					 'freq':0,
+					 'dc_offset':self.dc_offset_I_weak*1e-3,
+					 'phase_offset':0}
+
+		param_sin_Q_weak = {'amp':0,
+					 'freq':0,
+					 'dc_offset':self.dc_offset_Q_weak*1e-3,
+					 'phase_offset':np.pi*0/180}
+
+
+		pulse_pump_I = dict(label='pumpI', 
+							  module='DAC', 
+							  channel=self.dac_pump_I, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_I_pump, 
+							  parent=None)
+
+		pulse_pump_Q = dict(label='pumpQ',
+							  module='DAC',
+							  channel=self.dac_pump_Q, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_Q_pump, 
+							  parent=None)
+
+		pulse_weak_I = dict(label='weakI', 
+							  module='DAC', 
+							  channel=self.dac_weak_I, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_I_weak, 
+							  parent=None)
+
+		pulse_weak_Q = dict(label='weakQ', 
+							  module='DAC', 
+							  channel=self.dac_weak_Q, 
+							  mode='sin', 
+							  start=0, 
+							  length=acq_length+wait_time, 
+							  param=param_sin_Q_weak, 
+							  parent=None)
+
+		record_both = dict(label='record_both', 
+							  module='ADC', 
+							  channel=1, 
+							  mode='raw', 
+							  start=adc_start, 
+							  length=acq_length, 
+							  param=None, 
+							  parent=None)
+
+		record_both2 = dict(label='record_both2', 
+							  module='ADC', 
+							  channel=2, 
+							  mode='raw', 
+							  start=adc_start, 
+							  length=acq_length, 
+							  param=None, 
+							  parent=None)
+
+
+
+		pulses = pd.DataFrame()
+		pulses = pulses.append(pulse_pump_I, ignore_index=True)
+		pulses = pulses.append(pulse_pump_Q, ignore_index=True)
+		pulses = pulses.append(pulse_weak_I, ignore_index=True)
+		pulses = pulses.append(pulse_weak_Q, ignore_index=True)
+		pulses = pulses.append(record_both, ignore_index=True)
+		pulses = pulses.append(record_both2, ignore_index=True)
+
+		rfsoc_device.pulses = pulses
+
+		rfsoc_device.acquisition_mode('IQ')
+
+		rfsoc_device.ADC1.fmixer(nu_if)
+		rfsoc_device.ADC2.fmixer(nu_if)
+		rfsoc_device.ADC1.decfact(1)
+		rfsoc_device.ADC2.decfact(1)
+		rfsoc_device.freq_sync(1e6)
+		rfsoc_device.ADC1.status('ON')
+		rfsoc_device.ADC2.status('ON')
+		rfsoc_device.output_format('BIN')
+		rfsoc_device.n_rep(num_rep)
+
+		rfsoc_device.process_sequencing()
+
+		for iter_n in range(iter_depth):
+
+			# optimize phase 
+
+			phase_vec_org = np.linspace(phase_range[0],phase_range[1],phase_points)
+			phase_vec = self.process_phase(phase_vec_org)
+			pow_vec_0 = np.array([])
+			pow_vec_1 = np.array([])
+			for phase in phase_vec:
+
+				Vaunix_FS_device.phase_shift(phase)
+				pow_tmp = rfsoc_device.ADC_power_dBm()
+				pow_vec_0 = np.append(pow_vec_0,pow_tmp[0][0])
+				pow_vec_1 = np.append(pow_vec_1,pow_tmp[1][0])
+
+				# IQ_data = []
+				# data_out_I,data_out_Q = rfsoc_device.IQINT_AVG()
+				# data_out1 = np.zeros((2, 8, 2))
+				# data_out1[0][0] = data_out_I[0]
+				# data_out1[1][0] = data_out_Q[0]
+				# IQ_data.append(list(data_out1))
+				# IQ_data = np.array(IQ_data)
+				# I_ch1_on = IQ_data[:, 0, 0, 0]
+				# I_ch2_on = IQ_data[:, 0, 1, 0]
+				# Q_ch1_on = IQ_data[:, 1, 0, 0]
+				# Q_ch2_on = IQ_data[:, 1, 1, 0]
+				# Mag_ch2_on = (I_ch2_on**2 + Q_ch2_on**2)/50 ## W
+				# Mag_ch2_on_dBm = 10 * np.log10(Mag_ch2_on*1e3) 
+				# Mag_ch1_on = (I_ch1_on**2 + Q_ch1_on**2)/50 ## W
+				# Mag_ch1_on_dBm = 10 * np.log10(Mag_ch1_on*1e3) 
+				# pow_vec_0 = np.append(pow_vec_0,Mag_ch1_on_dBm)
+				# pow_vec_1 = np.append(pow_vec_1,Mag_ch2_on_dBm)
+
+			if display_plots:
+
+				fig = plt.figure(figsize=(16,12))
+				ax3 = fig.add_subplot(221)
+				ax3.plot(phase_vec_org,pow_vec_0, label='ch1',  marker = '.', color = 'orange')
+				ax3.plot(phase_vec_org,pow_vec_1, label='ch2',  marker = '.', color = 'blue')
+				plt.legend()
+				plt.xlabel('Phase [degree]', fontsize = 14)
+				plt.ylabel('Power (dBm)', fontsize = 14)
+				plt.grid()
+				plt.show()
+
+			pow_phase_max = pow_vec_0[np.argmax(pow_vec_0)]
+			phase_max = phase_vec[np.argmax(pow_vec_0)]
+			Vaunix_FS_device.phase_shift(phase_max)
+			# phase_sweep_mag = (phase_range[1]-phase_range[0])*phase_window_narrowing/100
+			# if phase_sweep_mag<phase_points:
+			# 	phase_sweep_mag = phase_points
+			# phase_range = (phase_min-0.5*phase_sweep_mag,phase_min+0.5*phase_sweep_mag)
+
+			# optimize attn 
+
+			attn_vec = np.linspace(attn_range[0],attn_range[1],attn_points)
+			pow_vec_0 = np.array([])
+			pow_vec_1 = np.array([])
+			for attn in attn_vec:
+				if attn < 0.0:
+					attn = 0.0
+					print('attn cannot be < 0, set to be = 0')
+				Vaunix_Att_device.attn(attn)
+				pow_tmp = rfsoc_device.ADC_power_dBm()
+				pow_vec_0 = np.append(pow_vec_0,pow_tmp[0][0])
+				pow_vec_1 = np.append(pow_vec_1,pow_tmp[1][0])
+
+			if display_plots:
+
+				fig = plt.figure(figsize=(16,12))
+				ax3 = fig.add_subplot(221)
+				ax3.plot(attn_vec,pow_vec_0, label='ch1',  marker = '.', color = 'orange')
+				ax3.plot(attn_vec,pow_vec_1, label='ch2',  marker = '.', color = 'blue')
+				plt.legend()
+				plt.xlabel('Attenuation [dB]', fontsize = 14)
+				plt.ylabel('Power (dBm)', fontsize = 14)
+				plt.grid()
+				plt.show()
+
+			pow_att_max = pow_vec_0[np.argmax(pow_vec_0)]
+			attn_max = attn_vec[np.argmax(pow_vec_0)]
+			if attn_max < 0:
+				attn_max = 0
+				print('attn_min cannot be < 0, set to be = 0')
+
+
+			# Vaunix_Att_device.attn(attn_min)
+			# attn_sweep_mag = (attn_range[1]-attn_range[0])*attn_window_narrowing/100
+			# if attn_sweep_mag<attn_points*0.1:
+			# 	attn_sweep_mag = attn_points*0.1
+			# attn_range = (attn_min-0.5*attn_sweep_mag,attn_min+0.5*attn_sweep_mag)
+
+
+		rfsoc_device.display_sequence = mem_display_sequence
+		rfsoc_device.display_IQ_progress = mem_display_IQ_progress
+
+		return(phase_max,pow_phase_max)
 
 
 	def process_phase(self,phase_arr):
@@ -898,11 +1755,15 @@ class check_ADC_meas_freq_cls:
 
 		sweep_mem_ch1 = {}
 		sweep_mem_ch2 = {}
+		corrupted_bins_ch1 = {}
+		corrupted_bins_ch2 = {}
 
 		for iter_n in bar(range(iter_num)):
 
 			sweep_mem_ch1[iter_n] = []
 			sweep_mem_ch2[iter_n] = []
+			corrupted_bins_ch1[iter_n] = []
+			corrupted_bins_ch2[iter_n] = []
 
 			for nu_if in bar(freq_list):
 
@@ -980,6 +1841,9 @@ class check_ADC_meas_freq_cls:
 
 				sweep_mem_ch1[iter_n].append(pow_tmp[0][0])
 				sweep_mem_ch2[iter_n].append(pow_tmp[1][0])
+				
+
+				
 
 			if display_plots:
 
@@ -993,7 +1857,11 @@ class check_ADC_meas_freq_cls:
 					plt.grid()
 					plt.show()
 
+			corrupted_bins_ch1[iter_n].append(freq_list[np.where(np.asarray(sweep_mem_ch1[iter_n])<(-60))[0]])
+			corrupted_bins_ch2[iter_n].append(freq_list[np.where(np.asarray(sweep_mem_ch2[iter_n])<(-60))[0]])
 
+			print('Channel 1 corrupted bins : ' + str(corrupted_bins_ch1[iter_n]) +'MHz')
+			print('Channel 2 corrupted bins : ' + str(corrupted_bins_ch2[iter_n]) +'MHz')
 
 		if display_plots:
 
@@ -1007,4 +1875,40 @@ class check_ADC_meas_freq_cls:
 			plt.ylabel('Power (dBm)', fontsize = 14)
 			plt.grid()
 			plt.show()
+		# To be modified this histogram doesn't work (Gwen)
+		corrupted_bins_ch1_tot = corrupted_bins_ch1.flatten()
+		corrupted_bins_ch2_tot = corrupted_bins_ch2.flatten()
 
+		print('Channel 1 corrupted bins total: ' + str(corrupted_bins_ch1_tot) +'MHz')
+		print('Channel 2 corrupted bins total: ' + str(corrupted_bins_ch2_tot) +'MHz')
+
+		if display_plots:
+			fig = plt.figure(figsize=(16,12))
+			
+			
+			plt.hist(corrupted_bins_ch1_tot, len(freq_list), color = 'orange')
+			
+			plt.rc('axes', labelsize=20)    # fontsize of the x and y labels
+			plt.rc('xtick', labelsize=20)    # fontsize of the tick labels
+			plt.rc('ytick', labelsize=20)    # fontsize of the tick labels
+			plt.rc('grid', linestyle="--")
+			plt.grid(True)
+			plt.xlabel('ADC frequency [MHz]',fontsize = 20)
+			plt.ylabel('Counts over 5 measurements',fontsize = 20)
+			plt.title('Corrupted bins ADC 1 counts over 5 independant measurements', fontsize = 20)
+			plt.show()
+
+			fig = plt.figure(figsize=(16,12))
+			
+			
+			plt.hist(corrupted_bins_ch2_tot, len(freq_list), color = 'blue')
+			
+			plt.rc('axes', labelsize=20)    # fontsize of the x and y labels
+			plt.rc('xtick', labelsize=20)    # fontsize of the tick labels
+			plt.rc('ytick', labelsize=20)    # fontsize of the tick labels
+			plt.rc('grid', linestyle="--")
+			plt.grid(True)
+			plt.xlabel('ADC frequency [MHz]',fontsize = 20)
+			plt.ylabel('Counts over 5 measurements',fontsize = 20)
+			plt.title('Corrupted bins ADC 2 counts over 5 independant measurements', fontsize = 20)
+			plt.show()
