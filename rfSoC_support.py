@@ -289,12 +289,18 @@ def optimize_IQ_balance(rfsoc_device,nu,nu_det_offset,display_plots=False,pump_s
 
 class gain_signal_idler_cls:
 
-	def __init__(self, rfsoc_device):
+	def __init__(self, rfsoc_device,MW_source_gen_sig,MW_source_det):
 
 		self.rfsoc_device = rfsoc_device
 		self.amp_if = 0.15
 		self.nu_if = 271
 		self.delta = 220
+
+		self.MW_source_det = MW_source_det
+		self.MW_source_gen_sig = MW_source_gen_sig
+		self.nu_det_offset_idl = 20
+		self.nu_det_offset_sig = 36
+		self.nu_p = 4
 
 		self.phase_offset_if = 0    # degrees
 		self.phase_offset_sig = 0    # degrees
@@ -314,7 +320,9 @@ class gain_signal_idler_cls:
 		self.ch_out_weak_Q = None
 		self.ch_out_pump_I = None
 		self.ch_out_pump_Q = None
-
+		self.ch_pump_cancel = None
+		self.optimal_amp_if_cancel = 0.5
+		self.optimal_phase = 92
 
 	def g(self):
 
@@ -322,6 +330,7 @@ class gain_signal_idler_cls:
 		ch_out_weak_Q = self.ch_out_weak_Q
 		ch_out_pump_I = self.ch_out_pump_I
 		ch_out_pump_Q = self.ch_out_pump_Q
+		ch_pump_cancel = self.ch_pump_cancel
 
 		nu_if = self.nu_if
 		delta = self.delta
@@ -342,9 +351,10 @@ class gain_signal_idler_cls:
 
 		amp_weak = self.amp_sig
 		amp_if = self.amp_if
-
+		amp_cancel = self.optimal_amp_if_cancel
+		phase_cancel = self.optimal_phase
 		rfsoc_device = self.rfsoc_device
-
+		
 		mem_display_sequence = rfsoc_device.display_sequence
 		rfsoc_device.display_sequence = False
 
@@ -356,6 +366,7 @@ class gain_signal_idler_cls:
 
 				nu_weak = nu_idl
 				phase_offset_weak = phase_offset_idl
+
 
 			else:
 
@@ -372,6 +383,11 @@ class gain_signal_idler_cls:
 						 'dc_offset':dc_offset_Q_pump*1e-3,
 						 'phase_offset':np.pi*phase_offset_if/180}
 
+			# param_sin_cancel = {'amp':amp_cancel,
+   #                  'freq':nu_if,
+   #                  'dc_offset':0,
+   #                   'phase_offset':np.pi*phase_cancel/180}
+
 			param_sin_I_pump_null = {'amp':0,
 						 'freq':nu_if,
 						 'dc_offset':dc_offset_I_pump*1e-3,
@@ -381,6 +397,11 @@ class gain_signal_idler_cls:
 						 'freq':nu_if,
 						 'dc_offset':dc_offset_Q_pump*1e-3,
 						 'phase_offset':np.pi*phase_offset_if/180}
+
+			# param_sin_cancel_null = {'amp':0,
+   #                  	'freq':nu_if,
+   #                  	'dc_offset':0,
+   #                   	'phase_offset':np.pi*phase_cancel/180}
 
 			param_sin_I_weak = {'amp':amp_weak,
 						 'freq':nu_weak,
@@ -410,6 +431,15 @@ class gain_signal_idler_cls:
 								  length=acq_length+wait_time, 
 								  param=param_sin_Q_pump, 
 								  parent=None)
+
+			# pulse_cancel_pump = dict(label='cancel_pump',
+   #                              module='DAC',
+   #                              channel=ch_pump_cancel, 
+   #                              mode='sin', 
+   #                              start=0, 
+   #                              length=acq_length+wait_time, 
+   #                              param=param_sin_cancel, 
+   #                              parent=None)
 
 			pulse_weak_I = dict(label='weakI', 
 								  module='DAC', 
@@ -465,6 +495,15 @@ class gain_signal_idler_cls:
 								  param=param_sin_Q_pump_null, 
 								  parent='pumpI')
 
+			# pulse_cancel_pump2 = dict(label='cancel_pump2',
+   #                              module='DAC',
+   #                              channel=ch_pump_cancel, 
+   #                              mode='sin', 
+   #                              start=0, 
+   #                              length=acq_length+wait_time, 
+   #                              param=param_sin_cancel_null, 
+   #                              parent='cancel_pump')
+
 			pulse_weak_I2 = dict(label='weakI2', 
 								  module='DAC', 
 								  channel=ch_out_weak_I, 
@@ -505,12 +544,14 @@ class gain_signal_idler_cls:
 			pulses = pd.DataFrame()
 			pulses = pulses.append(pulse_pump_I, ignore_index=True)
 			pulses = pulses.append(pulse_pump_Q, ignore_index=True)
+			# pulses = pulses.append(pulse_cancel_pump, ignore_index=True)
 			pulses = pulses.append(pulse_weak_I, ignore_index=True)
 			pulses = pulses.append(pulse_weak_Q, ignore_index=True)
 			pulses = pulses.append(record_both, ignore_index=True)
 			pulses = pulses.append(record_both2, ignore_index=True)
 			pulses = pulses.append(pulse_pump_I2, ignore_index=True)
 			pulses = pulses.append(pulse_pump_Q2, ignore_index=True)
+			# pulses = pulses.append(pulse_cancel_pump2, ignore_index=True)
 			pulses = pulses.append(pulse_weak_I2, ignore_index=True)
 			pulses = pulses.append(pulse_weak_Q2, ignore_index=True)
 			pulses = pulses.append(record_weak, ignore_index=True)
@@ -550,6 +591,288 @@ class gain_signal_idler_cls:
 		rfsoc_device.display_sequence = mem_display_sequence
 
 		return(data_save)
+
+
+	def g_v2_lo_freq_sweep(self):
+
+		ch_out_weak_I = self.ch_out_weak_I
+		ch_out_weak_Q = self.ch_out_weak_Q
+		ch_out_pump_I = self.ch_out_pump_I
+		ch_out_pump_Q = self.ch_out_pump_Q
+		ch_pump_cancel = self.ch_pump_cancel
+
+		nu_p = self.nu_p
+		nu_det_offset_idl = self.nu_det_offset_idl
+		nu_det_offset_sig = self.nu_det_offset_sig
+		MW_source_det = self.MW_source_det
+		MW_source_gen_sig = self.MW_source_gen_sig
+
+		nu_if = self.nu_if
+		delta = self.delta
+		dc_offset_I_pump = self.dc_offset_I_pump
+		dc_offset_Q_pump = self.dc_offset_Q_pump
+		dc_offset_I_weak = self.dc_offset_I_weak
+		dc_offset_Q_weak = self.dc_offset_Q_weak
+		phase_offset_if = self.phase_offset_if
+		phase_offset_sig = self.phase_offset_sig
+		phase_offset_idl = self.phase_offset_idl
+		acq_length = self.acq_length
+		wait_time = self.wait_time
+		wait_between_pulses = self.wait_between_pulses
+		num_rep = self.num_rep
+
+		nu_sig = nu_if + delta
+		nu_idl = nu_if - delta
+
+		amp_weak = self.amp_sig
+		amp_if = self.amp_if
+		amp_cancel = self.optimal_amp_if_cancel
+		phase_cancel = self.optimal_phase
+		rfsoc_device = self.rfsoc_device
+			
+		mem_display_sequence = rfsoc_device.display_sequence
+		rfsoc_device.display_sequence = False
+
+		adc_start = wait_time/2
+
+		for gain_mode in ['idl','sig']:
+
+			if gain_mode == 'idl':
+
+				nu_weak = nu_if
+				phase_offset_weak = phase_offset_idl
+				MW_source_gen_sig.frequency(nu_p*1e9 + nu_if*1e6 - delta*1e6)
+				MW_source_det.frequency(nu_p*1e9 + nu_if*1e6 - nu_det_offset_idl*1e6 - delta*1e6)
+
+			else:
+
+				nu_weak = nu_if
+				phase_offset_weak = phase_offset_sig
+				MW_source_gen_sig.frequency(nu_p*1e9 + nu_if*1e6 + delta*1e6)
+				MW_source_det.frequency(nu_p*1e9 + nu_if*1e6 - nu_det_offset_sig*1e6 + delta*1e6)
+
+			param_sin_I_pump = {'amp':amp_if,
+							 'freq':nu_if,
+							 'dc_offset':dc_offset_I_pump*1e-3,
+							 'phase_offset':0}
+
+			param_sin_Q_pump = {'amp':amp_if,
+							 'freq':nu_if,
+							 'dc_offset':dc_offset_Q_pump*1e-3,
+							 'phase_offset':np.pi*phase_offset_if/180}
+
+			# param_sin_cancel = {'amp':amp_cancel,
+	   #                  'freq':nu_if,
+	   #                  'dc_offset':0,
+	   #                   'phase_offset':np.pi*phase_cancel/180}
+
+			param_sin_I_pump_null = {'amp':0,
+							 'freq':nu_if,
+							 'dc_offset':dc_offset_I_pump*1e-3,
+							 'phase_offset':0}
+
+			param_sin_Q_pump_null = {'amp':0,
+							 'freq':nu_if,
+							 'dc_offset':dc_offset_Q_pump*1e-3,
+							 'phase_offset':np.pi*phase_offset_if/180}
+
+			# param_sin_cancel_null = {'amp':0,
+	   #                  	'freq':nu_if,
+	   #                  	'dc_offset':0,
+	   #                   	'phase_offset':np.pi*phase_cancel/180}
+
+			param_sin_I_weak = {'amp':amp_weak,
+							 'freq':nu_weak,
+							 'dc_offset':dc_offset_I_weak*1e-3,
+							 'phase_offset':0}
+
+			param_sin_Q_weak = {'amp':amp_weak,
+							 'freq':nu_weak,
+							 'dc_offset':dc_offset_Q_weak*1e-3,
+							 'phase_offset':np.pi*phase_offset_weak/180}
+
+
+			pulse_pump_I = dict(label='pumpI', 
+									  module='DAC', 
+									  channel=ch_out_pump_I, 
+									  mode='sin', 
+									  start=0, 
+									  length=acq_length+wait_time, 
+									  param=param_sin_I_pump, 
+									  parent=None)
+
+			pulse_pump_Q = dict(label='pumpQ',
+									  module='DAC',
+									  channel=ch_out_pump_Q, 
+									  mode='sin', 
+									  start=0, 
+									  length=acq_length+wait_time, 
+									  param=param_sin_Q_pump, 
+									  parent=None)
+
+			# pulse_cancel_pump = dict(label='cancel_pump',
+	   #                              module='DAC',
+	   #                              channel=ch_pump_cancel, 
+	   #                              mode='sin', 
+	   #                              start=0, 
+	   #                              length=acq_length+wait_time, 
+	   #                              param=param_sin_cancel, 
+	   #                              parent=None)
+
+			pulse_weak_I = dict(label='weakI', 
+									  module='DAC', 
+									  channel=ch_out_weak_I, 
+									  mode='sin', 
+									  start=0, 
+									  length=acq_length+wait_time, 
+									  param=param_sin_I_weak, 
+									  parent=None)
+
+			pulse_weak_Q = dict(label='weakQ', 
+									  module='DAC', 
+									  channel=ch_out_weak_Q, 
+									  mode='sin', 
+									  start=0, 
+									  length=acq_length+wait_time, 
+									  param=param_sin_Q_weak, 
+									  parent=None)
+
+			record_both = dict(label='record_both', 
+									  module='ADC', 
+									  channel=1, 
+									  mode='raw', 
+									  start=adc_start, 
+									  length=acq_length, 
+									  param=None, 
+									  parent=None)
+
+			record_both2 = dict(label='record_both2', 
+									  module='ADC', 
+									  channel=2, 
+									  mode='raw', 
+									  start=adc_start, 
+									  length=acq_length, 
+									  param=None, 
+									  parent=None)
+
+			pulse_pump_I2 = dict(label='pumpI2', 
+									  module='DAC', 
+									  channel=ch_out_pump_I, 
+									  mode='sin', 
+									  start=0, 
+									  length=acq_length+wait_time, 
+									  param=param_sin_I_pump_null, 
+									  parent='pumpI')
+
+			pulse_pump_Q2 = dict(label='pumpQ2', 
+									  module='DAC', 
+									  channel=ch_out_pump_Q, 
+									  mode='sin', 
+									  start=0, 
+									  length=acq_length+wait_time, 
+									  param=param_sin_Q_pump_null, 
+									  parent='pumpI')
+
+			# pulse_cancel_pump2 = dict(label='cancel_pump2',
+	   #                              module='DAC',
+	   #                              channel=ch_pump_cancel, 
+	   #                              mode='sin', 
+	   #                              start=0, 
+	   #                              length=acq_length+wait_time, 
+	   #                              param=param_sin_cancel_null, 
+	   #                              parent='cancel_pump')
+
+			pulse_weak_I2 = dict(label='weakI2', 
+									  module='DAC', 
+									  channel=ch_out_weak_I, 
+									  mode='sin', 
+									  start=0, 
+									  length=acq_length+wait_time, 
+									  param=param_sin_I_weak, 
+									  parent='pumpI')
+
+			pulse_weak_Q2 = dict(label='weakQ2', 
+									  module='DAC', 
+									  channel=ch_out_weak_Q, 
+									  mode='sin', 
+									  start=0, 
+									  length=acq_length+wait_time, 
+									  param=param_sin_Q_weak, 
+									  parent='pumpI')
+
+			record_weak = dict(label='record_signal', 
+									  module='ADC', 
+									  channel=1, 
+									  mode='raw', 
+									  start=adc_start, 
+									  length=acq_length, 
+									  param=None, 
+									  parent='pumpI')
+
+			record_weak2 = dict(label='record_signal2', 
+									  module='ADC', 
+									  channel=2, 
+									  mode='raw', 
+									  start=adc_start, 
+									  length=acq_length, 
+									  param=None, 
+									  parent='pumpI')
+
+
+			pulses = pd.DataFrame()
+			pulses = pulses.append(pulse_pump_I, ignore_index=True)
+			pulses = pulses.append(pulse_pump_Q, ignore_index=True)
+			# pulses = pulses.append(pulse_cancel_pump, ignore_index=True)
+			pulses = pulses.append(pulse_weak_I, ignore_index=True)
+			pulses = pulses.append(pulse_weak_Q, ignore_index=True)
+			pulses = pulses.append(record_both, ignore_index=True)
+			pulses = pulses.append(record_both2, ignore_index=True)
+			pulses = pulses.append(pulse_pump_I2, ignore_index=True)
+			pulses = pulses.append(pulse_pump_Q2, ignore_index=True)
+			# pulses = pulses.append(pulse_cancel_pump2, ignore_index=True)
+			pulses = pulses.append(pulse_weak_I2, ignore_index=True)
+			pulses = pulses.append(pulse_weak_Q2, ignore_index=True)
+			pulses = pulses.append(record_weak, ignore_index=True)
+			pulses = pulses.append(record_weak2, ignore_index=True)
+
+			rfsoc_device.pulses = pulses
+
+			rfsoc_device.acquisition_mode('IQ')
+			rfsoc_device.ADC1.decfact(1)
+			rfsoc_device.ADC2.decfact(1)
+			rfsoc_device.freq_sync(1e6)
+			rfsoc_device.ADC1.fmixer(nu_if - nu_det_offset_sig)
+			rfsoc_device.ADC2.fmixer(nu_if - nu_det_offset_idl)
+			rfsoc_device.ADC1.status('ON')
+			rfsoc_device.ADC2.status('ON')
+			rfsoc_device.output_format('BIN')
+			rfsoc_device.n_rep(num_rep)
+			rfsoc_device.process_sequencing()
+
+			if gain_mode == 'idl':
+
+				data_idl = np.array(rfsoc_device.ADC_power_dBm()[0:2])
+
+			else:
+
+				data_sig = np.array(rfsoc_device.ADC_power_dBm()[0:2])
+				
+							
+		gain_sig = data_sig[0,0]-data_sig[0,1]
+		gain_idl = data_idl[1,0]-data_idl[1,1]
+
+		gain_sig_with_idler_input = data_idl[0,0]-data_idl[0,1]
+		gain_idl_with_sig_input = data_sig[1,0]-data_sig[1,1]
+			
+		data_save = np.array([np.array([gain_sig,gain_idl]),np.array([gain_sig_with_idler_input,gain_idl_with_sig_input]), np.array([data_sig[0,0],data_sig[0,1]]), np.array([data_sig[1,0],data_sig[1,1]]),np.array([data_idl[0,0],data_idl[0,1]]), np.array([data_idl[1,0],data_idl[1,1]])])
+
+		rfsoc_device.display_sequence = mem_display_sequence
+
+		return(data_save)
+
+
+
+
 
 
 

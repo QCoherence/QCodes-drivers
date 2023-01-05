@@ -248,6 +248,47 @@ class ADC_power_dBm(Parameter):
 
 
 
+class ADC_power_dBm_std(Parameter):
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+
+	def get_raw(self):
+
+		time.sleep(0.2)
+
+		data_retI, data_retQ = self._instrument.get_readout_pulse()#.get_readout_pulse() ###### Martina 08/11/2020
+
+		Sq_I_list = [[],[],[],[],[],[],[],[]]
+		Sq_Q_list = [[],[],[],[],[],[],[],[]]
+		Pow = [[],[],[],[],[],[],[],[]]
+
+		Std_Sq_I_list = [[],[],[],[],[],[],[],[]]
+		Std_Sq_Q_list = [[],[],[],[],[],[],[],[]]
+		Std_Pow = [[],[],[],[],[],[],[],[]]
+
+		for i in range(8):
+
+			if len(data_retI[i])>0:
+
+				for j in range(len(data_retI[i])):
+
+					if len(data_retI[i][j])>0:
+
+						Sq_I_list[i].append(np.mean(data_retI[i][j]**2))
+						Sq_Q_list[i].append(np.mean(data_retQ[i][j]**2))
+
+						Std_Sq_I_list[i].append(np.std(data_retI[i][j])**2)
+						Std_Sq_Q_list[i].append(np.std(data_retQ[i][j])**2)
+								
+		for i in range(8):
+			
+			Pow[i] = 10*np.log10(1e3*(np.array(Sq_I_list[i]) + np.array(Sq_Q_list[i]))/(50*2))		# RMS power
+			Std_Pow[i] = 10*np.log10(1e3*(np.array(Std_Sq_I_list[i]) + np.array(Std_Sq_Q_list[i]))/(50*2))		# RMS power
+
+		return Pow,Std_Pow
+
+
 
 
 
@@ -418,6 +459,13 @@ class RFSoC(VisaInstrument):
 						   vals=Arrays(shape=(2, 8, 2, self.n_rep)), ### ME
 						   snapshot_value = False)
 
+		self.add_parameter(name='IQINT_SPD',
+						   unit='V',
+						   label='Integrated I Q for 1 channel with header check',
+						   parameter_class = ManualParameter,
+						   vals=Arrays(shape=(2, 1, 2, self.n_rep)), ### GC
+						   snapshot_value = False)
+
 		self.add_parameter(name='IQINT_two_mode_squeezing',
 						   unit='V',
 						   label='Integrated I Q for 2 channels with header check',
@@ -457,6 +505,14 @@ class RFSoC(VisaInstrument):
 						   parameter_class=ADC_power_dBm,
 						   vals=Arrays(shape=(self.dummy_array_size_8,)),
 						   snapshot_value = False)
+
+		self.add_parameter(name='ADC_power_dBm_std',
+						   unit='dBm',
+						   label='Array of incident power on ADC channels with standard deviation',
+						   parameter_class=ADC_power_dBm_std,
+						   vals=Arrays(shape=(2, 8, 2)), #Gwen
+						   snapshot_value = False)
+
 
 		#for now all mixer frequency must be multiples of the base frequency for phase matching
 		self.add_parameter(name='freq_sync',
