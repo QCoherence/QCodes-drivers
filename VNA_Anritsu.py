@@ -606,7 +606,6 @@ class MS46522B(VisaInstrument):
 		# mFrequency = {'MS46522B-010':(50e3, 8.5e9), 'MS46522B-020':(50e3, 20e9), 'MS46522B-040':(50e3, 43.5e9), 'MS46522B-082':(55e9, 92e9)}
 		# if model not in mFrequency.keys():
 		#     raise RuntimeError("Unsupported Anritsu model {}".format(model))
-
 		self._min_freq: float
 		self._max_freq: float
 		# self._min_freq, self._max_freq = mFrequency[model]
