@@ -1,6 +1,6 @@
 import logging
 from functools import partial
-from typing import Optional
+from typing import Optional, Any, Tuple
 
 from qcodes import VisaInstrument
 from qcodes import ChannelList, InstrumentChannel
@@ -38,8 +38,8 @@ class FrequencySweepMagPhase(MultiParameter):
 	Sweep that return magnitude and phase.
 	"""
 
-	def __init__(self, name, instrument, start, stop, npts, channel):
-		super().__init__(name, names=("", ""), shapes=((), ()))
+	def __init__(self, name, instrument, start, stop, npts, channel, **kwargs):
+		super().__init__(name, names=("", ""), shapes=((), ()),instrument=instrument)
 		self._instrument = instrument
 		self.set_sweep(start, stop, npts)
 		self._channel = channel
@@ -102,7 +102,7 @@ class FrequencySweep(ArrayParameter):
 		  get(): executes a sweep and returns magnitude and phase arrays
 
 	"""
-	def __init__(self, name, instrument, start, stop, npts, channel):
+	def __init__(self, name, instrument, start, stop, npts, channel, **kwargs):
 		super().__init__(name, shape=(npts,),
 						 instrument=instrument,
 						 unit='dB',
@@ -588,7 +588,7 @@ class MS46522B(VisaInstrument):
 	CHANNEL_CLASS = AnritsuChannel
 
 	def __init__(self, name: str, address: str, init_s_params: bool = True,
-				 reset_channels: bool = False, **kwargs) -> None:
+				 reset_channels: bool = False, **kwargs: Any,) -> None:
 
 		super().__init__(name=name, address=address, terminator='\n', **kwargs)
 
@@ -606,6 +606,7 @@ class MS46522B(VisaInstrument):
 		# mFrequency = {'MS46522B-010':(50e3, 8.5e9), 'MS46522B-020':(50e3, 20e9), 'MS46522B-040':(50e3, 43.5e9), 'MS46522B-082':(55e9, 92e9)}
 		# if model not in mFrequency.keys():
 		#     raise RuntimeError("Unsupported Anritsu model {}".format(model))
+
 		self._min_freq: float
 		self._max_freq: float
 		# self._min_freq, self._max_freq = mFrequency[model]
@@ -672,7 +673,7 @@ class MS46522B(VisaInstrument):
 			self.rf_off()
 		self.connect_message()
 
-	def add_channel(self, channel_name: str, **kwargs):
+	def add_channel(self, channel_name: str, **kwargs: Any) -> None:
 
 		i_channel = len(self.channels) + 1
 		self.write('DISPlay:COUNt {}'.format(i_channel))
