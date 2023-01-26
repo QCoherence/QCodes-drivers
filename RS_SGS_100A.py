@@ -1,4 +1,4 @@
-# Last updated on 28 Oct 2020
+# Last update Jan 2023
 #                     -- Arpit
 
 
@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 class SGS100A(VisaInstrument): 
 	"""
-	QCoDeS driver for the Rohde and Schwarz SMB 100A MW source
+	QCoDeS driver for the Rohde and Schwarz SGS 100A MW source
 	"""
 	
 	# all instrument constructors should accept **kwargs and pass them on to
@@ -67,6 +67,16 @@ class SGS100A(VisaInstrument):
 							get_parser=self.easy_read_status_read
 							)
 
+		self.add_parameter( name = 'IQmode',  
+							label = 'IQmode on/off',
+							vals = vals.Enum('on','off'),
+							unit   = 'NA',
+							set_cmd='IQ:state ' + '{}',
+							get_cmd='IQ:state?',
+							set_parser =self.easy_read_IQmode,
+							get_parser=self.easy_read_IQmode_read
+							)
+
 		# good idea to call connect_message at the end of your constructor.
 		# this calls the 'IDN' parameter that the base Instrument class creates 
 		# for every instrument  which serves two purposes:
@@ -92,6 +102,20 @@ class SGS100A(VisaInstrument):
 		if(status=='1'):
 			ret='on'
 		elif(status=='0'):
+			ret='off'
+		return ret
+
+	def easy_read_IQmode(self, IQmode):
+		if(IQmode=='on'):
+			ret=1
+		elif(IQmode=='off'):
+			ret=0
+		return ret
+
+	def easy_read_IQmode_read(self, IQmode):
+		if(IQmode=='1'):
+			ret='on'
+		elif(IQmode=='0'):
 			ret='off'
 		return ret
 
