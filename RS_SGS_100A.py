@@ -77,6 +77,16 @@ class SGS100A(VisaInstrument):
 							get_parser=self.easy_read_IQmode_read
 							)
 
+		self.add_parameter( name = 'IQmode_wideband',  
+							label = 'IQmode wideband option on/off',
+							vals = vals.Enum('on','off'),
+							unit   = 'NA',
+							set_cmd='IQ:WBSTate ' + '{}',
+							get_cmd='IQ:WBSTate?',
+							set_parser =self.easy_read_IQmode,
+							get_parser=self.easy_read_IQmode_read
+							)
+
 		# good idea to call connect_message at the end of your constructor.
 		# this calls the 'IDN' parameter that the base Instrument class creates 
 		# for every instrument  which serves two purposes:
