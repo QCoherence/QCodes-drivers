@@ -610,6 +610,15 @@ class MS46522B(VisaInstrument):
 		self._max_freq: float
 		# self._min_freq, self._max_freq = mFrequency[model]
 		self._min_freq, self._max_freq = 50e3, 20e9
+		self._VNA_mode = None
+
+		self.add_parameter( name = 'VNA_mode',  
+							label = 'Mode of VNA measurement (S21/S11)',
+							vals = vals.Enum('S21','S11'),
+							unit   = 'NA',
+							set_cmd=self._set_mode,
+							get_cmd=self._get_mode
+							)
 
 		self.add_parameter(name='num_ports',
 						   get_cmd=':SYST:PORT:COUN?',
@@ -706,3 +715,15 @@ class MS46522B(VisaInstrument):
 
 		self.write(':DISPlay:COUNt 1')
 		self.channels.S21.write(':DISPlay:WINDow1:SPLit R1C1')
+
+
+	def _set_mode(self,mode):
+
+		self._VNA_mode = mode
+
+		self.write(':CALCulate1:PARameter1:DEFine '+mode)
+
+
+	def _get_mode(self):
+
+		return self._VNA_mode
