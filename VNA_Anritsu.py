@@ -169,10 +169,20 @@ class AnritsuChannel(InstrumentChannel):
 		self._min_source_power = -30
 		self.max_source_power = 16
 
+		self._VNA_mode = None
+
 
 		#----------------------------------------------------- start updating
 
-		self.add_parameter(name='vna_parameter',
+		self.add_parameter( name = 'VNA_mode',  
+							label = 'Mode of VNA measurement (S21/S11)',
+							vals = vals.Enum('S21','S11'),
+							unit   = 'NA',
+							set_cmd=self._set_mode,
+							get_cmd=self._get_mode
+							)
+
+		self.add_parameter(name='vna_parameter', # depreciated in newer mode of operation, kept for backward compatibility -Arpit
 						   label='VNA parameter',
 						   get_cmd="CALC{}:PAR:DEF? '{}'".format(self._instrument_channel,
 																  self._tracename),
@@ -436,6 +446,17 @@ class AnritsuChannel(InstrumentChannel):
 			log.warning(
 			"Could not set cw frequency to {} setting it to {}".format(val, cwfreq)
 			)
+
+	def _set_mode(self,mode):
+
+		self._VNA_mode = mode
+
+		self.write(':CALCulate1:PARameter1:DEFine '+mode)
+
+
+	def _get_mode(self):
+
+		return self._VNA_mode
 	
 	def update_traces(self):
 		""" updates start, stop and npts of all trace parameters"""
@@ -453,10 +474,10 @@ class AnritsuChannel(InstrumentChannel):
 
 		instrument_parameter = self.vna_parameter()
 		root_instr = self.root_instrument
-		if instrument_parameter != self._vna_parameter:
-			raise RuntimeError("Invalid parameter. Tried to measure "
-							   "{} got {}".format(self._vna_parameter,
-												  instrument_parameter))
+		# if instrument_parameter != self._vna_parameter:
+		# 	raise RuntimeError("Invalid parameter. Tried to measure "
+		# 					   "{} got {}".format(self._vna_parameter,
+		# 										  instrument_parameter))
 		self.write('SENS{}:AVER:STAT ON'.format(self._instrument_channel))
 		self.write('SENS{}:AVER:CLEAR'.format(self._instrument_channel))
 		# print('Success status 1')
@@ -610,15 +631,6 @@ class MS46522B(VisaInstrument):
 		self._max_freq: float
 		# self._min_freq, self._max_freq = mFrequency[model]
 		self._min_freq, self._max_freq = 50e3, 20e9
-		self._VNA_mode = None
-
-		self.add_parameter( name = 'VNA_mode',  
-							label = 'Mode of VNA measurement (S21/S11)',
-							vals = vals.Enum('S21','S11'),
-							unit   = 'NA',
-							set_cmd=self._set_mode,
-							get_cmd=self._get_mode
-							)
 
 		self.add_parameter(name='num_ports',
 						   get_cmd=':SYST:PORT:COUN?',
@@ -717,13 +729,4 @@ class MS46522B(VisaInstrument):
 		self.channels.S21.write(':DISPlay:WINDow1:SPLit R1C1')
 
 
-	def _set_mode(self,mode):
-
-		self._VNA_mode = mode
-
-		self.write(':CALCulate1:PARameter1:DEFine '+mode)
-
-
-	def _get_mode(self):
-
-		return self._VNA_mode
+	
