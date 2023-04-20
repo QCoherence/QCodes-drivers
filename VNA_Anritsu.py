@@ -216,6 +216,14 @@ class AnritsuChannel(InstrumentChannel):
 						   get_parser=int,
 						   vals=vals.Ints(1, 5000))
 
+		self.add_parameter(name='avg_status',
+						   label='Averaging status',
+						   unit='',
+						   get_cmd='SENS:AVER?',
+						   set_cmd='SENS:AVER {}',
+						   get_parser=int,
+						   vals = vals.Enum('on','off'))
+
 		self.add_parameter(name='start',
 						   get_cmd='SENS{}:FREQ:START?'.format(n_fixed),
 						   set_cmd=self._set_start,
