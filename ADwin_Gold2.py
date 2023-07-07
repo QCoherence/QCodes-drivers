@@ -549,6 +549,15 @@ class ADwin_Gold2(Instrument):
     def get_subsampling(self):
         """Get subsampling factor"""
         return self.subs
+    
+    def get_idn(self):
+        """Return a dictionnary with the informations on the instrument"""
+        output = {}
+        output['vendor'] = 'ADwin'
+        output['model'] = 'ADwin_GOLD2'
+        output['test_version'] = self.Test_Version()
+        return output 
+        
 
 
 def adwin_Nramp(ad: ADwin_Gold2, start_pt, end_pt, ramp_size0, nb_ramps):
