@@ -320,6 +320,7 @@ class gain_signal_idler_cls:
 		self.ch_out_weak_Q = None
 		self.ch_out_pump_I = None
 		self.ch_out_pump_Q = None
+
 		self.ch_pump_cancel = None
 		self.optimal_amp_if_cancel = 0.5
 		self.optimal_phase = 92
@@ -367,7 +368,6 @@ class gain_signal_idler_cls:
 				nu_weak = nu_idl
 				phase_offset_weak = phase_offset_idl
 
-
 			else:
 
 				nu_weak = nu_sig
@@ -383,11 +383,6 @@ class gain_signal_idler_cls:
 						 'dc_offset':dc_offset_Q_pump*1e-3,
 						 'phase_offset':np.pi*phase_offset_if/180}
 
-			# param_sin_cancel = {'amp':amp_cancel,
-   #                  'freq':nu_if,
-   #                  'dc_offset':0,
-   #                   'phase_offset':np.pi*phase_cancel/180}
-
 			param_sin_I_pump_null = {'amp':0,
 						 'freq':nu_if,
 						 'dc_offset':dc_offset_I_pump*1e-3,
@@ -397,11 +392,6 @@ class gain_signal_idler_cls:
 						 'freq':nu_if,
 						 'dc_offset':dc_offset_Q_pump*1e-3,
 						 'phase_offset':np.pi*phase_offset_if/180}
-
-			# param_sin_cancel_null = {'amp':0,
-   #                  	'freq':nu_if,
-   #                  	'dc_offset':0,
-   #                   	'phase_offset':np.pi*phase_cancel/180}
 
 			param_sin_I_weak = {'amp':amp_weak,
 						 'freq':nu_weak,
@@ -431,15 +421,6 @@ class gain_signal_idler_cls:
 								  length=acq_length+wait_time, 
 								  param=param_sin_Q_pump, 
 								  parent=None)
-
-			# pulse_cancel_pump = dict(label='cancel_pump',
-   #                              module='DAC',
-   #                              channel=ch_pump_cancel, 
-   #                              mode='sin', 
-   #                              start=0, 
-   #                              length=acq_length+wait_time, 
-   #                              param=param_sin_cancel, 
-   #                              parent=None)
 
 			pulse_weak_I = dict(label='weakI', 
 								  module='DAC', 
@@ -495,15 +476,6 @@ class gain_signal_idler_cls:
 								  param=param_sin_Q_pump_null, 
 								  parent='pumpI')
 
-			# pulse_cancel_pump2 = dict(label='cancel_pump2',
-   #                              module='DAC',
-   #                              channel=ch_pump_cancel, 
-   #                              mode='sin', 
-   #                              start=0, 
-   #                              length=acq_length+wait_time, 
-   #                              param=param_sin_cancel_null, 
-   #                              parent='cancel_pump')
-
 			pulse_weak_I2 = dict(label='weakI2', 
 								  module='DAC', 
 								  channel=ch_out_weak_I, 
@@ -544,14 +516,12 @@ class gain_signal_idler_cls:
 			pulses = pd.DataFrame()
 			pulses = pulses.append(pulse_pump_I, ignore_index=True)
 			pulses = pulses.append(pulse_pump_Q, ignore_index=True)
-			# pulses = pulses.append(pulse_cancel_pump, ignore_index=True)
 			pulses = pulses.append(pulse_weak_I, ignore_index=True)
 			pulses = pulses.append(pulse_weak_Q, ignore_index=True)
 			pulses = pulses.append(record_both, ignore_index=True)
 			pulses = pulses.append(record_both2, ignore_index=True)
 			pulses = pulses.append(pulse_pump_I2, ignore_index=True)
 			pulses = pulses.append(pulse_pump_Q2, ignore_index=True)
-			# pulses = pulses.append(pulse_cancel_pump2, ignore_index=True)
 			pulses = pulses.append(pulse_weak_I2, ignore_index=True)
 			pulses = pulses.append(pulse_weak_Q2, ignore_index=True)
 			pulses = pulses.append(record_weak, ignore_index=True)
@@ -964,22 +934,12 @@ class pump_cancellation_cls:
 
 		adc_start = wait_time/2
 
-		# param_sin_I_pump = {'amp':(1/np.sqrt(2))*amp_if*np.cos(np.pi*angle_amp_if/180),
-		# 			 'freq':nu_if,
-		# 			 'dc_offset':self.dc_offset_I_pump*1e-3,
-		# 			 'phase_offset':0}
-
-		# param_sin_Q_pump = {'amp':(1/np.sqrt(2))*amp_if*np.sin(np.pi*angle_amp_if/180),
-		# 			 'freq':nu_if,
-		# 			 'dc_offset':self.dc_offset_Q_pump*1e-3,
-		# 			 'phase_offset':np.pi*phase_offset_if/180}
-
-		param_sin_I_pump = {'amp':amp_if,
+		param_sin_I_pump = {'amp':(1/np.sqrt(2))*amp_if*np.cos(np.pi*angle_amp_if/180),
 					 'freq':nu_if,
 					 'dc_offset':self.dc_offset_I_pump*1e-3,
 					 'phase_offset':0}
 
-		param_sin_Q_pump = {'amp':amp_if,
+		param_sin_Q_pump = {'amp':(1/np.sqrt(2))*amp_if*np.sin(np.pi*angle_amp_if/180),
 					 'freq':nu_if,
 					 'dc_offset':self.dc_offset_Q_pump*1e-3,
 					 'phase_offset':np.pi*phase_offset_if/180}
