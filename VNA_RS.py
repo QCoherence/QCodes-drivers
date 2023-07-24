@@ -1,7 +1,3 @@
-# Last updated on 05 Jan 2021
-#                     -- Dorian
-
-
 import logging
 import numpy as np
 from functools import partial
@@ -34,7 +30,7 @@ class FixedFrequencyTraceIQ(MultiParameter):
     """
 
     def __init__(
-        self, name: str, instrument: "VNAChannel", npts: int, bandwidth: int
+        self, name: str, instrument: "VNAChannel", npts: int, bandwidth: int, **kwargs
     ) -> None:
         super().__init__(
             name,
@@ -97,7 +93,7 @@ class FixedFrequencyPointIQ(MultiParameter):
         instrument: instrument the parameter belongs to
     """
 
-    def __init__(self, name: str, instrument: "VNAChannel") -> None:
+    def __init__(self, name: str, instrument: "VNAChannel", **kwargs) -> None:
         super().__init__(
             name,
             instrument=instrument,
@@ -125,7 +121,7 @@ class FixedFrequencyPointMagPhaseTrace(MultiParameter):
     the mean value of the trace.
     """
 
-    def __init__(self, name: str, instrument: "VNAChannel") -> None:
+    def __init__(self, name: str, instrument: "VNAChannel", **kwargs) -> None:
         super().__init__(
             name,
             instrument=instrument,
@@ -165,7 +161,7 @@ class FixedFrequencyPointMagPhase(MultiParameter):
         instrument: instrument the parameter belongs to
     """
 
-    def __init__(self, name: str, instrument: "VNAChannel") -> None:
+    def __init__(self, name: str, instrument: "VNAChannel", **kwargs) -> None:
         super().__init__(
             name,
             instrument=instrument,
@@ -205,6 +201,7 @@ class FrequencySweepMagPhase(MultiParameter):
         stop: float,
         npts: int,
         channel: int,
+        **kwargs,
     ) -> None:
         super().__init__(
             name,
@@ -243,7 +240,8 @@ class FrequencySweepMagPhase(MultiParameter):
         """
         with self.instrument.format.set_to("dB"):
             data = self.instrument._get_sweep_data(force_polar=True)
-        return abs(data), np.angle(data)
+        # return abs(data), np.angle(data)
+        return 20.*np.log10(abs(data)), np.angle(data)
 
 
 class FrequencySweepMagPhaseAvg(MultiParameter):
@@ -259,6 +257,7 @@ class FrequencySweepMagPhaseAvg(MultiParameter):
         stop: float,
         npts: int,
         channel: int,
+        **kwargs,
     ) -> None:
         super().__init__(
             name,
@@ -323,6 +322,7 @@ class FrequencySweep(ArrayParameter):
         stop: float,
         npts: int,
         channel: int,
+        **kwargs,
     ) -> None:
         super().__init__(
             name,

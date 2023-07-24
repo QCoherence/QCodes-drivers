@@ -75,7 +75,7 @@ class Vaunix_phase_shifter(Instrument):
 				'serial': self._serial, 'firmware': None}
 
 	# For debugging
-	def connected_devices():
+	def connected_devices(self):
 		vnx=cdll.VNX_dps64
 		#vnx.fnLPS_SetTestMode(False)
 		DeviceIDArray = c_int * 20

@@ -120,3 +120,12 @@ class Yokogawa_7651(VisaInstrument):
 	def init(self):
 
 		self.write('RC')
+
+
+
+
+
+	# To avoid identity query error
+	def get_idn(self):
+
+		return {'vendor': 'Yokogawa', 'model': '7651','serial': '0', 'firmware': None}

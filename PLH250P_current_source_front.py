@@ -30,5 +30,5 @@ def power_up(current_source):
 
 def power_down(current_source):
 	current_set(current_source, 0)
-	current_source.status('off')
+	# current_source.status('off')
 	setstate('off')

@@ -79,7 +79,7 @@ class Vaunix_attn(Instrument):
 				'serial': self._serial, 'firmware': None}
 
 	# For debugging
-	def connected_devices():
+	def connected_devices(self):
 		vnx=cdll.VNX_atten64
 		vnx.fnLDA_SetTestMode(False)
 		DeviceIDArray = c_int * 20

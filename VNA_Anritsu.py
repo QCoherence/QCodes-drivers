@@ -78,9 +78,45 @@ class CWPhase(ParameterWithSetpoints):
 	def get_raw(self):
 		old_format = self._instrument.format()
 		self._instrument.format('Phase')
-		data = self._instrument._get_sweep_data_CW()
+		data = self._instrument._get_sweep_data_CW(force_polar = False)
 		self._instrument.format(old_format)
 		return data
+
+class CWMagPhase(MultiParameter):
+	"""
+	Sweep that returns magnitude and phase (for CW mode, with set delay).
+	"""
+
+	def __init__(self, name, instrument, npts_cw, channel, **kwargs):
+		super().__init__(name, names=("", ""), shapes=((), ()),instrument=instrument)
+		self._instrument = instrument
+		self.set_sweep_cw(npts_cw)
+		self._channel = channel
+		self.names = ('magnitude',
+					  'phase')
+		self.labels = ('{} magnitude'.format(instrument.short_name),
+					   '{} phase'.format(instrument.short_name))
+		self.units = ('dB', 'rad')
+		# self.units = ('dB', 'deg')
+		self.setpoint_units = (('# points',), ('# points',))
+		self.setpoint_labels = (('{} nbpoints'.format(instrument.short_name),), ('{} nbpoints'.format(instrument.short_name),))
+		self.setpoint_names = (('{}_nbpoints'.format(instrument.short_name),), ('{}_nbpoints'.format(instrument.short_name),))
+
+	def set_sweep_cw(self, npts_cw):
+		#  needed to update config of the software parameter on sweep change
+		# freq setpoints tuple as needs to be hashable for look up
+		n_points = tuple(np.linspace(int(1), int(npts_cw), num=npts_cw))
+		self.setpoints = ((n_points,), (n_points,))
+		self.shapes = ((npts_cw,), (npts_cw,))
+
+	def get_raw(self):
+		old_format = self._instrument.format()
+		self._instrument.format('Complex')
+		data = self._instrument._get_sweep_data_CW(force_polar = True)
+		self._instrument.format(old_format)
+		real, imag = np.transpose(np.reshape(data, (-1, 2)))
+		# return abs(real + 1j*imag), np.angle(real + 1j*imag)
+		return 20.*np.log10(abs(real + 1j*imag)), np.angle(real + 1j*imag)
 
 class FrequencySweep(ArrayParameter):
 	"""
@@ -169,10 +205,20 @@ class AnritsuChannel(InstrumentChannel):
 		self._min_source_power = -30
 		self.max_source_power = 16
 
+		self._VNA_mode = None
+
 
 		#----------------------------------------------------- start updating
 
-		self.add_parameter(name='vna_parameter',
+		self.add_parameter( name = 'VNA_mode',  
+							label = 'Mode of VNA measurement (S21/S11)',
+							vals = vals.Enum('S21','S11'),
+							unit   = 'NA',
+							set_cmd=self._set_mode,
+							get_cmd=self._get_mode
+							)
+
+		self.add_parameter(name='vna_parameter', # depreciated in newer mode of operation, kept for backward compatibility -Arpit
 						   label='VNA parameter',
 						   get_cmd="CALC{}:PAR:DEF? '{}'".format(self._instrument_channel,
 																  self._tracename),
@@ -205,6 +251,14 @@ class AnritsuChannel(InstrumentChannel):
 						   set_cmd='SENS{}:AVER:COUN {{:.4f}}'.format(n_fixed),
 						   get_parser=int,
 						   vals=vals.Ints(1, 5000))
+
+		self.add_parameter(name='avg_status',
+						   label='Averaging status',
+						   unit='',
+						   get_cmd='SENS:AVER?',
+						   set_cmd='SENS:AVER {}',
+						   get_parser=int,
+						   vals = vals.Enum('on','off'))
 
 		self.add_parameter(name='start',
 						   get_cmd='SENS{}:FREQ:START?'.format(n_fixed),
@@ -343,6 +397,11 @@ class AnritsuChannel(InstrumentChannel):
 						   parameter_class=CWPhase,
 						   vals=Arrays(shape=(self.npts_cw.get_latest,)))
 
+		self.add_parameter(name='trace_CWMagPhase', # See if needed Gwen 'setpoints=(self.freq_axis_CW,),'
+						   npts_cw=self.npts_cw(),
+						   channel=n,
+						   parameter_class=CWMagPhase) # To check if needed to set a vals parameter Gwen 'vals=Arrays(shape=(2,self.npts_cw.get_latest,))'
+
 	def _get_format(self, tracename):
 		n = self._instrument_channel
 		self.write(f"CALC{n}:PAR:SEL '{tracename}'")
@@ -436,6 +495,17 @@ class AnritsuChannel(InstrumentChannel):
 			log.warning(
 			"Could not set cw frequency to {} setting it to {}".format(val, cwfreq)
 			)
+
+	def _set_mode(self,mode):
+
+		self._VNA_mode = mode
+
+		self.write(':CALCulate1:PARameter1:DEFine '+mode)
+
+
+	def _get_mode(self):
+
+		return self._VNA_mode
 	
 	def update_traces(self):
 		""" updates start, stop and npts of all trace parameters"""
@@ -453,10 +523,10 @@ class AnritsuChannel(InstrumentChannel):
 
 		instrument_parameter = self.vna_parameter()
 		root_instr = self.root_instrument
-		if instrument_parameter != self._vna_parameter:
-			raise RuntimeError("Invalid parameter. Tried to measure "
-							   "{} got {}".format(self._vna_parameter,
-												  instrument_parameter))
+		# if instrument_parameter != self._vna_parameter:
+		# 	raise RuntimeError("Invalid parameter. Tried to measure "
+		# 					   "{} got {}".format(self._vna_parameter,
+		# 										  instrument_parameter))
 		self.write('SENS{}:AVER:STAT ON'.format(self._instrument_channel))
 		self.write('SENS{}:AVER:CLEAR'.format(self._instrument_channel))
 		# print('Success status 1')
@@ -538,23 +608,50 @@ class AnritsuChannel(InstrumentChannel):
 			#self.status(initial_state)
 		return data
 
-	def _get_sweep_data_CW(self):
+	def _get_sweep_data_CW(self,force_polar = False): # Modified by Gwen to fit channel choice in the Qcodes script and being able to record complex S param in CW mode (as for a usual frequency sweep)
 
 		instrument_parameter = self.vna_parameter()
 		root_instr = self.root_instrument
-		if instrument_parameter != self._vna_parameter:
-			raise RuntimeError("Invalid parameter. Tried to measure "
-							   "{} got {}".format(self._vna_parameter,
-												  instrument_parameter))
+		# if instrument_parameter != self._vna_parameter:
+		# 	raise RuntimeError("Invalid parameter. Tried to measure "
+		# 					   "{} got {}".format(self._vna_parameter,
+		# 										  instrument_parameter))
+		self.write('SENS{}:AVER:STAT ON'.format(self._instrument_channel))
+		self.write('SENS{}:AVER:CLEAR'.format(self._instrument_channel))
 
 		try:
 
-			data_format_command = 'FDAT'
+			# if force polar is set, the SDAT data format will be used. Here
+			# the data will be transferred as a complex number independent of
+			# the set format in the instrument.
+			if force_polar:
+				data_format_command = 'SDAT'
+			else:
+				data_format_command = 'FDAT'
+			# instrument averages over its last 'avg' number of sweeps
+			# need to ensure averaged result is returned
+			# print('Success status 3')
+			# for avgcount in range(self.avg()):
+			#     print('What am I doing?')
+			#     print('self.avg()', avgcount, self.avg())
+			#     self.write('INIT{}:IMM; *WAI'.format(self._instrument_channel))
+
+			# while self.avgcount()<self.avg():
+			#     time.sleep(0.1)
+			#     print(self.avgcount())
+
+			# print('Do I reach here?')
+			self._parent.write(f"CALC{self._instrument_channel}:PAR:SEL '{self._tracename}'")
+			# print('Any error here? No')
+
+			# Fix for array shape mismatch issue fixed by QTLab run - Arpit
+			self._parent.write('form:Data real')
 
 			data = root_instr.visa_handle.query_binary_values('CALC{}:DATA:{}?'.format(self._instrument_channel,
 										 data_format_command),
 										 datatype='d', is_big_endian=False, container=np.array
 										 )
+
 
 		finally:
 
@@ -706,3 +803,6 @@ class MS46522B(VisaInstrument):
 
 		self.write(':DISPlay:COUNt 1')
 		self.channels.S21.write(':DISPlay:WINDow1:SPLit R1C1')
+
+
+	
