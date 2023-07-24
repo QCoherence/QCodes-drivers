@@ -1,3 +1,5 @@
+# Old driver marked for deprecation.
+
 import logging
 from functools import partial
 from typing import Optional
@@ -49,7 +51,8 @@ class FrequencySweepMagPhase(MultiParameter):
         self._instrument.format('Complex')
         data = self._instrument._get_sweep_data(force_polar=True)
         self._instrument.format(old_format)
-        return abs(data), np.angle(data)
+        # return abs(data), np.angle(data)
+        return 20.*np.log10(abs(data)), np.angle(data)
 
 
 class FrequencySweep(ArrayParameter):
