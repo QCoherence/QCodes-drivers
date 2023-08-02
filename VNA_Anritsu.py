@@ -447,7 +447,7 @@ class AnritsuChannel(InstrumentChannel):
 		channel = self._instrument_channel
 		self.write('SENS{}:FREQ:START {:.7f}'.format(channel, val))
 		stop = self.stop()
-		if val >= stop:
+		if val >= stop and self.cw_mode() == 'off':
 			raise ValueError(
 				"Stop frequency must be larger than start frequency.")
 		# we get start as the vna may not be able to set it to the exact value provided
@@ -460,7 +460,7 @@ class AnritsuChannel(InstrumentChannel):
 	def _set_stop(self, val):
 		channel = self._instrument_channel
 		start = self.start()
-		if val <= start:
+		if val <= start and self.cw_mode() == 'off':
 			raise ValueError(
 				"Stop frequency must be larger than start frequency.")
 		self.write('SENS{}:FREQ:STOP {:.7f}'.format(channel, val))
