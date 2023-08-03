@@ -40,7 +40,7 @@ class SGS100A(VisaInstrument):
 
 		self.add_parameter( name = 'power',  
 							label = 'Output power in dBm',
-							vals = vals.Numbers(-20,25),
+							vals = vals.Numbers(-120,25),
 							unit   = 'dBm',
 							set_cmd='power ' + '{:.12f}',
 							get_cmd='power?',
