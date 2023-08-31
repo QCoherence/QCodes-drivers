@@ -40,7 +40,7 @@ class SGS100A(VisaInstrument):
 
 		self.add_parameter( name = 'power',  
 							label = 'Output power in dBm',
-							vals = vals.Numbers(-20,25),
+							vals = vals.Numbers(-120,25),
 							unit   = 'dBm',
 							set_cmd='power ' + '{:.12f}',
 							get_cmd='power?',
@@ -73,6 +73,16 @@ class SGS100A(VisaInstrument):
 							unit   = 'NA',
 							set_cmd='IQ:state ' + '{}',
 							get_cmd='IQ:state?',
+							set_parser =self.easy_read_IQmode,
+							get_parser=self.easy_read_IQmode_read
+							)
+
+		self.add_parameter( name = 'IQmode_wideband',  
+							label = 'IQmode wideband option on/off',
+							vals = vals.Enum('on','off'),
+							unit   = 'NA',
+							set_cmd='IQ:WBSTate ' + '{}',
+							get_cmd='IQ:WBSTate?',
 							set_parser =self.easy_read_IQmode,
 							get_parser=self.easy_read_IQmode_read
 							)
