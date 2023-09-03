@@ -34,7 +34,7 @@ class FixedFrequencyTraceIQ(MultiParameter):
     """
 
     def __init__(
-        self, name: str, instrument: "VNAChannel", npts: int, bandwidth: int
+        self, name: str, instrument: "VNAChannel", npts: int, bandwidth: int, **kwargs
     ) -> None:
         super().__init__(
             name,
@@ -97,7 +97,7 @@ class FixedFrequencyPointIQ(MultiParameter):
         instrument: instrument the parameter belongs to
     """
 
-    def __init__(self, name: str, instrument: "VNAChannel") -> None:
+    def __init__(self, name: str, instrument: "VNAChannel", **kwargs) -> None:
         super().__init__(
             name,
             instrument=instrument,
@@ -125,7 +125,7 @@ class FixedFrequencyPointMagPhaseTrace(MultiParameter):
     the mean value of the trace.
     """
 
-    def __init__(self, name: str, instrument: "VNAChannel") -> None:
+    def __init__(self, name: str, instrument: "VNAChannel", **kwargs) -> None:
         super().__init__(
             name,
             instrument=instrument,
@@ -134,7 +134,7 @@ class FixedFrequencyPointMagPhaseTrace(MultiParameter):
                 f"{instrument.short_name} magnitude",
                 f"{instrument.short_name} phase",
             ),
-            units=("", "rad"),
+            units=("dBm", "rad"),
             setpoints=((), (),),
             shapes=((), (),),
         )
@@ -165,7 +165,7 @@ class FixedFrequencyPointMagPhase(MultiParameter):
         instrument: instrument the parameter belongs to
     """
 
-    def __init__(self, name: str, instrument: "VNAChannel") -> None:
+    def __init__(self, name: str, instrument: "VNAChannel", **kwargs) -> None:
         super().__init__(
             name,
             instrument=instrument,
@@ -179,7 +179,7 @@ class FixedFrequencyPointMagPhase(MultiParameter):
             shapes=((), (),),
         )
 
-    def get_raw(self,initiate=True) -> Tuple[float, ...]:
+    def get_raw(self) -> Tuple[float, ...]:
         """
         Gets the magnitude and phase of the mean of the raw real and imaginary
         part of the data. If the parameter `cw_check_sweep_first` is set to
@@ -187,7 +187,7 @@ class FixedFrequencyPointMagPhase(MultiParameter):
         checks if the vna is setup correctly.
         """
         assert isinstance(self.instrument, VNAChannel)
-        i, q = self.instrument._get_cw_data(initiate=initiate)
+        i, q = self.instrument._get_cw_data()
         s = np.mean(i) + 1j * np.mean(q)
         return np.abs(s), np.angle(s)
 
@@ -205,6 +205,7 @@ class FrequencySweepMagPhase(MultiParameter):
         stop: float,
         npts: int,
         channel: int,
+        **kwargs,
     ) -> None:
         super().__init__(
             name,
@@ -214,7 +215,7 @@ class FrequencySweepMagPhase(MultiParameter):
                 f"{instrument.short_name} magnitude",
                 f"{instrument.short_name} phase",
             ),
-            units=("", "rad"),
+            units=("dB", "rad"),
             setpoint_units=(("Hz",), ("Hz",)),
             setpoint_labels=(
                 (f"{instrument.short_name} frequency",),
@@ -235,60 +236,6 @@ class FrequencySweepMagPhase(MultiParameter):
         f = tuple(np.linspace(int(start), int(stop), num=npts))
         self.setpoints = ((f,), (f,))
         self.shapes = ((npts,), (npts,))
-        
-    def get_raw(self) -> Tuple[ParamRawDataType, ...]:
-        assert isinstance(self.instrument, VNAChannel)
-        """
-        CAREFULL I CHANGED Complex in dB
-        """
-        with self.instrument.format.set_to("dB"):
-            data = self.instrument._get_sweep_data(force_polar=True)
-        return abs(data), np.angle(data)
-
-
-class FrequencySweepMagPhaseAvg(MultiParameter):
-    """
-    Sweep that return magnitude and phase average.
-    """
-
-    def __init__(
-        self,
-        name: str,
-        instrument: "VNAChannel",
-        start: float,
-        stop: float,
-        npts: int,
-        channel: int,
-    ) -> None:
-        super().__init__(
-            name,
-            instrument=instrument,
-            names=("magnitude", "phase"),
-            labels=(
-                f"{instrument.short_name} magnitude",
-                f"{instrument.short_name} phase",
-            ),
-            units=("", "rad"),
-            setpoint_units=(("Hz",), ("Hz",)),
-            setpoint_labels=(
-                (f"{instrument.short_name} frequency",),
-                (f"{instrument.short_name} frequency",),
-            ),
-            setpoint_names=(
-                (f"{instrument.short_name}_frequency",),
-                (f"{instrument.short_name}_frequency",),
-            ),
-            shapes=((1,), (1,),),
-        )
-        self.set_sweep(start, stop, npts)
-        self._channel = channel
-
-    def set_sweep(self, start: float, stop: float, npts: int) -> None:
-        # Needed to update config of the software parameter on sweep change
-        # frequency setpoints tuple as needs to be hashable for look up.
-        f = tuple(np.linspace(int(start), int(stop), num=npts))
-        self.setpoints = ((f[0],), (f[0],))
-        self.shapes = ((), ())
 
     def get_raw(self) -> Tuple[ParamRawDataType, ...]:
         assert isinstance(self.instrument, VNAChannel)
@@ -297,7 +244,7 @@ class FrequencySweepMagPhaseAvg(MultiParameter):
         """
         with self.instrument.format.set_to("dB"):
             data = self.instrument._get_sweep_data(force_polar=True)
-        return abs(data), np.angle(data)
+        return 20*np.log10(abs(data)), np.unwrap(np.angle(data))
 
 
 class FrequencySweep(ArrayParameter):
@@ -323,6 +270,7 @@ class FrequencySweep(ArrayParameter):
         stop: float,
         npts: int,
         channel: int,
+        **kwargs,
     ) -> None:
         super().__init__(
             name,
@@ -545,16 +493,6 @@ class VNAChannel(InstrumentChannel):
             channel=n,
             parameter_class=FrequencySweepMagPhase,
         )
-
-        self.add_parameter(
-            name="trace_mag_phase_avg",
-            start=self.start(),
-            stop=self.stop(),
-            npts=self.npts(),
-            channel=n,
-            parameter_class=FrequencySweepMagPhaseAvg,
-        )
-
         self.add_parameter(
             name="trace",
             start=self.start(),
@@ -712,13 +650,6 @@ class VNAChannel(InstrumentChannel):
             "and zero delay",
         )
 
-        self.add_parameter(
-            name="port2_IF_freq",
-            unit="GHz",
-            get_cmd=f"SOUR{n}:FREQ2:CONV:ARB:IFR?",
-            set_cmd=self._set_port2_IF_freq
-        )
-
         self.add_function(
             "set_electrical_delay_auto", call_cmd=f"SENS{n}:CORR:EDEL:AUTO ONCE"
         )
@@ -739,32 +670,16 @@ class VNAChannel(InstrumentChannel):
             'average_clear', call_cmd=f'SENS{n}:AVER:CLE',
         )
 
-    def initialize_frequency_conversion(self,lmcorr : str,conversion_side : str) -> None:
-        n = self._instrument_channel
-        self.write(f"SENS{n}:FREQ:CONV ARB")
-        self.write(f"SENS{n}:FREQ:CONV:GAIN:LMC {lmcorr.upper()}")
-        self._conversion_side = conversion_side
-
     def initialize_two_tone_spectroscopy(self):
 
         self.sweep_type('CW_Point')
         self.trigger('External')
-
-        ###############################################################################################
         self.average_clear()
         self.trigger_link('Point')
         self.set_external_ref()
         # self.status('ON')
 
-    def initialize_two_tone_spectroscopy_no_trig(self):
-
-        self.sweep_type('CW_Point')
-        self.trigger('Immediate')
-        self.average_clear()
-        self.set_external_ref()
-
-
-    def initialize_one_tone_spectroscopy(self) -> None:
+    def initialize_one_tone_spectroscopy(self):
 
         # Linear sweep in frequency
         self.sweep_type('Linear')
@@ -772,33 +687,6 @@ class VNAChannel(InstrumentChannel):
         self.trigger('Immediate')
 
         self.set_external_ref()
-
-    def _set_port2_IF_freq(self,f_LO : float) -> None:
-
-        conversion_side = self._conversion_side
-        n = self._instrument_channel
-
-        sweep_type=self.sweep_type()
-
-        if sweep_type == 'CW_point' or sweep_type == 'CW_time':
-            SweepType='CW'
-        elif sweep_type == 'Linear':
-            SweepType='SWE'
-        else:
-            raise ValueError("Selected sweep type not implemented yet for"
-                             "conversion measurement. Select Linear of CW")
-
-        if conversion_side.lower() == 'down':
-            self.write(f"SOUR{n}:FREQ2:CONV:ARB:IFR 1, 1, -{f_LO:.7f}E+9, {SweepType}")
-
-        elif conversion_side.lower() =='up':
-            self.write(f"SOUR{n}:FREQ2:CONV:ARB:IFR 1 ,1, {f_LO:.7f}E+9, {SweepType}")
-
-        else :
-            raise ValueError("Invalid conversion side")
-
-
-
 
     def _get_format(self, tracename: str) -> str:
         n = self._instrument_channel
@@ -1092,7 +980,6 @@ class VNAChannel(InstrumentChannel):
         with self.status.set_to(1):
             timeout = self.sweep_time.cache.get() + self._additional_wait
             with self.root_instrument.timeout.set_to(timeout):
-                self.write(f":INIT{self._instrument_channel}:CONT OFF")
                 if initiate:
                     self.write(f"INIT{self._instrument_channel}:IMM; *WAI")
 
@@ -1106,7 +993,7 @@ class VNAChannel(InstrumentChannel):
         return i, q
 
 
-class VNA(VisaInstrument):
+class ZNB(VisaInstrument):
     """
     QCoDeS driver for the Rohde & Schwarz ZNB8 and ZNB20 and ZNL14
     virtual network analyser. It can probably be extended to ZNB4 and 40
