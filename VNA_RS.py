@@ -749,6 +749,8 @@ class VNAChannel(InstrumentChannel):
 
         self.sweep_type('CW_Point')
         self.trigger('External')
+
+        ###############################################################################################
         self.average_clear()
         self.trigger_link('Point')
         self.set_external_ref()

@@ -1,28 +1,41 @@
-# Last updated on 28 Oct 2020
-#                     -- Arpit
+# Last updated on 05 Jan 2021
+#                     -- Dorian
 
 
 import qcodes as qc
 from qcodes import (Instrument, VisaInstrument,
-					ManualParameter, MultiParameter,
+					ManualParameter, MultiParameter, Parameter,
 					validators as vals)
 from qcodes.instrument.channel import InstrumentChannel
 import logging
 
 from numpy import pi
+import numpy as np
 
 log = logging.getLogger(__name__)
 
 
 
 
+class FreqSweep(Parameter):
+
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+
+	def get_raw(self):
+
+		start=self._instrument.freq_start.get()
+		stop=self._instrument.freq_stop.get()
+		step=self._instrument.freq_step.get()
+
+		return np.arange(start,stop+step,step)
 
 
-class SMB100A(VisaInstrument): 
+class SMB100A(VisaInstrument):
 	"""
 	QCoDeS driver for the Rohde and Schwarz SMB 100A MW source
 	"""
-	
+
 	# all instrument constructors should accept **kwargs and pass them on to
 	# super().__init__
 
@@ -30,7 +43,7 @@ class SMB100A(VisaInstrument):
 		# supplying the terminator means you don't need to remove it from every response
 		super().__init__(name, address, terminator='\n', **kwargs)
 
-		self.add_parameter( name = 'frequency',  
+		self.add_parameter( name = 'frequency',
 							label = 'Output frequency in Hz',
 							vals = vals.Numbers(100e3,20e9),
 							unit   = 'Hz',
@@ -38,16 +51,17 @@ class SMB100A(VisaInstrument):
 							get_cmd='frequency?'
 							)
 
-		self.add_parameter( name = 'power',  
+		self.add_parameter( name = 'power',
 							label = 'Output power in dBm',
 							vals = vals.Numbers(-120,30),
 							unit   = 'dBm',
 							set_cmd='power ' + '{:.12f}',
 							get_cmd='power?',
+							get_parser=float,
 							set_parser =self.warn_over_range
 							)
 
-		self.add_parameter( name = 'phase',  
+		self.add_parameter( name = 'phase',
 							label = 'Output phase in Rad',
 							vals = vals.Numbers(-2*pi,2*pi),
 							unit   = 'Rad',
@@ -57,7 +71,7 @@ class SMB100A(VisaInstrument):
 							get_parser=self.deg_to_rad
 							)
 
-		self.add_parameter( name = 'status',  
+		self.add_parameter( name = 'status',
 							label = 'Output on/off',
 							vals = vals.Enum('on','off'),
 							unit   = 'NA',
@@ -67,47 +81,52 @@ class SMB100A(VisaInstrument):
 							get_parser=self.easy_read_status_read
 							)
 
-		self.add_parameter( name = 'freq_start',  
+		self.add_parameter( name = 'freq_start',
 							label = 'Sweep: start frequency in Hz',
 							vals = vals.Numbers(100e3,20e9),
 							unit   = 'Hz',
 							set_cmd='FREQ:START ' + '{:.12f}' + 'Hz',
-							get_cmd='FREQ:START?'
+							get_cmd='FREQ:START?',
+							get_parser=float
 							)
 
-		self.add_parameter( name = 'freq_stop',  
+		self.add_parameter( name = 'freq_stop',
 							label = 'Sweep: stop frequency in Hz',
 							vals = vals.Numbers(100e3,20e9),
 							unit   = 'Hz',
 							set_cmd='FREQ:STOP ' + '{:.12f}' + 'Hz',
-							get_cmd='FREQ:STOP?'
+							get_cmd='FREQ:STOP?',
+							get_parser=float
 							)
 
-		self.add_parameter( name = 'freq_step',  
+		self.add_parameter( name = 'freq_step',
 							label = 'Sweep: frequency step',
-							vals = vals.Numbers(100e3,20e9),
+							vals = vals.Numbers(0.,20e9),
 							unit   = 'Hz',
 							set_cmd='SWE:STEP ' + '{:.12f}' + 'Hz',
-							get_cmd='SWE:STEP?'
+							get_cmd='SWE:STEP?',
+							get_parser=float
 							)
 
-		self.add_parameter( name = 'freq_points',  
+		self.add_parameter( name = 'freq_points',
 							label = 'Sweep: frequency points',
 							vals = vals.Numbers(2,20e9),
 							unit   = 'Hz',
 							set_cmd='SWE:POIN ' + '{:.12f}',
-							get_cmd='SWE:POIN?'
+							get_cmd='SWE:POIN?',
+							get_parser=float
 							)
 
-		self.add_parameter( name = 'dwell_time',  
+		self.add_parameter( name = 'dwell_time',
 							label = 'Sweep: dwell time',
 							vals = vals.Numbers(5e-3,1000),
 							unit   = 's',
 							set_cmd='SWE:DWEL ' + '{:.12f}' + 's',
-							get_cmd='SWE:DWEL?'
+							get_cmd='SWE:DWEL?',
+							get_parser=float
 							)
 
-		self.add_parameter( name = 'sourcemode',  
+		self.add_parameter( name = 'sourcemode',
 							label = 'Set source mode',
 							vals = vals.Enum('CW','sweep'),
 							set_cmd='SOURce:FREQuency:MODE '+ '{}',
@@ -116,17 +135,38 @@ class SMB100A(VisaInstrument):
 							get_parser=self.freqsweep_get
 							)
 
-		self.add_parameter( name = 'sweepmode',  
-							label = 'Set frequency sweep mode',
-							vals = vals.Enum('auto','single'),
+		self.add_parameter( name = 'trigger_mode',
+							label = 'Set trigger mode',
+							vals = vals.Enum('auto','SING', 'EXT'),
 							set_cmd='TRIG:FSW:SOUR '+ '{}',
 							get_cmd='TRIG:FSW:SOUR?',
+							set_parser =self.trigger_mode_set,
+							get_parser=self.trigger_mode_get
+							)
+
+		self.add_parameter( name = 'sweepmode',
+							label = 'Set frequency sweep mode',
+							vals = vals.Enum('AUTO','STEP'),
+							set_cmd='SOUR:SWE:FREQ:MODE '+ '{}',
+							get_cmd='SOUR:SWE:FREQ:MODE?',
 							set_parser =self.sweepmode_set,
 							get_parser=self.sweepmode_get
 							)
 
+		self.add_parameter( name = 'spacing_freq',
+							label='Set spacing mode of frequency sweep',
+							vals=vals.Enum('LIN','LOG'),
+							set_cmd='SWE:SPAC {}',
+							get_cmd='SWE:SPAC?'
+							)
+
+		self.add_parameter( name='freq_vec',
+							label='Parameter to get the vector of frequencies used for the sweep',
+							parameter_class=FreqSweep
+						    )
+
 		# good idea to call connect_message at the end of your constructor.
-		# this calls the 'IDN' parameter that the base Instrument class creates 
+		# this calls the 'IDN' parameter that the base Instrument class creates
 		# for every instrument  which serves two purposes:
 		# 1) verifies that you are connected to the instrument
 		# 2) gets the ID info so it will be included with metadata snapshots later.
@@ -176,15 +216,58 @@ class SMB100A(VisaInstrument):
 		if sweepmode == 'auto':
 			ret = 'AUTO'
 		else:
-			ret = 'SING'
+			ret = 'STEP'
 		return ret
 
 	def sweepmode_get(self,sweepmode):
 		if sweepmode == 'AUTO':
-			ret = 'auto'
+			ret = 'AUTO'
 		else:
-			ret = 'single'
+			ret = 'STEP'
+		return ret
+
+	def trigger_mode_set(self,sweepmode):
+		if sweepmode == 'AUTO':
+			ret = 'AUTO'
+		elif sweepmode == 'SING':
+			ret = 'SING'
+		else:
+			ret = 'EXT'
+		return ret
+
+	def trigger_mode_get(self,sweepmode):
+		if sweepmode == 'AUTO':
+			ret = 'AUTO'
+		elif sweepmode == 'SING':
+			ret = 'SING'
+		else:
+			ret = 'EXT'
 		return ret
 
 	def start_sweep(self):
 		self.write('*TRG')
+
+	def restartsweep(self):
+		'''
+		Restart the frequency sweep.
+
+		Input:
+		    None
+		Output:
+		    None
+		'''
+		self.write('SOUR:SWE:RES')
+
+	def set_gui_update(self, update='ON'):
+		'''
+		The command switches the update of the display on/off.
+		A switchover from remote control to manual control always sets
+		the status of the update of the display to ON.
+
+		Input:
+		    status (string): 'on' or 'off'
+		Output:
+		    None
+		'''
+
+		self.write('SYST:DISP:UPD %s' % update)
