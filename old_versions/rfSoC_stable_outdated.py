@@ -35,7 +35,7 @@ import functools
 import operator
 from itertools import chain
 
-sys.path.append('C:\\QCodes drivers and scripts\\Scripts\\Arpit\\Modules')
+sys.path.append('C:\\Experiment\\Drivers')
 from progress_barV2 import bar
 
 import logging
@@ -53,7 +53,7 @@ class GeneratedSetPoints(Parameter):
 	def __init__(self, startparam, stopparam, numpointsparam, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self._startparam = startparam
-		self._stopparam = stopparam 
+		self._stopparam = stopparam
 		self._numpointsparam = numpointsparam
 
 	def get_raw(self):
@@ -143,7 +143,7 @@ class IQINT_ALL_read_header(Parameter):
 		return data_retI, data_retQ
 
 
-class IQINT_AVG(Parameter): 
+class IQINT_AVG(Parameter):
 
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -172,9 +172,9 @@ class IQINT_AVG(Parameter):
 						Sq_Q[i] = np.append(Sq_Q[i],np.mean(data_retQ[i][j]))
 						Sq_I_list[i].append(np.mean(data_retI[i][j]))
 						Sq_Q_list[i].append(np.mean(data_retQ[i][j]))
-								
+
 		for i in range(8):
-			
+
 			Sq_I[i] = np.array(Sq_I_list[i])
 			Sq_Q[i] = np.array(Sq_Q_list[i])
 
@@ -206,9 +206,9 @@ class ADC_power(Parameter):
 
 						Sq_I_list[i].append(np.mean(data_retI[i][j]**2))
 						Sq_Q_list[i].append(np.mean(data_retQ[i][j]**2))
-								
+
 		for i in range(8):
-			
+
 			Pow[i] = (np.array(Sq_I_list[i]) + np.array(Sq_Q_list[i]))/(50*2)	# RMS power
 
 		return Pow
@@ -239,9 +239,9 @@ class ADC_power_dBm(Parameter):
 
 						Sq_I_list[i].append(np.mean(data_retI[i][j]**2))
 						Sq_Q_list[i].append(np.mean(data_retQ[i][j]**2))
-								
+
 		for i in range(8):
-			
+
 			Pow[i] = 10*np.log10(1e3*(np.array(Sq_I_list[i]) + np.array(Sq_Q_list[i]))/(50*2))		# RMS power
 
 		return Pow
@@ -523,7 +523,7 @@ class RFSoC(VisaInstrument):
 						   snapshot_value = False)
 
 
-	
+
 
 	def process_sequencing(self):
 
@@ -553,7 +553,7 @@ class RFSoC(VisaInstrument):
 
 						pulses_raw_df.loc[index,'start'] = pulses_raw_df.loc[index,'start'] +  pulses_raw_df.loc[row['parent']]['start'] + pulses_raw_df.loc[row['parent']]['length']
 						pulses_raw_df.loc[index,'parent'] = None
-			
+
 			resolve_hierarchy = False
 			for val in pulses_raw_df['parent']:
 				if val != None:
@@ -577,9 +577,9 @@ class RFSoC(VisaInstrument):
 
 		tmp_df = pulses_raw_df.loc[pulses_raw_df['module'] == 'ADC']
 		for index, row in tmp_df.iterrows():
-			
+
 			if row['start'] > time_ADC[int(row['channel'])-1]:
-				
+
 				label = 'wait' + str(wait_color_count-int("D3D3D3", 16)+1)
 				start = time_ADC[int(row['channel'])-1]
 				stop = row['start']
@@ -592,9 +592,9 @@ class RFSoC(VisaInstrument):
 				color_dict[str(color)] = '#{0:06X}'.format(color)
 				param = row['param']
 				ch_num = row['channel']
-				
+
 				pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
-			
+
 			label = index
 			start = row['start']
 			stop = row['start'] + row['length']
@@ -612,18 +612,18 @@ class RFSoC(VisaInstrument):
 
 			length_vec[int(row['channel'])-1].append(int(time*1e-6*self.sampling_rate))
 			ch_vec.append(int(row['channel'])-1)
-			
+
 			time_ADC[int(row['channel'])-1] = stop
-			
+
 			if stop>termination_time:
-				
+
 				termination_time = stop
-			
+
 		tmp_df = pulses_raw_df.loc[pulses_raw_df['module'] == 'DAC']
 		for index, row in tmp_df.iterrows():
-			
+
 			if row['start'] > time_DAC[int(row['channel'])-1]:
-				
+
 				label = 'wait' + str(wait_color_count-int("D3D3D3", 16)+1)
 				start = time_DAC[int(row['channel'])-1]
 				stop = row['start']
@@ -636,9 +636,9 @@ class RFSoC(VisaInstrument):
 				color_dict[str(color)] = '#{0:06X}'.format(color)
 				param = row['param']
 				ch_num = row['channel']
-				
+
 				pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
-			
+
 			label = index
 			start = row['start']
 			stop = row['start'] + row['length']
@@ -653,17 +653,17 @@ class RFSoC(VisaInstrument):
 			ch_num = row['channel']
 
 			pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
-			
+
 			time_DAC[int(row['channel'])-1] = stop
-			
+
 			if stop>termination_time:
-				
+
 				termination_time = stop
-	
+
 		for ch in range(1,9):
-			
+
 			if termination_time>time_ADC[ch-1] and time_ADC[ch-1]>0:
-				
+
 				label = 'wait' + str(wait_color_count-int("D3D3D3", 16)+1)
 				start = time_ADC[ch-1]
 				stop = termination_time
@@ -676,13 +676,13 @@ class RFSoC(VisaInstrument):
 				color_dict[str(color)] = '#{0:06X}'.format(color)
 				param = row['param']
 				ch_num = ch
-				
+
 				pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
-				
+
 		for ch in range(1,9):
-			
+
 			if termination_time>time_DAC[ch-1] and time_DAC[ch-1]>0:
-				
+
 				label = 'wait' + str(wait_color_count-int("D3D3D3", 16)+1)
 				start = time_DAC[ch-1]
 				stop = termination_time
@@ -695,17 +695,16 @@ class RFSoC(VisaInstrument):
 				color_dict[str(color)] = '#{0:06X}'.format(color)
 				param = row['param']
 				ch_num = ch
-				
+
 				pulses_df = pulses_df.append(dict(label=label, start=start, stop=stop, time=time, module=module , Channel=Channel, mode=mode, color=str(color), param=param, ch_num=ch_num), ignore_index=True)
 
 		if self.display_sequence:
-
 			fig = px.bar(pulses_df, x="time", y="Channel", color='color', orientation='h', text="label",
 						 color_discrete_map=color_dict,
 						 hover_data=["start","stop"],
 						 height=300,
 						 title='pulse sequence')
-			fig.update_layout(showlegend=False) 
+			fig.update_layout(showlegend=False)
 			fig.show()
 
 		self.length_vec = length_vec
@@ -736,10 +735,10 @@ class RFSoC(VisaInstrument):
 
 
 		for event_time in event_time_list:
-			
+
 			# adding wait till this event
 			if event_time>0:
-				
+
 				global_sequence = np.append(global_sequence,1)
 				global_sequence = np.append(global_sequence,int((event_time-event_time_prev)*250)-1)
 				n_clock_cycles_global = n_clock_cycles_global + int((event_time-event_time_prev)*250)
@@ -748,15 +747,15 @@ class RFSoC(VisaInstrument):
 
 					print('adding wait till this event')
 					print(1,int((event_time-event_time_prev)*250)-1)
-				
+
 			n_clock_cycles = 0
 			event_time_prev = event_time
 			tmp_df = pulses_df.loc[pulses_df['start'] == event_time]
 			tmp_df = tmp_df.sort_values(by='module', ascending=False)
-			
-			
+
+
 			for index, row in tmp_df.iterrows():
-				
+
 				if self.debug_mode:
 
 					print(event_time,row['mode'], row['label'])
@@ -764,19 +763,19 @@ class RFSoC(VisaInstrument):
 				ch_num = int(row['ch_num'])
 
 				if row['module'] == 'DAC':
-						
+
 					if row['mode'] != 'wait':
-						
+
 						# generate sequence and add to corresponding channel
 						SCPI_command = self.pulse_gen_SCPI(row['mode'],row['param'],row['time'],ch_num)
-						
+
 						# adding pointer for this pulse
 						pulse_addr = int(len(DAC_pulses_array[ch_num-1])/11)
 						DAC_pulses_pointer[ch_num-1].append(pulse_addr)
-						
+
 						# adding pulse to waveform
 						DAC_pulses_array[ch_num-1] = np.append(DAC_pulses_array[ch_num-1],SCPI_command)
-						
+
 						# adding sequencer command to point to address of this pulse
 						n_clock_cycles += 1
 						global_sequence = np.append(global_sequence,4096+ch_num)
@@ -786,7 +785,7 @@ class RFSoC(VisaInstrument):
 
 							print('adding sequencer command to point to address of this pulse')
 							print(4096+ch_num,pulse_addr)
-						
+
 						# adding sequencer command to start output
 						n_clock_cycles += 1
 						bin_trig_cmd = ''.join(ADC_state.astype(str))
@@ -802,9 +801,9 @@ class RFSoC(VisaInstrument):
 
 							print('adding sequencer command to start output')
 							print(4096,int(bin_trig_cmd,2))
-						
+
 					elif row['mode'] == 'wait':
-						
+
 						# adding sequencer command to stop output
 						n_clock_cycles += 1
 						bin_trig_cmd = ''.join(ADC_state.astype(str))
@@ -820,15 +819,15 @@ class RFSoC(VisaInstrument):
 
 							print('adding sequencer command to stop output')
 							print(4096,int(bin_trig_cmd,2))
-						
+
 					else:
-						
+
 						log.error('Wrong pulse mode: ',event_time,row['mode'], row['label'])
-						
+
 				if row['module'] == 'ADC':
-					
+
 					if row['mode'] != 'wait':
-						
+
 						# adding sequencer command to set acq points
 						n_clock_cycles += 1
 						global_sequence = np.append(global_sequence,4106+ch_num)
@@ -838,7 +837,7 @@ class RFSoC(VisaInstrument):
 
 							print('adding sequencer command to set acq points')
 							print(4106+ch_num,int(row['time']*1e-6*self.sampling_rate))
-						
+
 						# adding sequencer command to start acq
 						n_clock_cycles += 1
 						ADC_state[7-(ch_num-1)] = 1
@@ -851,9 +850,9 @@ class RFSoC(VisaInstrument):
 
 							print('adding sequencer command to start acq')
 							print(4096,int(bin_trig_cmd,2))
-						
+
 					elif row['mode'] == 'wait':
-						
+
 						# adding sequencer command to stop acq
 						n_clock_cycles += 1
 						ADC_state[7-(ch_num-1)] = 0
@@ -865,13 +864,13 @@ class RFSoC(VisaInstrument):
 
 							print('adding sequencer command to stop acq')
 							print(4096,int(bin_trig_cmd,2))
-						
+
 					else:
-						
+
 						log.error('Wrong pulse mode: ',event_time,row['mode'], row['label'])
-						
+
 			n_clock_cycles_global += n_clock_cycles
-				
+
 		#terminate the sequence
 		global_sequence = np.append(global_sequence,1)
 		global_sequence = np.append(global_sequence,int((termination_time-event_time_prev)*250)-1)
@@ -886,9 +885,9 @@ class RFSoC(VisaInstrument):
 			acq_mode = 286331153
 		else:
 			log.error('Invalid acquisition mode\n')
-			
+
 		period_sync = int(self.FPGA_clock/self.freq_sync())
-		wait_sync = period_sync-(n_clock_cycles_global%period_sync)-1 -3 #(2 clock cycles for jump)
+		wait_sync = period_sync-(n_clock_cycles_global%period_sync)-1 -2 #(2 clock cycles for jump)
 
 		global_sequence_str = 'SEQ 0,1,9,4106,' + str(acq_mode) + ',257,' + str(int(n_rep-1)) + ',' + ','.join((global_sequence.astype(int)).astype(str)) + ',1,' + str(wait_sync) + ',513,0,0,0'
 
@@ -926,21 +925,21 @@ class RFSoC(VisaInstrument):
 		self.write(global_sequence_str)
 
 		log.info('Waveform and sequence processing complete' + '\n')
-	
+
 
 
 	def pulse_gen_SCPI(self,mode,param,duration,ch):
-	
+
 		period = 1./self.sampling_rate
 		time_vec = np.arange(period,duration*1e-6+period/2,period)
-		
+
 		if mode == 'sin+sin':
-			
+
 			wavepoints1 = (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp1']*np.sin(-param['phase_offset1'] + 2*np.pi*param['freq1']*1e6*time_vec)
 			wavepoints2 = (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp2']*np.sin(-param['phase_offset2'] + 2*np.pi*param['freq2']*1e6*time_vec)
-			
+
 			wavepoints = (2**13)*self.DAC_amplitude_calib[ch-1]*param['dc_offset'] + wavepoints1 + wavepoints2
-			
+
 			if self.debug_mode and self.debug_mode_plot_waveforms:
 				print('plot of sinsin mode 1')
 				fig = plt.figure(figsize=(8,5))
@@ -957,13 +956,13 @@ class RFSoC(VisaInstrument):
 				plt.plot(time_vec,wavepoints)
 				plt.grid()
 				plt.show()
-				
-				
-			
+
+
+
 		elif mode == 'sin':
-			
+
 			wavepoints = (2**13)*self.DAC_amplitude_calib[ch-1]*param['dc_offset'] + (2**13)*self.DAC_amplitude_calib[ch-1]*param['amp']*np.sin(-param['phase_offset'] + 2*np.pi*param['freq']*1e6*time_vec)
-			
+
 			if self.debug_mode and self.debug_mode_plot_waveforms:
 				print('plot of sin mode')
 				fig = plt.figure(figsize=(8,5))
@@ -971,15 +970,33 @@ class RFSoC(VisaInstrument):
 				plt.grid()
 				plt.legend(fontsize = 14)
 				plt.show()
-			
-			
-			
+
+		elif mode == 'trigger':
+
+			wavepoints = np.zeros_like(time_vec) # only zeros
+
+			# adding zeros to make length multiple of 8
+			wavepoints = np.append(wavepoints,np.zeros(len(time_vec)%8))
+
+			trig_rep_len = int(len(wavepoints)/8)
+			# adding trigger vectors
+			wavepoints = np.concatenate((wavepoints.reshape(trig_rep_len,8), np.array(np.ones(trig_rep_len))[:,None]),axis=1) # marker 1 in UP position
+			wavepoints = np.concatenate((wavepoints, np.array(np.zeros(trig_rep_len))[:,None]),axis=1)
+
+			# adding repetation (0 for once)
+			wavepoints = np.concatenate((wavepoints, np.array(np.zeros(trig_rep_len))[:,None]),axis=1)
+
+			# convert to 1D array
+			wavepoints = wavepoints.reshape(1,len(wavepoints)*len(wavepoints[0]))
+
+			return wavepoints[0]
+
 		else:
-			
+
 			log.error('Wrong waveform mode: ',mode)
-		
-		
-		
+
+
+
 		# adding zeros to make length multiple of 8
 		wavepoints = np.append(wavepoints,np.zeros(len(time_vec)%8))
 
@@ -991,9 +1008,9 @@ class RFSoC(VisaInstrument):
 		# adding repetation (0 for once)
 		wavepoints = np.concatenate((wavepoints, np.array(np.zeros(trig_rep_len))[:,None]),axis=1)
 
-		# convert to 1D array 
+		# convert to 1D array
 		wavepoints = wavepoints.reshape(1,len(wavepoints)*len(wavepoints[0]))
-		
+
 		return wavepoints[0]
 
 
@@ -1028,7 +1045,7 @@ class RFSoC(VisaInstrument):
 		n_pulses = len(length_vec[0])
 
 		ch_active = self.ADC_ch_active
-		
+
 		if mode == 'IQ':
 			'''
 				Get data
@@ -1108,7 +1125,7 @@ class RFSoC(VisaInstrument):
 					if empty_packet_count>20:
 
 						log.error('Data curruption: rfSoC did not send all data points({}/'.format(count_meas//(16*N_adc_events))+str(self.n_rep.get())+').')
-						
+
 						# reset measurement
 						data_unsorted = {}
 						count_meas = 0
@@ -1170,10 +1187,10 @@ class RFSoC(VisaInstrument):
 			# extract channel number from first byte of header
 			ch_num = (raw_IQ_data_dump_header%256).T[0]
 
-			# extract number of accumulated points for normalization from 3rd to 6th byte of header 
+			# extract number of accumulated points for normalization from 3rd to 6th byte of header
 			num_points = np.frombuffer(np.stack((raw_IQ_data_dump_header.T[1], raw_IQ_data_dump_header.T[2]), axis=1).astype('int16').tobytes(), dtype=np.long)
 
-			# vectors indicating channel that the data originated from 
+			# vectors indicating channel that the data originated from
 			ch_1 = ch_num*(ch_num == np.ones(len(ch_num)))
 			ch_2 = ch_num*(ch_num == 2*np.ones(len(ch_num)))/2
 			ch_3 = ch_num*(ch_num == 3*np.ones(len(ch_num)))/3
@@ -1371,13 +1388,6 @@ class RFSoC(VisaInstrument):
 
 					log.error('Data curruption: rfSoC did not send all data points({}/'.format(points_rec)+str(points_expected)+').')
 
-					# adcdataI=[np.mean(adcdataI[v],axis=0) for v in range(8)]
-
-					# adcdataI=np.array([np.split(adcdataI[v],[sum(length_vec[v][0:i+1]) for i in range(len(length_vec[v]))]) for v in range(8)])
-
-					I,Q = adcdataI,adcdataQ
-					print(I,Q)
-
 		else:
 
 			log.error('rfSoC: Instrument mode not recognized.')
@@ -1400,7 +1410,7 @@ class RFSoC(VisaInstrument):
 		location = self.raw_dump_location
 
 		ch_active = self.ADC_ch_active
-		
+
 		if mode == 'IQ':
 			'''
 				Get data
@@ -1478,7 +1488,7 @@ class RFSoC(VisaInstrument):
 					if empty_packet_count>20:
 
 						log.error('Data curruption: rfSoC did not send all data points({}/'.format(count_meas//(16*N_adc_events))+str(self.n_rep.get())+').')
-						
+
 						# reset measurement
 						count_meas = 0
 						empty_packet_count = 0
