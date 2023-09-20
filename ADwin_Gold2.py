@@ -557,6 +557,9 @@ class ADwin_Gold2(Instrument):
         output['model'] = 'ADwin_GOLD2'
         output['test_version'] = self.Test_Version()
         return output 
+
+    def Test_Version(self):
+        return 'bybass'
         
 
 
