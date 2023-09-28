@@ -174,6 +174,6 @@ class iMACRT_MGC3(Instrument):
 
 
 
-	def _get_idn(self):
+	def get_idn(self):
 		return {'vendor': 'iMACRT', 'model': 'MGD3',
 				'serial': None, 'firmware': None}
