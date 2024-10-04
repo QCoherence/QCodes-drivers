@@ -11,6 +11,8 @@ import tqdm.notebook as tqdm
 import ADwin 
 import time 
 
+FIFO_SZ = 1000000
+
 # class ADwinRamp(ParameterWithSetpoints):
 #     def __init__(self, npts)
 #     def get_raw(self):
@@ -41,6 +43,8 @@ class ADwin_ramp(MultiParameter):
             setpoint_names = tuple((f"input_{e+1}_points",) for e in input_number), 
 
         )
+
+        self.period = period
         self.half_period= 0.5*period
         self.n_pts = n_pts
         self.N_ramp = N_ramp
@@ -50,8 +54,8 @@ class ADwin_ramp(MultiParameter):
 
     def generate_outs_targets(self):
         output_number = len(self.instrument.get_output_number())
-        max_adwin_ramp_time = 2**16*5e-6 #0.3 seconds
-        
+        #max_adwin_ramp_time = 2**16*self.instrument.process_duration # What ? Change this 
+        max_adwin_ramp_time = FIFO_SZ * self.instrument.process_duration
         outs_array = []
         for i in range(output_number):
             out = []
@@ -59,7 +63,7 @@ class ADwin_ramp(MultiParameter):
                 
                 if self.half_period < max_adwin_ramp_time:
                     # self.instrument.ramp_size(self.n_pts//2)
-                    self.instrument.ramp_size(int(self.half_period/5e-6) )
+                    self.instrument.ramp_size(int(self.period/self.instrument.process_duration) )
                     self.instrument.subsampling(2*int(self.instrument.ramp_size()/self.n_pts))
                     out.append(np.array([self.Vs_high[i]]))
                     out.append(np.array([self.Vs_low[i]]))
@@ -89,7 +93,7 @@ class ADwin_ramp(MultiParameter):
 
         # Go to the lower value before starting
         self.instrument.outputs(np.array(self.Vs_low))
-        self.instrument.launch_measurement()
+        self.instrument.set_outputs_one_cycle()
         _ = self.instrument.inputs.get()
         #Wait for 0.1 sec before starting the loops
         time.sleep(0.1)
@@ -117,11 +121,11 @@ class ADwin_averagedRamp(MultiParameter):
     def __init__(self, 
         name : str, 
         instrument, 
-        period: float,
-        n_pts:int,  
-        N_ramp: int, 
-        Vs_high: np.ndarray, 
-        Vs_low: np.ndarray,
+        period: float, # Period in seconds
+        n_pts:int,     # Number of points measured in one period (up ramp and down ramp)
+        N_ramp: int,   # Number of ramps
+        Vs_high: np.ndarray,  # "High values" of the ramps in volts these can be negative if you want to do the down ramp before the up ramp
+        Vs_low: np.ndarray,   # "Low values" of the ramps in volts
         progress: bool = False,
         **kwargs) -> None:
 
@@ -138,6 +142,7 @@ class ADwin_averagedRamp(MultiParameter):
             setpoint_names = tuple((f"input_{e+1}_{'down' if i%2 else 'up'}_points",) for i, e in enumerate(doubled_input_number_list)), 
 
         )
+        self.period = period
         self.half_period= 0.5*period
         self.n_pts = n_pts
         self.N_ramp = N_ramp
@@ -147,28 +152,31 @@ class ADwin_averagedRamp(MultiParameter):
 
     def generate_outs_targets(self):
         output_number = len(self.instrument.get_output_number())
-        max_adwin_ramp_time = 2**16*5e-6 #0.3 seconds
-        
+        #max_adwin_ramp_time = 2**16*self.instrument.process_duration #
+        #max_adwin_ramp_time = FIFO_SZ * self.instrument.process_duration ## This is not the good metric, TODO: change that to use the number of pts < FIFO_SZ
+        max_adwin_nb_pts = FIFO_SZ # Since FIFO_SZ is smaller than the long format (32 bits)
         outs_array = []
         for i in range(output_number):
             out = []
             for n in range(self.N_ramp):
                 
-                if self.half_period < max_adwin_ramp_time:
+                #if self.half_period < max_adwin_ramp_time:
+                if self.n_pts <= max_adwin_nb_pts:
                     # self.instrument.ramp_size(self.n_pts//2)
-                    self.instrument.ramp_size(int(self.half_period/5e-6) )
-                    self.instrument.subsampling(2*int(self.instrument.ramp_size()/self.n_pts))
+                    self.instrument.ramp_size(int(round(self.period/self.instrument.process_duration) ))
+                    self.instrument.subsampling(2*int(round(self.instrument.ramp_size()/self.n_pts)))
                     out.append(np.array([self.Vs_high[i]]))
                     out.append(np.array([self.Vs_low[i]]))
-                    
+                                        
                 else :
-                    subdivision = self.half_period//max_adwin_ramp_time
+                    ## This is sketchy it needs to be clarified TODO: double check the splitting of the ramps
+                    subdivision = self.n_pts//max_adwin_nb_pts
                     out.append(np.linspace(self.Vs_low[i], self.Vs_high[i],
                                             num=int(subdivision)+2)[1:])
                     out.append(np.linspace(self.Vs_high[i], self.Vs_low[i],
                                             num=int(subdivision)+2)[1:])
 
-                    self.instrument.ramp_size(int(self.half_period/(subdivision+1)/5e-6) )
+                    self.instrument.ramp_size(int(self.period/self.instrument.process_duration) )
                     self.instrument.subsampling(2*int(((subdivision+1)*self.instrument.ramp_size())/self.n_pts))
             outs_array.append(np.concatenate(out))
         
@@ -184,14 +192,19 @@ class ADwin_averagedRamp(MultiParameter):
 
         # Go to the lower value before starting
         self.instrument.outputs(np.array(self.Vs_low))
-        self.instrument.launch_measurement()
-        _ = self.instrument.inputs.get()
-        #Wait for 0.1 sec before starting the loops
-        time.sleep(0.1)
-
+        self.instrument.set_outputs_one_cycle()
+        #_ = self.instrument.inputs.get()
+        self.instrument.clear_fifos()
+        # #Wait for 0.1 sec before starting the loops
+        #time.sleep(0.1)
+        expected_size = self.instrument.ramp_size() // self.instrument.subsampling()
         for i in loop_range:
             self.instrument.outputs(outs_array[:,i])
             self.instrument.launch_measurement()
+
+            while self.instrument.device.Fifo_Full(2) < expected_size:
+                time.sleep(10*self.instrument.process_duration)
+
             meas = self.instrument.inputs.get()
             
             meas = np.transpose(np.reshape(meas, (meas.shape[0]//input_number, input_number)))
@@ -350,7 +363,7 @@ class ADwin_Gold2(Instrument):
         
         self.add_parameter( name = 'ramp_size',  
                             label = 'Size for all the ramps of the ADwin',
-                            vals = vals.Numbers(0, 2**16),
+                            vals = vals.Numbers(0, FIFO_SZ),
                             unit   = 'pts',
                             set_cmd=self.set_ramp_size,
                             get_cmd=self.get_ramp_size
@@ -403,6 +416,25 @@ class ADwin_Gold2(Instrument):
                             get_cmd=self.read_inputs,
                             get_parser= lambda x: np.array(list(map(self.binary_to_volt, x)))
                             )
+        
+        self.add_parameter(name='lockin_freq',
+                           label='Lock in frequency in Hz',
+                           unit='Hz',
+                           set_cmd= lambda x: self.device.Set_FPar(1, x), 
+                           get_cmd= lambda : self.device.Get_FPar(1),
+                           set_parser = lambda x: (x*2*np.pi*self.process_duration),
+                           get_parser = lambda x: np.round(x/2/np.pi/self.process_duration, 4)
+                           )
+        
+        self.add_parameter(name='lockin_amplitude',
+                           label= 'Lock in amplitude in volts',
+                           unit='V',
+                           set_cmd= lambda x: self.device.Set_FPar(2, x),
+                           get_cmd= lambda : self.device.Get_FPar(2),
+                           set_parser = self.volt_to_binary,
+                           get_parser = self.binary_to_volt_lockin,
+                            )
+        
 
         
     
@@ -424,14 +456,21 @@ class ADwin_Gold2(Instrument):
         self.device.Boot(self.bf)
     
     def process_load(self):
-        """Load the process binary on the ADwin"""
+        """Load the process binary on the ADwin and set the Process Delay to 10 us (for a T11 processor !)"""
         self.device.Stop_Process(1)
         self.device.Load_Process(self.pf)
+        
+        self.device.Set_Processdelay(1, 3000) # Setting the process frequency to 100 kHz since the clock of the T11 is 3.33 ns
+        self.process_duration = 10e-9/3.0 * 3000 # The process duration is thus 10 us
         self.device.Start_Process(1)
 
     def volt_to_binary(self, V):
         """Convert the voltage given to the binary representation for the DAC"""
         return int(V/10*2**15 + 2**15)
+    
+    def binary_to_volt_lockin(self, B):
+        """Convert back the binary value of the lockin amplitude"""
+        return float((B-2**15)/2**15 * 10)
 
     def binary_to_volt(self, B):
         """Convert back the binary of the ADC to a voltage between -10V and +10V"""
@@ -447,8 +486,8 @@ class ADwin_Gold2(Instrument):
         FIFO[0]= Mode of the ADwin in binary (0b0 is default, 0b10000 is Lock_in, all the modes bits can be found in the acquisition.bas file at C:/Users/nicolas.roch/Measurements/Drivers/adwin/nanoqt/ressources
         FIFO[1]= Input mask in binary, for example 0b1101 yields a measurement on input 1, 3 and 4; 0b1010 on inputs 2 and 4
         FIFO[2]= Output mask in binary same as the input mask, for example 0b111 will mean that the ADwin will change outputs 1, 2 and 3
-        FIFO[3]= The number of points in the ramp yielding the total time for the ramp via T (in seconds)= nb_pts/(50 MHz) 
-        FIFO[4]= Subsampling for the inputs, for a given subsampling rate S: every S clock cycle (every S/(50 MHz) seconds) the ADwin will measure the inputs specified in the input mask variable
+        FIFO[3]= The number of points in the ramp yielding the total time for the ramp via T (in seconds)= nb_pts/(100 kHz) 
+        FIFO[4]= Subsampling for the inputs, for a given subsampling rate S: every S process duration (every S/(100 kHz) seconds) the ADwin will measure the inputs specified in the input mask variable
         FIFO[5 to last]= The target voltages, in binary, for each outputs specified in the output mask variable
         -------------
         '''
@@ -460,19 +499,29 @@ class ADwin_Gold2(Instrument):
         # inputs_number = bin(self.input_mask).count('1') #count the number of 1 in input_mask by converting it to string and using .count (horrible but whatever)
         # self.values_in_fifo += int(self.rs/self.subs*inputs_number)
 
+    def set_outputs_one_cycle(self):
+        '''Set the outputs in one process cycle instead of waiting'''
+        old_rs = self.fifo_list[3]
+        self.fifo_list[3] = 1
+        self.device.SetFifo_Long(1, self.fifo_list, len(self.fifo_list))
+
+        time.sleep(2*self.process_duration) # Wait two process durations (20us)
+        self.fifo_list[3] = old_rs
+
+
+    def launch_measurement(self):
+        self.device.SetFifo_Long(1, self.fifo_list, len(self.fifo_list))
+        time.sleep(self.ramp_size() * self.process_duration)
+
     def go_to_zero(self):
         old_om = self.output_mask()
         self.output_mask(0b11111111)
         # targets = np.array(list(map(self.volt_to_binary, [0.0]*8)))
         # self.set_outputs(targets)
         self.outputs(np.array([0.0]*8))
-        self.launch_measurement()
+        self.set_outputs_one_cycle()
         self.output_mask(old_om)
         self.clear_fifos()
-
-    def launch_measurement(self):
-        self.device.SetFifo_Long(1, self.fifo_list, len(self.fifo_list))
-        time.sleep(self.ramp_size() * 5e-6)
 
     def read_inputs(self):
         '''Read all the values in the measurement FIFO at once'''

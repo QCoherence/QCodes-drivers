@@ -34,6 +34,11 @@ class SpectrumTrace(ParameterWithSetpoints):
     def get_raw(self):
         data = self._instrument.get_trace()
         return data
+    
+class IQTrace(Parameter):
+    def get_raw(self):
+        data =self._instrument.get_iqtrace()
+        return data
 
 # class HarmonicTrace(ParameterWithSetpoints):
 #
@@ -83,7 +88,8 @@ class RS_FSV(VisaInstrument):
                             vals = vals.Numbers(1e-6,16e3),
                             unit   = 's',
                             set_cmd='SWEep:TIME ' + '{:.12f}'+' s',
-                            get_cmd='SWEep:TIME?'
+                            get_cmd='SWEep:TIME?',
+                            get_parser = float,
                             )
 
         self.add_parameter( name = 'input_att',
@@ -120,7 +126,7 @@ class RS_FSV(VisaInstrument):
 
         self.add_parameter( name = 'averages',
                             label = 'Averages',
-                            vals = vals.Numbers(0,32767),
+                            vals = vals.Numbers(0,200000),
                             unit   = 'NA',
                             set_cmd='SENSe:AVERage:COUNt ' + '{:.12f}',
                             get_cmd='SENSe:AVERage:COUNt?'
@@ -189,6 +195,8 @@ class RS_FSV(VisaInstrument):
                             # set_parser =self.,
                             get_parser=float
                             )
+        
+
 
 
 
@@ -202,6 +210,45 @@ class RS_FSV(VisaInstrument):
                             vals=Arrays(shape=(self.n_points.get_latest,)),
                             # snapshot_value = False
                             )
+        
+        self.add_parameter( name = 'time_start', #Time start for zero span
+                            label = 'Time start',
+                            vals = vals.Numbers(-1,1),
+                            unit   = 's',
+                            get_cmd= (lambda : 0),
+                            get_parser=float,
+                            )
+        
+        self.add_parameter('time_axis',
+                            unit='s',
+                            label='Time Axis',
+                            parameter_class=GeneratedSetPoints,
+                            startparam= self.time_start,
+                            stopparam=self.sweep_time,
+                            numpointsparam=self.n_points,
+                            vals=Arrays(shape=(self.n_points.get_latest,)),
+                            # snapshot_value = False
+                            )
+        
+        
+        
+        self.add_parameter('trigger_source', 
+                           label = 'Source of the trigger',
+                           set_cmd='TRIGger:SOURce {}',
+                            get_cmd='TRIGger:SOURce?',
+                            vals=vals.Enum('IMMediate', 'IMM',
+                                           'EXTern', 'EXT',
+                                           'IFPower', 'IFP',
+                                           'RFPower', 'RFP',)
+                           )
+        
+        self.add_parameter('trigger_level_ext', 
+                           unit='V',
+                           label = 'Level of the external trigger',
+                           set_cmd='TRIGger:LEVel ' + '{:.2f}',
+                            get_cmd='TRIGger:LEVel?',
+                            vals=vals.Numbers(0.5, 3.5)
+                           )
 
         #
         # self.add_parameter( name = 'n_harmonics',
@@ -230,6 +277,124 @@ class RS_FSV(VisaInstrument):
                             label='Spectrum',
                             parameter_class=SpectrumTrace,
                             vals=Arrays(shape=(self.n_points.get_latest,)))
+        
+        self.add_parameter('zerospan_spectrum',
+                            unit='dBm',
+                            setpoints=(self.time_axis,),
+                            label='Zero Span Spectrum',
+                            parameter_class=SpectrumTrace,
+                            vals=Arrays(shape=(self.n_points.get_latest,)))
+        
+
+
+        ## IQ Measurements
+
+        self.add_parameter('IQ_mode',
+                           label='Whether the IQ mode is on or not.',
+                           unit = '',
+                           set_cmd = self.set_IQ_mode,
+                           vals = vals.Enum('ON', 'OFF'))
+        
+        self.add_parameter('iq_sample_rate',
+                           label='Sample rate for the IQ measurements',
+                           unit='Hz',
+                           get_cmd = 'TRAC:IQ:SRAT?',
+                           set_cmd = 'TRAC:IQ:SRAT {:.12f}',
+                           vals=vals.Numbers(0,100e6),
+                           get_parser = float
+                           )
+        
+
+
+        self.add_parameter( name = 'iq_n_points',
+                            label = 'Number of points in the IQ trace',
+                            vals = vals.Numbers(101,100001),
+                            unit   = '',
+                            set_cmd=self.set_iq_nb_pts,
+                            get_cmd=self.get_iq_nb_pts,
+                            get_parser=int
+                            )
+
+        
+        self.add_parameter('iq_trace',
+                           unit='V',
+                           label='IQ trace',
+                            parameter_class=IQTrace,
+                            vals=Arrays(shape=(self.iq_n_points.get_latest,2))
+                           )
+
+
+        ## APD measurements
+
+        self.add_parameter('apd_mode',
+                           label='Whether the APD mode is on or not.',
+                           unit = '',
+                           set_cmd = 'CALC:STAT:APD {}',
+                           vals = vals.Enum('ON', 'OFF'))
+        
+
+        self.add_parameter('apd_x_range',
+                           label='Power range for the statistics of the APD',
+                           unit='dB',
+                           vals=vals.Numbers(10,200),
+                           set_cmd='CALC:STAT:SCAL:X:RANG {:.6f}dB',
+                           get_cmd='CALC:STAT:SCAL:X:RANG?',
+                           get_parser=float)
+        
+        self.add_parameter( name = 'apd_x_range_start', #Token parameter
+                            label = 'APD x range start',
+                            vals = vals.Numbers(-200,200),
+                            unit   = 'dBm',
+                            get_cmd= (lambda : self.ref_level() - self.apd_x_range()),
+                            get_parser=float,
+                            )  
+
+        self.add_parameter( name = 'apd_x_range_npt', #Token parameter
+                            label = 'APD x range number of points',
+                            vals = vals.Numbers(),
+                            unit   = '',
+                            get_cmd= (lambda : 1001),
+                            get_parser=int,
+                            )          
+        
+        self.add_parameter('apd_axis',
+                            unit='s',
+                            label='Amplitude power axis for the APD measurements',
+                            parameter_class=GeneratedSetPoints,
+                            startparam= self.apd_x_range_start,
+                            stopparam=self.ref_level,
+                            numpointsparam=self.apd_x_range_npt, # APD is always 1001 pts
+                            vals=Arrays(shape=(1001,)),
+                            # snapshot_value = False
+                            )
+        
+        self.add_parameter('apd_trace',
+                            unit='',
+                            setpoints=(self.apd_axis,),
+                            label='APD statistics',
+                            parameter_class=SpectrumTrace,
+                            vals=Arrays(shape=(1001,)))
+        
+        self.add_parameter( name = 'apd_n_sample',
+                            label = 'Number of sample used for the APD trace',
+                            vals = vals.Numbers(100, 80000000),
+                            unit   = '',
+                            set_cmd='CALC:STAT:NSAM ' + '{}',
+                            get_cmd='CALC:STAT:NSAM?',
+                            get_parser=int
+                            )
+        
+
+        
+        # self.add_parameter( name = 'apd_ref_level',
+        #                     label = 'Reference level(AMPT)',
+        #                     vals = vals.Numbers(-130,10),
+        #                     unit   = 'dBm',
+        #                     set_cmd='CALC:STAT:SCAL:X:RLEV  ' + '{:e}',
+        #                     get_cmd='CALC:STAT:SCAL:X:RLEV?',
+        #                     # set_parser =self.,
+        #                     get_parser=float
+        #                     )
 
         #
         # self.add_parameter( name = 'set_harmonic',
@@ -301,6 +466,18 @@ class RS_FSV(VisaInstrument):
 
         self.connect_message()
 
+    def set_iq_nb_pts(self, nb):
+            
+            self.write('TRAC:IQ:SET NORM, 1 MHz, {bw} , IMM, POS, 0, {nb_pts}'.format(bw = self.iq_sample_rate() ,
+                                                                                    nb_pts = nb))
+            
+    def get_iq_nb_pts(self):
+        r = self.ask('TRAC:IQ:SET?').split(',')[-1]
+        return r
+    
+    def set_IQ_mode(self, mode):
+        self.write(f"TRAC:IQ {mode}")
+
     def _set_average_type(self,val : str):
 
         self.write(f"SENSe:AVERage:TYPE {val}")
@@ -326,6 +503,23 @@ class RS_FSV(VisaInstrument):
         for val in datalist:
             dataflt.append(float(val))
         dataflt=np.array(dataflt)
+        return dataflt
+    
+    def get_iqtrace(self):
+        # self.write('TRAC:IQ ON')
+        self.write('TRAC:IQ:EVAL ON')
+        self.write('TRAC:IQ:AVER OFF')
+        self.write('TRAC:IQ:AVER:COUN 1')
+        self.write('TRAC:IQ:SET NORM, 1 MHz, {bw} MHz, IMM, POS, 0, {nb_pts}'.format(bw = self.iq_sample_rate() * 1e-6,
+                                                                                      nb_pts = int(self.iq_n_points())))
+        self.write('INIT;*OPC')
+        while self.ask('*ESR?') == '0':
+            sleep(1) # we wait until the register is 1
+        datastr = self.ask('TRAC:IQ:DATA?')
+        # self.write(':INIT:CONT OFF')    
+        datalist = datastr.split(",")
+        dataflt = np.array(datalist,dtype=float).reshape((self.iq_n_points(),2))
+        # self.write('TRAC:IQ OFF')
         return dataflt
 
     #
