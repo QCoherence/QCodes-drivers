@@ -67,7 +67,9 @@ class iTestChannel(InstrumentChannel):
                            label='Returns the current in the desired channel in A',
                            unit='A',
                            get_cmd=partial(self._parent._get_channel_current, module, ch),
-                           get_parser=float
+                           get_parser=float,
+                           set_cmd=partial(self._parent._set_channel_current, module, ch),
+                           vals = vals.Numbers(-self._parent.inst_dictionnary['BE'+self._parent.get_instrument_model(module)]['I_max_A'], self._parent.inst_dictionnary['BE'+self._parent.get_instrument_model(module)]['I_max_A'])
                            )
 
         self.add_parameter(name='voltage_limit_up',
@@ -91,9 +93,9 @@ class iTestChannel(InstrumentChannel):
         self.add_parameter(name='current_limit_up',
                            label='The output upper current limit of the desired channel in A',
                            unit='A',
-                           get_cmd=partial(self._parent._get_channel_voltage_limit_up, module, ch),
+                           get_cmd=partial(self._parent._get_channel_current_limit_up, module, ch),
                            get_parser=float,
-                           set_cmd=partial(self._parent._set_channel_voltage_limit_up, module, ch),
+                           set_cmd=partial(self._parent._set_channel_current_limit_up, module, ch),
                            vals = vals.Numbers(-self._parent.inst_dictionnary['BE'+self._parent.get_instrument_model(module)]['I_max_A'], self._parent.inst_dictionnary['BE'+self._parent.get_instrument_model(module)]['I_max_A'])
                            )
 
@@ -114,7 +116,7 @@ class iTestChannel(InstrumentChannel):
                            set_cmd=partial(self._parent._set_channel_status, module, ch)
                            )
 
-        self.add_parameter(name='curr_range_auto',
+        self.add_parameter(name='current_range_auto',
                            label='Activates or not the automatic current range selection for the BE5845 board',
                            vals=vals.Enum(0, 1),
                            get_cmd=partial(self._parent._get_curr_range_auto, module, ch),
@@ -175,6 +177,11 @@ class iTestBilt(VisaInstrument):
                 channel = iTestChannel(parent=self, name='mod{}_chan{:02}'.format(j,i), module = j, ch=i)
                 self.add_submodule('mod{}_ch{:02}'.format(j,i), channel)
 
+                
+    
+
+        
+
     def _set_channel_voltage_range(self, module: int, ch: int, value: float) -> None:
         """
         Sets the output voltage range for the desired channel of the desired module
@@ -211,18 +218,40 @@ class iTestBilt(VisaInstrument):
             value: The set value of voltage in V
         """
         chan_id = self.chan_to_id(module, ch)
+        board_model = self.get_instrument_model(module)
 
-        range_val = float(self._get_channel_voltage_range(module, ch))
 
-        if value > range_val:
-            raise ValueError('The asked voltage is too much for the selected voltage range')
+        if board_model == '5845':
 
-        self.write(chan_id + 'VOLT {:.8f}'.format(value))
+
+            self.write(chan_id + 'VOLT {:.8f}'.format(value))
+
+
+
+
+        elif board_model == '2141' or board_model == '2142':
+            
+
+            range_val = float(self._get_channel_voltage_range(module, ch))
+
+            if value > range_val:
+                raise ValueError('The asked voltage is too much for the selected voltage range')
+
+            board_model = self.get_instrument_model(module)
+
+
+            self._set_ramp_mode(module, ch, mode = 1)
+            # self._set_ramp_rate(module, ch, rate = 0.001) # V/ms
+            self.write(chan_id + 'VOLT {:.8f}'.format(value))
+
+            self.write(chan_id + 'TRIG:INPUT:INIT')
+
+            while self.ask('{}VOLT:STAT?'.format(chan_id)) != '1':
+                sleep(1)
+
+            
         
-
-        self.write(chan_id + 'TRIG:INPUT:INIT')
-        while abs(value - self._get_channel_voltage(module, ch)) > 1e-4 :
-                    sleep(1)
+        
 
     def _get_channel_voltage(self, module: int, ch: int) -> float:
         """
@@ -262,7 +291,15 @@ class iTestBilt(VisaInstrument):
         Args:
             mode: 0 (Step) or 1 (Ramp)
         """
+        
         chan_id = self.chan_to_id(module, ch)
+
+        board_model = self.get_instrument_model(module)
+
+        if board_model == '5845':
+
+            raise ValueError('Not asking a BE2141 or BE2142 board')
+
         self.write(chan_id + 'trig:input ' + str(mode))
 
     def _get_ramp_mode(self, module: int, ch: int) -> str:
@@ -272,6 +309,13 @@ class iTestBilt(VisaInstrument):
              mode: 0 (Step) or 1 (Ramp)
         """
         chan_id = self.chan_to_id(module, ch)
+
+        board_model = self.get_instrument_model(module)
+
+        if board_model == '5845':
+
+            raise ValueError('Not asking a BE2141 or BE2142 board')
+            
         mode = int(self.ask(chan_id + 'trig:input?'))
 
         if mode == 1:
@@ -291,14 +335,14 @@ class iTestBilt(VisaInstrument):
         chan_id = self.chan_to_id(module, ch)
         self.write('{}VOLT:SLOP {:.8f}'.format(chan_id, rate))
 
-    def _get_ramp_rate(self, ch: int) -> float:
+    def _get_ramp_rate(self, module: int, ch: int) -> float:
         """
         Returns the output voltage ramp rate
         """
         chan_id = self.chan_to_id(module, ch)
         return self.ask('{}VOLT:SLOP?'.format(chan_id))
 
-    def _get_channel_current(self, ch: int) -> float:
+    def _get_channel_current(self, module: int, ch: int) -> float:
         """
         Returns the output current in the desired channel
         Returns:
@@ -314,6 +358,30 @@ class iTestBilt(VisaInstrument):
             raise ValueError('Not asking a BE2142 or BE5845 board')
 
         return val
+
+    def _set_channel_current(self, module: int, ch: int, value: float) -> None:
+
+        """
+        Sets the output current of the desired channel of the desired module
+        Args:
+            value: The set value of current in A
+        """
+        chan_id = self.chan_to_id(module, ch)
+
+        range_val = float(self._get_channel_current_range(module, ch))
+
+        if value > range_val:
+            raise ValueError('The asked current is too much for the selected current range')
+
+        board_model = self.get_instrument_model(module)
+
+        if board_model == '5845':
+
+            self.write(chan_id + 'CURR' + str(value))
+
+        else:
+            raise ValueError('Not asking a BE5845 board')
+
 
     def _set_channel_voltage_limit_up(self, module: int, ch: int, value_up: float) -> None:
         """
@@ -352,15 +420,15 @@ class iTestBilt(VisaInstrument):
 
         if board_model == '5845':
 
-            self.write(chan_id + 'LIM:VOLT:LOW ' + str(value_up))
+            self.write(chan_id + 'LIM:VOLT:LOW ' + str(value_down))
             self.write(chan_id + 'LIM:STAT 1')
 
         elif board_model == '2142':
-            self.write(chan_id + 'limit:low ' + str(value_up))
+            self.write(chan_id + 'limit:low ' + str(value_down))
             self.write(chan_id + 'LIM:STAT 1')
 
         if board_model == '2141':
-            self.write(chan_id + 'limit:low ' + str(value_up))
+            self.write(chan_id + 'limit:low ' + str(value_down))
             print('Be careful : Not possible to activate voltage or current limits on BE2141')
 
     def _set_channel_current_limit_up(self, module: int, ch: int, value_up: float) -> None:
@@ -391,7 +459,7 @@ class iTestBilt(VisaInstrument):
         board_model = self.get_instrument_model(module)
         if board_model == '5845'or board_model == '2142':
 
-            self.write(chan_id + 'LIM:CURR:LOW ' + str(value_up))
+            self.write(chan_id + 'LIM:CURR:LOW ' + str(value_down))
             self.write(chan_id + 'LIM:STAT 1')
         else:
             raise ValueError('Not asking a BE5845 or BE2142 board')
