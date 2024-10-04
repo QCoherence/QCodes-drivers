@@ -39,7 +39,7 @@ class iMACRT_MGC3(Instrument):
 
 		self.add_parameter( name = 'setpoint',  
 							label = 'Setpoint',
-							vals = vals.Numbers(0,150),
+							vals = vals.Numbers(0,800), # 150 modified by Gwen on 28/08/2024 to increase temperature of the whole MXC plate
 							unit   = 'uW',
 							set_cmd=self._set_setpoint,
 							get_cmd=self._get_setpoint
@@ -47,7 +47,7 @@ class iMACRT_MGC3(Instrument):
 
 		self.add_parameter( name = 'P_max',  
 							label = 'Maximum power',
-							vals = vals.Numbers(0,150),
+							vals = vals.Numbers(0,800), # 150 modified by Gwen on 28/08/2024 to increase temperature of the whole MXC plate
 							unit   = 'uW',
 							set_cmd=self._set_P_max,
 							get_cmd=self._get_P_max
@@ -174,6 +174,6 @@ class iMACRT_MGC3(Instrument):
 
 
 
-	def _get_idn(self):
+	def get_idn(self):
 		return {'vendor': 'iMACRT', 'model': 'MGD3',
 				'serial': None, 'firmware': None}
