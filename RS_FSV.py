@@ -94,7 +94,7 @@ class RS_FSV(VisaInstrument):
         self.add_parameter( name="auto_sweep_time_enabled",
                             initial_value=True,
                             get_cmd='SWE:TIME:AUTO?',
-                            set_cmd='SWE:TIME:AUTO ' + '{:b}',
+                            set_cmd='SWE:TIME:AUTO ' + '{}',
                             vals=vals.Bool(),
                             val_mapping=create_on_off_val_mapping(on_val="ON", off_val="OFF"),
                             )
