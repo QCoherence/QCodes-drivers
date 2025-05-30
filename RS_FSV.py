@@ -2,6 +2,7 @@
 from qcodes import (Instrument, VisaInstrument, ManualParameter, MultiParameter, validators as vals)
 from qcodes.instrument.parameter import ParameterWithSetpoints, Parameter
 from qcodes.instrument.channel import InstrumentChannel
+from qcodes.utils.helpers import create_on_off_val_mapping
 from qcodes.utils.validators import Numbers, Arrays
 from time import sleep
 
@@ -13,7 +14,6 @@ import numpy as np
 
 
 class GeneratedSetPoints(Parameter):
-
     """
     A parameter that generates a setpoint array from start, stop and num points
     parameters.
@@ -30,7 +30,6 @@ class GeneratedSetPoints(Parameter):
                               self._numpointsparam())
 
 class SpectrumTrace(ParameterWithSetpoints):
-
     def get_raw(self):
         data = self._instrument.get_trace()
         return data
@@ -87,9 +86,17 @@ class RS_FSV(VisaInstrument):
                             label = 'Sweep time',
                             vals = vals.Numbers(1e-6,16e3),
                             unit   = 's',
-                            set_cmd='SWEep:TIME ' + '{:.12f}'+' s',
+                            set_cmd='SWEep:TIME ' + '{:.12f}' + ' s',
                             get_cmd='SWEep:TIME?',
                             get_parser = float,
+                            )
+        
+        self.add_parameter( name="auto_sweep_time_enabled",
+                            initial_value=True,
+                            get_cmd='SWE:TIME:AUTO?',
+                            set_cmd='SWE:TIME:AUTO ' + '{:b}',
+                            vals=vals.Bool(),
+                            val_mapping=create_on_off_val_mapping(on_val="ON", off_val="OFF"),
                             )
 
         self.add_parameter( name = 'input_att',
@@ -145,7 +152,7 @@ class RS_FSV(VisaInstrument):
 
         self.add_parameter( name = 'span',
                             label = 'Span',
-                            vals = vals.Numbers(0,30.e9),
+                            vals = vals.Numbers(0,13.6e9),
                             unit   = 'Hz',
                             set_cmd='SENSe:FREQuency:SPAN ' + '{:.12f}',
                             get_cmd='SENSe:FREQuency:SPAN?',
@@ -166,7 +173,7 @@ class RS_FSV(VisaInstrument):
 
         self.add_parameter( name = 'f_start',
                             label = 'Start frequency',
-                            vals = vals.Numbers(0,30.e9),
+                            vals = vals.Numbers(0,13.6e9),
                             unit   = 'Hz',
                             set_cmd='SENSe:FREQuency:STARt ' + '{:.12f}',
                             get_cmd='SENSe:FREQuency:STARt?',
@@ -177,7 +184,7 @@ class RS_FSV(VisaInstrument):
 
         self.add_parameter( name = 'f_stop',
                             label = 'Stop frequency',
-                            vals = vals.Numbers(10,30.e9),
+                            vals = vals.Numbers(10,13.6e9),
                             unit   = 'Hz',
                             set_cmd='SENSe:FREQuency:STOP ' + '{:.12f}',
                             get_cmd='SENSe:FREQuency:STOP?',
@@ -195,10 +202,6 @@ class RS_FSV(VisaInstrument):
                             # set_parser =self.,
                             get_parser=float
                             )
-        
-
-
-
 
         self.add_parameter('freq_axis',
                             unit='Hz',
@@ -230,8 +233,6 @@ class RS_FSV(VisaInstrument):
                             # snapshot_value = False
                             )
         
-        
-        
         self.add_parameter('trigger_source', 
                            label = 'Source of the trigger',
                            set_cmd='TRIGger:SOURce {}',
@@ -250,7 +251,6 @@ class RS_FSV(VisaInstrument):
                             vals=vals.Numbers(0.5, 3.5)
                            )
 
-        #
         # self.add_parameter( name = 'n_harmonics',
         #                     label = 'No.of harmonic',
         #                     vals = vals.Numbers(1,26),
@@ -303,8 +303,6 @@ class RS_FSV(VisaInstrument):
                            vals=vals.Numbers(0,100e6),
                            get_parser = float
                            )
-        
-
 
         self.add_parameter( name = 'iq_n_points',
                             label = 'Number of points in the IQ trace',
@@ -315,7 +313,6 @@ class RS_FSV(VisaInstrument):
                             get_parser=int
                             )
 
-        
         self.add_parameter('iq_trace',
                            unit='V',
                            label='IQ trace',
