@@ -1082,7 +1082,7 @@ class VNAChannel(InstrumentChannel):
         # turn off average on the VNA since we want single point sweeps.
         self.averaging_enabled(False)
         # This format is required for getting both real and imaginary parts.
-        self.format("Complex")
+        self.format("dB")
         # Set the sweep time to auto such that it sets the delay to zero
         # between each point (e.g msmt speed is optimized). Note that if one
         # would like to do a time sweep with time > npts/bandwidth, this is
@@ -1099,6 +1099,7 @@ class VNAChannel(InstrumentChannel):
         """
         self.sweep_type("Linear")
         self.averaging_enabled(True)
+        self.format("dB")
         self.root_instrument.cont_meas_on()
 
     def _check_cw_sweep(self) -> None:
