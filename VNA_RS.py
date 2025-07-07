@@ -137,7 +137,7 @@ class FixedFrequencyPointMagPhaseTrace(MultiParameter):
                 f"{instrument.short_name} magnitude",
                 f"{instrument.short_name} phase",
             ),
-            units=("", "rad"),
+            units=("dB", "rad"),
             setpoints=((), ()),
             shapes=((), ()),
         )
@@ -178,7 +178,7 @@ class FixedFrequencyPointMagPhase(MultiParameter):
                 f"{instrument.short_name} magnitude",
                 f"{instrument.short_name} phase",
             ),
-            units=("", "rad"),
+            units=("dB", "rad"),
             setpoints=((), ()),
             shapes=((), ()),
         )
@@ -220,7 +220,7 @@ class FrequencySweepMagPhase(MultiParameter):
                 f"{instrument.short_name} magnitude",
                 f"{instrument.short_name} phase",
             ),
-            units=("", "rad"),
+            units=("dB", "rad"),
             setpoint_units=(("Hz",), ("Hz",)),
             setpoint_labels=(
                 (f"{instrument.short_name} frequency",),
