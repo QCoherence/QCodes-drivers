@@ -1,19 +1,25 @@
 import logging
-import numpy as np
 from functools import partial
-from typing import Optional, Any, Tuple
+from typing import Any, Optional, Tuple
 
-from qcodes import VisaInstrument, Instrument
-from qcodes import ChannelList, InstrumentChannel
-from qcodes.utils import validators as vals
+import numpy as np
+from qcodes import ChannelList, Instrument, InstrumentChannel, VisaInstrument
 from qcodes.instrument.parameter import (
-    MultiParameter,
-    ManualParameter,
     ArrayParameter,
+    ManualParameter,
+    MultiParameter,
     ParamRawDataType,
 )
+from qcodes.utils import validators as vals
 from qcodes.utils.helpers import create_on_off_val_mapping
-from qcodes.utils.deprecate import deprecate
+
+try:
+    from warnings import deprecated
+except ImportError:
+    try:
+        from typing_extensions import deprecated
+    except ImportError:
+        from qcodes.utils.deprecate import deprecate as deprecated
 
 
 log = logging.getLogger(__name__)
@@ -44,7 +50,7 @@ class FixedFrequencyTraceIQ(MultiParameter):
             ),
             setpoint_units=(("s",), ("s",)),
             setpoint_labels=(("time",), ("time",)),
-            shapes=((npts,), (npts,),),
+            shapes=((npts,), (npts,)),
         )
         self.set_cw_sweep(npts, bandwidth)
 
@@ -100,8 +106,8 @@ class FixedFrequencyPointIQ(MultiParameter):
             names=("I", "Q"),
             labels=(f"{instrument.short_name} I", f"{instrument.short_name} Q"),
             units=("", ""),
-            setpoints=((), (),),
-            shapes=((), (),),
+            setpoints=((), ()),
+            shapes=((), ()),
         )
 
     def get_raw(self) -> Tuple[float, float]:
@@ -113,6 +119,7 @@ class FixedFrequencyPointIQ(MultiParameter):
         assert isinstance(self.instrument, VNAChannel)
         i, q = self.instrument._get_cw_data()
         return float(np.mean(i)), float(np.mean(q))
+
 
 class FixedFrequencyPointMagPhaseTrace(MultiParameter):
     """
@@ -130,12 +137,12 @@ class FixedFrequencyPointMagPhaseTrace(MultiParameter):
                 f"{instrument.short_name} magnitude",
                 f"{instrument.short_name} phase",
             ),
-            units=("", "rad"),
-            setpoints=((), (),),
-            shapes=((), (),),
+            units=("dB", "rad"),
+            setpoints=((), ()),
+            shapes=((), ()),
         )
 
-    def get_raw(self,initiate=True):
+    def get_raw(self, initiate=True):
         """
         Gets the magnitude and phase of the mean of the raw real and imaginary
         part of the data. If the parameter `cw_check_sweep_first` is set to
@@ -144,9 +151,9 @@ class FixedFrequencyPointMagPhaseTrace(MultiParameter):
         """
         assert isinstance(self.instrument, VNAChannel)
         i, q = self.instrument._get_cw_data(initiate=initiate)
-        s = i + 1j*q
+        s = i + 1j * q
         # return np.abs(s), np.angle(s)
-        return 20.*np.log10(abs(s)), np.angle(s) # Changed to dB Gwen 10/8/2023
+        return 20.0 * np.log10(abs(s)), np.angle(s)  # Changed to dB Gwen 10/8/2023
 
 
 class FixedFrequencyPointMagPhase(MultiParameter):
@@ -171,12 +178,12 @@ class FixedFrequencyPointMagPhase(MultiParameter):
                 f"{instrument.short_name} magnitude",
                 f"{instrument.short_name} phase",
             ),
-            units=("", "rad"),
-            setpoints=((), (),),
-            shapes=((), (),),
+            units=("dB", "rad"),
+            setpoints=((), ()),
+            shapes=((), ()),
         )
 
-    def get_raw(self,initiate=True) -> Tuple[float, ...]:
+    def get_raw(self, initiate=True) -> Tuple[float, ...]:
         """
         Gets the magnitude and phase of the mean of the raw real and imaginary
         part of the data. If the parameter `cw_check_sweep_first` is set to
@@ -187,7 +194,7 @@ class FixedFrequencyPointMagPhase(MultiParameter):
         i, q = self.instrument._get_cw_data(initiate=initiate)
         s = np.mean(i) + 1j * np.mean(q)
         # return np.abs(s), np.angle(s)
-        return 20.*np.log10(abs(s)), np.angle(s) # Changed to dB Gwen 10/8/2023
+        return 20.0 * np.log10(abs(s)), np.angle(s)  # Changed to dB Gwen 10/8/2023
 
 
 class FrequencySweepMagPhase(MultiParameter):
@@ -213,7 +220,7 @@ class FrequencySweepMagPhase(MultiParameter):
                 f"{instrument.short_name} magnitude",
                 f"{instrument.short_name} phase",
             ),
-            units=("", "rad"),
+            units=("dB", "rad"),
             setpoint_units=(("Hz",), ("Hz",)),
             setpoint_labels=(
                 (f"{instrument.short_name} frequency",),
@@ -223,7 +230,7 @@ class FrequencySweepMagPhase(MultiParameter):
                 (f"{instrument.short_name}_frequency",),
                 (f"{instrument.short_name}_frequency",),
             ),
-            shapes=((npts,), (npts,),),
+            shapes=((npts,), (npts,)),
         )
         self.set_sweep(start, stop, npts)
         self._channel = channel
@@ -234,7 +241,7 @@ class FrequencySweepMagPhase(MultiParameter):
         f = tuple(np.linspace(int(start), int(stop), num=npts))
         self.setpoints = ((f,), (f,))
         self.shapes = ((npts,), (npts,))
-        
+
     def get_raw(self) -> Tuple[ParamRawDataType, ...]:
         assert isinstance(self.instrument, VNAChannel)
         """
@@ -243,7 +250,7 @@ class FrequencySweepMagPhase(MultiParameter):
         with self.instrument.format.set_to("dB"):
             data = self.instrument._get_sweep_data(force_polar=True)
         # return abs(data), np.angle(data)
-        return 20.*np.log10(abs(data)), np.angle(data)
+        return 20.0 * np.log10(abs(data)), np.angle(data)
 
 
 class FrequencySweepMagPhaseAvg(MultiParameter):
@@ -279,7 +286,7 @@ class FrequencySweepMagPhaseAvg(MultiParameter):
                 (f"{instrument.short_name}_frequency",),
                 (f"{instrument.short_name}_frequency",),
             ),
-            shapes=((1,), (1,),),
+            shapes=((1,), (1,)),
         )
         self.set_sweep(start, stop, npts)
         self._channel = channel
@@ -389,8 +396,6 @@ class VNAChannel(InstrumentChannel):
 
         self._inst_name = name
 
-        
-
         if vna_parameter is None:
             vna_parameter = name
         self._vna_parameter = vna_parameter
@@ -411,18 +416,16 @@ class VNAChannel(InstrumentChannel):
         # map hardware channel to measurement
         # hardware channels are mapped one to one to QCoDeS channels
         # we are not using sub traces within channels.
-        if existing_trace_to_bind_to is None:                   # Modified by Gwen to keep the definition of channels depending on _vna_parameter for backward compatibility (The newer version doesn't need this command)
-            if self._vna_parameter in ['S21','S11','S22','S12']: # This list can be extended in case of using the VNA to measure different parameters like Y-params, Z-params, etc... see programming manual for list and syntax
+        if (
+            existing_trace_to_bind_to is None
+        ):  # Modified by Gwen to keep the definition of channels depending on _vna_parameter for backward compatibility (The newer version doesn't need this command)
+            if (
+                self._vna_parameter in ["S21", "S11", "S22", "S12"]
+            ):  # This list can be extended in case of using the VNA to measure different parameters like Y-params, Z-params, etc... see programming manual for list and syntax
                 self.write(
-                f"CALC{self._instrument_channel}:PAR:SDEF"
-                f" '{self._tracename}', '{self._vna_parameter}'"     
-            )
-
-
-
-        
-
-                                                                           
+                    f"CALC{self._instrument_channel}:PAR:SDEF"
+                    f" '{self._tracename}', '{self._vna_parameter}'"
+                )
 
         # Source power is dependent on model, but not well documented.
         # Here we assume -60 dBm for ZNB20, the others are set,
@@ -437,28 +440,26 @@ class VNAChannel(InstrumentChannel):
             "ZNB8": -80,
             "ZNB20": -60,
             "ZNB40": -60,
-            "ZNL14": -60
+            "ZNL14": -60,
         }
         if model not in self._model_min_source_power.keys():
             raise RuntimeError(f"Unsupported VNA model: {model}")
         self._min_source_power: float
         self._min_source_power = self._model_min_source_power[model]
 
-        
+        self.add_parameter(
+            name="VNA_mode",
+            label="Mode of VNA measurement (S21/S11/S22/S12)",
+            vals=vals.Enum("S21", "S11", "S22", "S12"),
+            unit="NA",
+            set_cmd=self._set_mode,
+            get_cmd=self._get_mode,
+        )  # Gwen 10/8/2023 for new version: can choose between S21, S11, S22 and S12 in the QCoDeS scripts and not necessarily at connection with the instrument
 
-        self.add_parameter( name = 'VNA_mode',  
-                            label = 'Mode of VNA measurement (S21/S11/S22/S12)',
-                            vals = vals.Enum('S21','S11','S22','S12'),
-                            unit   = 'NA',
-                            set_cmd=self._set_mode,
-                            get_cmd=self._get_mode
-                            )                                               # Gwen 10/8/2023 for new version: can choose between S21, S11, S22 and S12 in the qCodes scripts and not necessarily at connection with the instrument
-
-        self.add_parameter(                                             # depreciated in newer mode of operation (since 10/8/2023), kept for backward compatibility -Gwen
+        self.add_parameter(  # depreciated in newer mode of operation (since 10/8/2023), kept for backward compatibility -Gwen
             name="vna_parameter",
             label="VNA parameter",
-            get_cmd=f"CALC{self._instrument_channel}:PAR:MEAS? "
-                    f"'{self._tracename}'",
+            get_cmd=f"CALC{self._instrument_channel}:PAR:MEAS? '{self._tracename}'",
             get_parser=self._strip,
         )
         self.add_parameter(
@@ -478,8 +479,7 @@ class VNAChannel(InstrumentChannel):
             set_cmd=self._set_bandwidth,
             get_parser=int,
             vals=vals.Enum(
-                *np.append(10 ** 6,
-                           np.kron([1, 1.5, 2, 3, 5, 7], 10 ** np.arange(6)))
+                *np.append(10**6, np.kron([1, 1.5, 2, 3, 5, 7], 10 ** np.arange(6)))
             ),
             docstring="Measurement bandwidth of the IF filter. "
             "The inverse of this sets the integration "
@@ -502,16 +502,14 @@ class VNAChannel(InstrumentChannel):
             get_cmd=f"SENS{n}:FREQ:START?",
             set_cmd=self._set_start,
             get_parser=float,
-            vals=vals.Numbers(self._parent._min_freq,
-                              self._parent._max_freq - 10),
+            vals=vals.Numbers(self._parent._min_freq, self._parent._max_freq - 10),
         )
         self.add_parameter(
             name="stop",
             get_cmd=f"SENS{n}:FREQ:STOP?",
             set_cmd=self._set_stop,
             get_parser=float,
-            vals=vals.Numbers(self._parent._min_freq + 1,
-                              self._parent._max_freq),
+            vals=vals.Numbers(self._parent._min_freq + 1, self._parent._max_freq),
         )
         self.add_parameter(
             name="center",
@@ -527,8 +525,7 @@ class VNAChannel(InstrumentChannel):
             get_cmd=f"SENS{n}:FREQ:SPAN?",
             set_cmd=self._set_span,
             get_parser=float,
-            vals=vals.Numbers(1,
-                              self._parent._max_freq - self._parent._min_freq),
+            vals=vals.Numbers(1, self._parent._max_freq - self._parent._min_freq),
         )
         self.add_parameter(
             name="npts",
@@ -625,69 +622,57 @@ class VNAChannel(InstrumentChannel):
         )
 
         self.add_parameter(
-            name="BW_selectivity",            
+            name="BW_selectivity",
             get_cmd=f"SENS{n}:BAND:SEL?",
             set_cmd=self._set_bandwidth_selectivity,
             val_mapping={
-                    "Normal": "NORM",
-                    "Medium": "MED",
-                    "High": "HIGH",
-                },
-                vals=vals.Enum(
-                    'Normal',
-                    'Medium',
-                    'High',
-                ),
+                "Normal": "NORM",
+                "Medium": "MED",
+                "High": "HIGH",
+            },
+            vals=vals.Enum(
+                "Normal",
+                "Medium",
+                "High",
+            ),
             docstring="Selectivity of the BW filter",
-        )                                                           #Added by Gwen 10/8/2023
-  
+        )  # Added by Gwen 10/8/2023
 
         self.add_parameter(
-                name='trigger',
-                get_cmd=f'TRIG{n}:SOUR?',
-                set_cmd=self._set_trigger,
-                val_mapping={
-                    "Immediate": "IMM",
-                    "Untriggered": "IMM",
-                    "External": "EXT",
-                    "Manual": "MAN",
-                    "Multiple": "MULT",
-                    "CW_Point": "POIN",
-                    "Segmented": "SEGM",
-                },
-                vals=vals.Enum(
-                    'Immediate',
-                    'Untriggerd',
-                    'External',
-                    'Multiple'
-                ),
-                initial_value='Immediate',
-                docstring="Define the source of the trigger"
-            )
-
+            name="trigger",
+            get_cmd=f"TRIG{n}:SOUR?",
+            set_cmd=self._set_trigger,
+            val_mapping={
+                "Immediate": "IMM",
+                "Untriggered": "IMM",
+                "External": "EXT",
+                "Manual": "MAN",
+                "Multiple": "MULT",
+                "CW_Point": "POIN",
+                "Segmented": "SEGM",
+            },
+            vals=vals.Enum("Immediate", "Untriggerd", "External", "Multiple"),
+            initial_value="Immediate",
+            docstring="Define the source of the trigger",
+        )
 
         self.add_parameter(
-                name='trigger_link',
-                get_cmd=f'TRIG{n}:LINK?',
-                set_cmd=self._set_trigger_link,
-                val_mapping={
-                    "Sweep": "'SWE'",
-                    "Segment": "'SEG'",
-                    "Point": "'POIN'",
-                    "Partial": "'PPO'",
-                },
-                vals=vals.Enum(
-                    'Sweep',
-                    'Segment',
-                    'Point',
-                    'Partial'
-                ),
-                docstring="Define the link of the trigger: SWEep (trigger event"
-                "starts an entire sweep), SEGMent (trigger event starts a sweep"
-                "segment), POINt (trigger event starts measurement at the next"
-                "sweep point) or PPOint (trigger event starts the next partial"
-                "measurement at the current or at the next sweep point).",
-            )
+            name="trigger_link",
+            get_cmd=f"TRIG{n}:LINK?",
+            set_cmd=self._set_trigger_link,
+            val_mapping={
+                "Sweep": "'SWE'",
+                "Segment": "'SEG'",
+                "Point": "'POIN'",
+                "Partial": "'PPO'",
+            },
+            vals=vals.Enum("Sweep", "Segment", "Point", "Partial"),
+            docstring="Define the link of the trigger: SWEep (trigger event"
+            "starts an entire sweep), SEGMent (trigger event starts a sweep"
+            "segment), POINt (trigger event starts measurement at the next"
+            "sweep point) or PPOint (trigger event starts the next partial"
+            "measurement at the current or at the next sweep point).",
+        )
 
         self.add_parameter(
             name="cw_frequency",
@@ -759,20 +744,15 @@ class VNAChannel(InstrumentChannel):
             name="port2_IF_freq",
             unit="GHz",
             # get_cmd=f"SOUR{n}:FREQ2:CONV:ARB:IFR?",
-            set_cmd=self._set_port2_IF_freq
+            set_cmd=self._set_port2_IF_freq,
         )
 
         self.add_parameter(
             name="use_cal",
-            vals=vals.Enum('on','off'),
-            val_mapping={
-                    "on": "ON",
-                    "off": "OFF",
-                    "ON": "1",
-                    "OFF": "0",
-                },
+            vals=vals.Bool(),
+            val_mapping=create_on_off_val_mapping(on_val="ON", off_val="OFF"),
             get_cmd=f"SENSE{n}:CORRECTION:STATE?",
-            set_cmd=self._set_use_cal,
+            set_cmd=f"SENSE{n}:CORRECTION:STATE {{}}",
             docstring="Activates the use of calibration settings"
             "Must be done manually beforehand for now and the reset function should not be used when connecting to VNA"
             "'on' and 'off' map the input for the set command, 0 and 1 map the returned value by the get command.",
@@ -787,108 +767,86 @@ class VNAChannel(InstrumentChannel):
         )
 
         self.add_function(
-            "set_external_ref", call_cmd=f"SENS{n}:ROSC:SOUR EXT",
+            "set_external_ref",
+            call_cmd=f"SENS{n}:ROSC:SOUR EXT",
         )
 
         self.add_function(
-            "set_internal_ref", call_cmd=f"SENS{n}:ROSC:SOUR INT",
+            "set_internal_ref",
+            call_cmd=f"SENS{n}:ROSC:SOUR INT",
         )
 
         self.add_function(
-            'average_clear', call_cmd=f'SENS{n}:AVER:CLE',
+            "average_clear",
+            call_cmd=f"SENS{n}:AVER:CLE",
         )
 
-    def initialize_frequency_conversion(self,lmcorr : str,conversion_side : str) -> None:
+    def initialize_frequency_conversion(
+        self, lmcorr: str, conversion_side: str
+    ) -> None:
         n = self._instrument_channel
         self.write(f"SENS{n}:FREQ:CONV ARB")
         self.write(f"SENS{n}:FREQ:CONV:GAIN:LMC {lmcorr.upper()}")
         self._conversion_side = conversion_side
 
     def initialize_two_tone_spectroscopy(self):
-
-        self.sweep_type('CW_Point')
-        self.trigger('External')
+        self.sweep_type("CW_Point")
+        self.trigger("External")
         self.average_clear()
-        self.trigger_link('Point')
+        self.trigger_link("Point")
         self.set_external_ref()
         # self.status('ON')
 
     def initialize_two_tone_spectroscopy_no_trig(self):
-
-        self.sweep_type('CW_Point')
-        self.trigger('Immediate')
+        self.sweep_type("CW_Point")
+        self.trigger("Immediate")
         self.average_clear()
         self.set_external_ref()
 
-
     def initialize_one_tone_spectroscopy(self) -> None:
-
         # Linear sweep in frequency
-        self.sweep_type('Linear')
+        self.sweep_type("Linear")
         # Trigger to immediate
-        self.trigger('Immediate')
+        self.trigger("Immediate")
 
         self.set_external_ref()
 
-    def _set_use_cal(self, value:str) -> None:
-
-        n = self._instrument_channel
-
-        self.write(f"SENSE{n}:CORRECTION:STATE {value}")
-
-    def _get_use_cal(self) -> str:
-
-        n = self._instrument_channel
-
-        val = str(self.ask(f"SENSE{n}:CORRECTION:STATE?"))
-
-        if val == '0':
-            val_str = 'on'
-        elif val == '1':
-            val_str = 'off'
-        return val_str
-
-        
-
-    def _set_port2_IF_freq(self,f_LO : float) -> None:
-
+    def _set_port2_IF_freq(self, f_LO: float) -> None:
         conversion_side = self._conversion_side
         n = self._instrument_channel
 
-        sweep_type=self.sweep_type()
+        sweep_type = self.sweep_type()
 
-        if sweep_type == 'CW_point' or sweep_type == 'CW_time':
-            SweepType='CW'
-        elif sweep_type == 'Linear':
-            SweepType='SWE'
+        if sweep_type == "CW_point" or sweep_type == "CW_time":
+            SweepType = "CW"
+        elif sweep_type == "Linear":
+            SweepType = "SWE"
         else:
-            raise ValueError("Selected sweep type not implemented yet for"
-                             "conversion measurement. Select Linear or CW")
+            raise ValueError(
+                "Selected sweep type not implemented yet for"
+                "conversion measurement. Select Linear or CW"
+            )
 
-        if conversion_side.lower() == 'down':
+        if conversion_side.lower() == "down":
             self.write(f"SOUR{n}:FREQ2:CONV:ARB:IFR 1, 1, -{f_LO:.7f}E+9, {SweepType}")
 
-        elif conversion_side.lower() =='up':
+        elif conversion_side.lower() == "up":
             self.write(f"SOUR{n}:FREQ2:CONV:ARB:IFR 1 ,1, {f_LO:.7f}E+9, {SweepType}")
 
-        else :
+        else:
             raise ValueError("Invalid conversion side")
 
-
-    def _set_mode(self,mode):
-
+    def _set_mode(self, mode):
         self._VNA_mode = mode
-        
-        
-        self.write(f"CALCulate{self._instrument_channel}:PARameter:SDEFine" f" '{self._tracename}', '{mode}'")           # Gwen 10/8/2023 for new version: can choose between S21 and S11 in the qCodes scripts and not necessarily at connection with the instrument
-        self.write(f"DISP:LAY GRID;:DISP:LAY:GRID 1,1")
 
-
+        self.write(
+            f"CALCulate{self._instrument_channel}:PARameter:SDEFine"
+            f" '{self._tracename}', '{mode}'"
+        )  # Gwen 10/8/2023 for new version: can choose between S21 and S11 in the QCoDeS scripts and not necessarily at connection with the instrument
+        self.write("DISP:LAY GRID;:DISP:LAY:GRID 1,1")
 
     def _get_mode(self):
-
-        return self._VNA_mode               # Gwen 10/8/2023 for new version: can choose between S21 and S11 in the qCodes scripts and not necessarily at connection with the instrument
-
+        return self._VNA_mode  # Gwen 10/8/2023 for new version: can choose between S21 and S11 in the QCoDeS scripts and not necessarily at connection with the instrument
 
     def _get_format(self, tracename: str) -> str:
         n = self._instrument_channel
@@ -940,33 +898,25 @@ class VNAChannel(InstrumentChannel):
         self.write(f"SENS{channel}:FREQ:START {val:.7f}")
         stop = self.stop()
         if val >= stop:
-            raise ValueError("Stop frequency must be larger than start "
-                             "frequency.")
+            raise ValueError("Stop frequency must be larger than start frequency.")
         # we get start as the vna may not be able to set it to the
         # exact value provided.
         start = self.start()
         if abs(val - start) >= 1:
-            log.warning(
-                "Could not set start to {} setting it to "
-                "{}".format(val, start)
-            )
+            log.warning("Could not set start to {} setting it to {}".format(val, start))
         self.update_lin_traces()
 
     def _set_stop(self, val: float) -> None:
         channel = self._instrument_channel
         start = self.start()
         if val <= start:
-            raise ValueError("Stop frequency must be larger than start "
-                             "frequency.")
+            raise ValueError("Stop frequency must be larger than start frequency.")
         self.write(f"SENS{channel}:FREQ:STOP {val:.7f}")
         # We get stop as the vna may not be able to set it to the
         # exact value provided.
         stop = self.stop()
         if abs(val - stop) >= 1:
-            log.warning(
-                "Could not set stop to {} setting it to "
-                "{}".format(val, stop)
-            )
+            log.warning("Could not set stop to {} setting it to {}".format(val, stop))
         self.update_lin_traces()
 
     def _set_npts(self, val: int) -> None:
@@ -980,7 +930,7 @@ class VNAChannel(InstrumentChannel):
         self.write(f"SENS{channel}:BAND {val:.4f}")
         self.update_cw_traces()
 
-    def _set_bandwidth_selectivity(self, val: str) -> None:   # Added by Gwen 10/8/2023
+    def _set_bandwidth_selectivity(self, val: str) -> None:  # Added by Gwen 10/8/2023
         channel = self._instrument_channel
         self.write(f"SENS{channel}:BAND:SEL {val}")
         self.update_cw_traces()
@@ -1007,7 +957,6 @@ class VNAChannel(InstrumentChannel):
         channel = self._instrument_channel
         self.write(f"TRIG{channel}:LINK {val}")
 
-
     def _set_cw_frequency(self, val: float) -> None:
         channel = self._instrument_channel
         self.write(f"SENS{channel}:FREQ:CW {val:.7f}")
@@ -1020,10 +969,9 @@ class VNAChannel(InstrumentChannel):
         channel = self._instrument_channel
         self.write(f"SENS{channel}:SWE:TIME:AUTO {val}")
 
-    @deprecate(reason="the method has been renamed",
-               alternative="update_lin_traces")
+    @deprecated("The method has been renamed.", "Please use update_lin_traces instead.")
     def update_traces(self) -> None:
-        """ updates start, stop and npts of all trace parameters"""
+        """updates start, stop and npts of all trace parameters"""
         self.update_lin_traces()
 
     def update_lin_traces(self) -> None:
@@ -1056,15 +1004,16 @@ class VNAChannel(InstrumentChannel):
         self.sweep_time()
 
     def _get_sweep_data(self, force_polar: bool = False) -> np.ndarray:
-
         if not self._parent.rf_power():
             log.warning("RF output is off when getting sweep data")
         # It is possible that the instrument and QCoDeS disagree about
         # which parameter is measured on this channel.
         instrument_parameter = self.vna_parameter()
-        
+
         if self._vna_parameter != self._inst_name:
-            if instrument_parameter != self._vna_parameter:                       # Modified by Gwen to keep the test while not raising systematic error with new version of the driver
+            if (
+                instrument_parameter != self._vna_parameter
+            ):  # Modified by Gwen to keep the test while not raising systematic error with new version of the driver
                 raise RuntimeError(
                     "Invalid parameter. Tried to measure "
                     f"{self._vna_parameter} "
@@ -1073,11 +1022,10 @@ class VNAChannel(InstrumentChannel):
 
         elif instrument_parameter != self._VNA_mode:
             raise RuntimeError(
-                    "Invalid parameter. Tried to measure "
-                    f"{self._VNA_mode} "
-                    f"got {instrument_parameter}"
-                )
-
+                "Invalid parameter. Tried to measure "
+                f"{self._VNA_mode} "
+                f"got {instrument_parameter}"
+            )
 
         self.averaging_enabled(True)
         self.write(f"SENS{self._instrument_channel}:AVER:CLE")
@@ -1100,23 +1048,20 @@ class VNAChannel(InstrumentChannel):
                     for _ in range(self.avg()):
                         self.write(f"INIT{self._instrument_channel}:IMM; *WAI")
                     self.write(
-                        f"CALC{self._instrument_channel}:PAR:SEL "
-                        f"'{self._tracename}'"
+                        f"CALC{self._instrument_channel}:PAR:SEL '{self._tracename}'"
                     )
                     data_str = self.ask(
-                        f"CALC{self._instrument_channel}:DATA?"
-                        f" {data_format_command}"
+                        f"CALC{self._instrument_channel}:DATA? {data_format_command}"
                     )
                 data = np.array(data_str.rstrip().split(",")).astype("float64")
-                ''' CAREFULL I added a print and the dB option in .format()'''
-                # print(data)
 
-
-                if self.format() in ["Polar",
-                                     "Complex",
-                                     "Smith",
-                                     "Inverse Smith",
-                                     "dB"]:
+                if self.format() in [
+                    "Polar",
+                    "Complex",
+                    "Smith",
+                    "Inverse Smith",
+                    "dB",
+                ]:
                     data = data[0::2] + 1j * data[1::2]
             finally:
                 self.root_instrument.cont_meas_on()
@@ -1137,7 +1082,7 @@ class VNAChannel(InstrumentChannel):
         # turn off average on the VNA since we want single point sweeps.
         self.averaging_enabled(False)
         # This format is required for getting both real and imaginary parts.
-        self.format("Complex")
+        self.format("dB")
         # Set the sweep time to auto such that it sets the delay to zero
         # between each point (e.g msmt speed is optimized). Note that if one
         # would like to do a time sweep with time > npts/bandwidth, this is
@@ -1154,6 +1099,7 @@ class VNAChannel(InstrumentChannel):
         """
         self.sweep_type("Linear")
         self.averaging_enabled(True)
+        self.format("dB")
         self.root_instrument.cont_meas_on()
 
     def _check_cw_sweep(self) -> None:
@@ -1173,9 +1119,11 @@ class VNAChannel(InstrumentChannel):
         # It is possible that the instrument and QCoDeS disagree about
         # which parameter is measured on this channel.
         instrument_parameter = self.vna_parameter()
-        
+
         if self._vna_parameter != self._inst_name:
-            if instrument_parameter != self._vna_parameter:                       # Modified by Gwen to keep the test while not raising systematic error with new version of the driver
+            if (
+                instrument_parameter != self._vna_parameter
+            ):  # Modified by Gwen to keep the test while not raising systematic error with new version of the driver
                 raise RuntimeError(
                     "Invalid parameter. Tried to measure "
                     f"{self._vna_parameter} "
@@ -1184,10 +1132,10 @@ class VNAChannel(InstrumentChannel):
 
         elif instrument_parameter != self._VNA_mode:
             raise RuntimeError(
-                    "Invalid parameter. Tried to measure "
-                    f"{self._VNA_mode} "
-                    f"got {instrument_parameter}"
-                )
+                "Invalid parameter. Tried to measure "
+                f"{self._VNA_mode} "
+                f"got {instrument_parameter}"
+            )
 
         # Turn off average on the VNA since we want single point sweeps.
         self.averaging_enabled(False)
@@ -1198,7 +1146,7 @@ class VNAChannel(InstrumentChannel):
         # Cache the sweep time so it is up to date when setting timeouts
         self.sweep_time()
 
-    def _get_cw_data(self,initiate=True) -> Tuple[np.ndarray, np.ndarray]:
+    def _get_cw_data(self, initiate=True) -> Tuple[np.ndarray, np.ndarray]:
         # Make the checking optional such that we can do super fast sweeps as
         # well, skipping the overhead of the other commands.
         # if self.cw_check_sweep_first():
@@ -1211,8 +1159,7 @@ class VNAChannel(InstrumentChannel):
                 if initiate:
                     self.write(f"INIT{self._instrument_channel}:IMM; *WAI")
 
-                data_str = self.ask(f"CALC{self._instrument_channel}:DATA? "
-                                    f"SDAT")
+                data_str = self.ask(f"CALC{self._instrument_channel}:DATA? SDAT")
 
             data = np.array(data_str.rstrip().split(",")).astype("float64")
             i = data[0::2]
@@ -1250,7 +1197,6 @@ class VNA(VisaInstrument):
         reset_channels: bool = False,
         **kwargs: Any,
     ) -> None:
-
         super().__init__(name=name, address=address, **kwargs)
 
         # TODO(JHN) I could not find a way to get max and min freq from
@@ -1269,7 +1215,7 @@ class VNA(VisaInstrument):
             "ZNB8": (9e3, 8.5e9),
             "ZNB20": (100e3, 20e9),
             "ZNB40": (10e6, 40e9),
-            "ZNL14": (1e6, 14e9)
+            "ZNL14": (1e6, 14e9),
         }
         if model not in m_frequency.keys():
             raise RuntimeError(f"Unsupported VNA model {model}")
@@ -1277,9 +1223,7 @@ class VNA(VisaInstrument):
         self._max_freq: float
         self._min_freq, self._max_freq = m_frequency[model]
 
-        self.add_parameter(name="num_ports",
-                           get_cmd="INST:PORT:COUN?",
-                           get_parser=int)
+        self.add_parameter(name="num_ports", get_cmd="INST:PORT:COUN?", get_parser=int)
         num_ports = self.num_ports()
 
         self.add_parameter(
