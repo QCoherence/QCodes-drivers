@@ -969,7 +969,7 @@ class VNAChannel(InstrumentChannel):
         channel = self._instrument_channel
         self.write(f"SENS{channel}:SWE:TIME:AUTO {val}")
 
-    @deprecated("The method has been renamed.", "Please use update_lin_traces instead.")
+    @deprecated("The method has been renamed. Please use update_lin_traces instead.")
     def update_traces(self) -> None:
         """updates start, stop and npts of all trace parameters"""
         self.update_lin_traces()
