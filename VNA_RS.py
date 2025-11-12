@@ -436,16 +436,26 @@ class VNAChannel(InstrumentChannel):
         else:
             raise RuntimeError("Could not determine VNA model")
         self._model_min_source_power = {
-            "ZNB4": -80,
-            "ZNB8": -80,
-            "ZNB20": -60,
-            "ZNB40": -60,
-            "ZNL14": -60,
+            "ZNB4": -55,
+            "ZNB8": -55,
+            "ZNB20": -30,
+            "ZNB40": -30,
+            "ZNL14": -40,
         }
-        if model not in self._model_min_source_power.keys():
+        self._model_max_source_power = {
+            "ZNB4": 10,
+            "ZNB8": 10,
+            "ZNB20": 10,
+            "ZNB40": 13,
+            "ZNL14": 0,
+        }
+        if (
+            model not in self._model_min_source_power.keys()
+            or model not in self._model_max_source_power.keys()
+        ):
             raise RuntimeError(f"Unsupported VNA model: {model}")
-        self._min_source_power: float
-        self._min_source_power = self._model_min_source_power[model]
+        self._min_source_power: float = self._model_min_source_power[model]
+        self._max_source_power: float = self._model_max_source_power[model]
 
         self.add_parameter(
             name="VNA_mode",
@@ -469,7 +479,7 @@ class VNAChannel(InstrumentChannel):
             get_cmd=f"SOUR{n}:POW?",
             set_cmd=f"SOUR{n}:POW {{:.4f}}",
             get_parser=float,
-            vals=vals.Numbers(self._min_source_power, 25),
+            vals=vals.Numbers(self._min_source_power, self._max_source_power),
         )
         self.add_parameter(
             name="bandwidth",
@@ -1214,8 +1224,8 @@ class VNA(VisaInstrument):
             "ZNB4": (9e3, 4.5e9),
             "ZNB8": (9e3, 8.5e9),
             "ZNB20": (100e3, 20e9),
-            "ZNB40": (10e6, 40e9),
-            "ZNL14": (1e6, 14e9),
+            "ZNB40": (9e3, 40e9),
+            "ZNL14": (5e3, 14e9),
         }
         if model not in m_frequency.keys():
             raise RuntimeError(f"Unsupported VNA model {model}")
