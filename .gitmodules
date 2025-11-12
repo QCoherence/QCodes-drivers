@@ -1,0 +1,3 @@
+[submodule "adwin/nanoqt"]
+	path = adwin/nanoqt
+	url = https://cowork.neel.cnrs.fr/NanoQt/nanoqt
