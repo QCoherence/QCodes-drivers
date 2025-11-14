@@ -3,37 +3,24 @@
 
 
 import logging
-from qcodes import VisaInstrument, Instrument
-from qcodes import ChannelList, InstrumentChannel
-from qcodes.utils import validators as vals
-import numpy as np
-from qcodes import MultiParameter, ArrayParameter, Parameter
-import qcodes as qc
-
 from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
     Dict,
     List,
-    Mapping,
     Optional,
-    Sequence,
-    Type,
-    Union,
-    cast,
 )
+
+from qcodes import Parameter, VisaInstrument
+from qcodes import validators as vals
 
 log = logging.getLogger(__name__)
 
-class Mode(Parameter):
 
+class Mode(Parameter):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def set_raw(self,value):
-
-        '''
+    def set_raw(self, value):
+        """
         Change mode to DCI or DCV and apply 0 Ampere/Volt (or: do nothing if the active channel is in the correct mode)
 
         Input:
@@ -41,218 +28,198 @@ class Mode(Parameter):
 
         Output:
             None
-        '''
+        """
 
-        oldModeName = (self._instrument.ask('APPLY?')).lower()
+        oldModeName = (self._instrument.ask("APPLY?")).lower()
         modeName = value.lower()
 
         if oldModeName != modeName:
-
-            if modeName == 'dci' or modeName == 'dcv':
-
-                self._instrument.write('APPLY {} 0'.format(modeName.upper()))
+            if modeName == "dci" or modeName == "dcv":
+                self._instrument.write("APPLY {} 0".format(modeName.upper()))
             else:
                 raise ValueError('The input parameter should be "dci" or "dcv"')
 
     def get_raw(self):
+        """
+                gets the active mode ('dci' or 'dcv')
+        Input:
+            None
+        Output:
+            String
+        """
 
-        '''
-		    gets the active mode ('dci' or 'dcv')
-            Input:
-                None
-            Output:
-                String
-        '''
+        return self._instrument.ask("APPLY?").lower()
 
-        return self._instrument.ask('APPLY?').lower()
 
 class Voltage(Parameter):
-
     def __init__(self, *args, **kwargs):
-
         super().__init__(*args, **kwargs)
 
-
     def get_raw(self):
+        """
+        Get the output voltage of the active channel.
 
-        '''
-            Get the output voltage of the active channel.
+        Input:
+            - None
 
-            Input:
-                - None
+        Output:
+            - float
+        """
 
-            Output:
-                - float
-        '''
-
-        if (self._instrument.mode().upper())!='DCV':
-            raise ValueError('Active channel is not in voltage mode')
+        if (self._instrument.mode().upper()) != "DCV":
+            raise ValueError("Active channel is not in voltage mode")
         else:
-            return float(self._instrument.ask('OUTPUT?'))
+            return float(self._instrument.ask("OUTPUT?"))
 
-    def set_raw(self,value):
+    def set_raw(self, value):
+        """
+        Set the output voltage of the active channel.
 
-        '''
-            Set the output voltage of the active channel.
+        Input:
+            - Value (float): voltage in Volt
 
-            Input:
-                - Value (float): voltage in Volt
+        Output:
+            - None
+        """
 
-            Output:
-                - None
-        '''
+        self._instrument.write("APPLY DCV {}".format(value))
 
-        self._instrument.write('APPLY DCV {}'.format(value))
 
 class Current(Parameter):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def get_raw(self):
+        """
+        Get the output current of the active channel.
 
-        '''
-            Get the output current of the active channel.
+        Input:
+            - None
+        """
 
-            Input:
-                - None
-        '''
-
-        if (self._instrument.mode().upper())!='DCI':
+        if (self._instrument.mode().upper()) != "DCI":
             # raise ValueError('Active channel is not in current mode')
             return 0
         else:
-            return float(self._instrument.ask('OUTPUT?'))
+            return float(self._instrument.ask("OUTPUT?"))
 
-    def set_raw(self,value):
+    def set_raw(self, value):
+        """
+        Set the output current of the active channel.
 
-        '''
-            Set the output current of the active channel.
+        Input:
+            - currentValue (float): Current in amps
 
-            Input:
-                - currentValue (float): Current in amps
+        Output:
+            - None
+        """
 
-            Output:
-                - None
-        '''
+        self._instrument.write("APPLY DCI {}".format(value))
 
-        self._instrument.write('APPLY DCI {}'.format(value))
 
 class Range(Parameter):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    def set_raw(self,value):
+    def set_raw(self, value):
+        """
+        Set the current/voltage range. The range is selected accordingly out of the following lists:
+            In current mode:
+                "low resolution":   Imax = 0.1 mA, dI = 50 nA
+                                    Imax = 1 mA,   dI = 500 nA
+                                    Imax = 10 mA,  dI = 5 uA
+                                    Imax = 100 mA, dI = 50 uA
+                "high resolution":  Imax = 0.1 mA, dI = 0.1 nA
+                                    Imax = 1 mA,   dI = 1 nA
+                                    Imax = 10 mA,  dI = 10 nA
+                                    Imax = 100 mA,  dI = 100 nA
+            In voltage mode:
+                "low resolution":   Vmax = 0.15625 V, dV = 79 uV
+                                    Vmax = 0.3125 V, dV = 157 uV
+                                    Vmax = 0.625 V, dV = 313 uV
+                                    Vmax = 1.25 V, dV = 625 uV
+                                    Vmax = 2.5 V, dV = 1.25 mV
+                                    Vmax = 5 V, dV = 2.5 mV
+                                    Vmax = 10 V, dV = 5.0 mV
+                "high resolution":  Vmax = 1 V, dV = 1 uV
+                                    Vmax = 10 V, dV = 10 uV
 
-        '''
-            Set the current/voltage range. The range is selected accordingly out of the following lists:
-                In current mode:
-                    "low resolution":   Imax = 0.1 mA, dI = 50 nA
-                                        Imax = 1 mA,   dI = 500 nA
-                                        Imax = 10 mA,  dI = 5 uA
-                                        Imax = 100 mA, dI = 50 uA
-                    "high resolution":  Imax = 0.1 mA, dI = 0.1 nA
-                                        Imax = 1 mA,   dI = 1 nA
-                                        Imax = 10 mA,  dI = 10 nA
-                                        Imax = 100 mA,  dI = 100 nA
-                In voltage mode:
-                    "low resolution":   Vmax = 0.15625 V, dV = 79 uV
-                                        Vmax = 0.3125 V, dV = 157 uV
-                                        Vmax = 0.625 V, dV = 313 uV
-                                        Vmax = 1.25 V, dV = 625 uV
-                                        Vmax = 2.5 V, dV = 1.25 mV
-                                        Vmax = 5 V, dV = 2.5 mV
-                                        Vmax = 10 V, dV = 5.0 mV
-                    "high resolution":  Vmax = 1 V, dV = 1 uV
-                                        Vmax = 10 V, dV = 10 uV
+        Input:
+            - value (float or string): Maximum expected current or voltage in Ampere or Volt, or alternatively "AUTO" for autorange.
+        Output:
+            - None
+        """
+        if self._instrument.mode.get() == "dci":
+            if value not in [0.0001, 0.001, 0.01, 0.1]:
+                raise ValueError("Provided range not valid in DCI mode")
 
-            Input:
-                - value (float or string): Maximum expected current or voltage in Ampere or Volt, or alternatively "AUTO" for autorange.
-            Output:
-                - None
-        '''
-        if self._instrument.mode.get()=='dci':
+        else:
+            if self._instrument.resolution.get().lower() == "LOW":
+                if value not in [0.15625, 0.3125, 0.625, 1.25, 2.5, 5, 10]:
+                    raise ValueError(
+                        "Provided range not valid in low resolution DCV mode"
+                    )
+            else:
+                if value not in [1, 10]:
+                    raise ValueError(
+                        "Provided range not valid in high resolution DCV mode"
+                    )
 
-            if value not in [0.0001,0.001,0.01,0.1]:
-
-                raise ValueError('Provided range not valid in DCI mode')
-
-        else :
-            if self._instrument.resolution.get().lower()=='LOW':
-
-                if value not in [0.15625,0.3125,0.625,1.25,2.5,5,10]:
-
-                    raise ValueError('Provided range not valid in low resolution DCV mode')
-            else :
-
-                if value not in [1,10]:
-
-                    raise ValueError('Provided range not valid in high resolution DCV mode')
-
-
-        self._instrument.write('RANGE {}'.format(value))
+        self._instrument.write("RANGE {}".format(value))
 
     def get_raw(self):
+        """
+        Get the range of the device
 
-        '''
-            Get the range of the device
+        Input:
+            - None
+        Output:
+            - String
+        """
 
-            Input:
-                - None
-            Output:
-                - String
-        '''
+        return self._instrument.ask("RANGE?")
 
-        return self._instrument.ask('RANGE?')
 
 class ChannelStatus(Parameter):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+    def set_raw(self, value):
+        """
+        Sets the active channel (A or B). All subsequent set and get commands are applied to this channel until it is changed again.
 
+        Input:
+            channelName: String
 
-    def set_raw(self,value):
+        Output:
+            None
+        """
 
-        '''
-            Sets the active channel (A or B). All subsequent set and get commands are applied to this channel until it is changed again.
-
-            Input:
-                channelName: String
-
-            Output:
-                None
-        '''
-
-        if value.lower() == 'a':
-            self._instrument.write('USE CHANA ')
-            self._instrument.write('MON STATE CHANA ')
-        elif value.lower() == 'b':
-
-            self._instrument.write('USE CHANB ')
-            self._instrument.write('MON STATE CHANB ')
+        if value.lower() == "a":
+            self._instrument.write("USE CHANA ")
+            self._instrument.write("MON STATE CHANA ")
+        elif value.lower() == "b":
+            self._instrument.write("USE CHANB ")
+            self._instrument.write("MON STATE CHANB ")
         else:
             raise ValueError('The input parameter should be "A" or "B"')
 
     def get_raw(self):
+        """
+        gets active channel
 
-        '''
-            gets active channel
+        Input:
+            None
 
-            Input:
-                None
+        Output:
+            String
+        """
 
-            Output:
-                String
-        '''
-
-        channelInt = int(self._instrument.ask('USE?'))
+        channelInt = int(self._instrument.ask("USE?"))
         if channelInt == 0:
-            return 'A'
+            return "A"
         elif channelInt == 100:
-            return 'B'
-
+            return "B"
 
 
 class HP3245A(VisaInstrument):
@@ -266,68 +233,79 @@ class HP3245A(VisaInstrument):
 
     """
 
-    def __init__(self, name: str, address: str,**kwargs) -> None:
+    def __init__(self, name: str, address: str, **kwargs) -> None:
+        super().__init__(name=name, address=address, terminator="\r\n", **kwargs)
 
-        super().__init__(name=name, address=address,terminator='\r\n',**kwargs)
+        self.add_parameter(
+            name="voltage",
+            label="Voltage",
+            parameter_class=Voltage,
+            get_parser=float,
+            unit="V",
+            snapshot_get=False,
+        )
 
+        self.add_parameter(
+            name="current",
+            label="Current",
+            parameter_class=Current,
+            get_parser=float,
+            unit="A",
+            snapshot_get=False,
+        )
 
-        self.add_parameter(name='voltage',
-                           label='Voltage',
-                           parameter_class=Voltage,
-                           get_parser=float,
-                           unit='V',
-                           snapshot_get=False)
+        self.add_parameter(
+            name="resolution",
+            label="Resolution",
+            get_cmd="DCRES?",
+            set_cmd="DCRES {}",
+            vals=vals.Enum("HIGH", "LOW"),
+            snapshot_get=False,
+        )
 
-        self.add_parameter(name='current',
-                           label='Current',
-                           parameter_class=Current,
-                           get_parser=float,
-                           unit='A',
-                           snapshot_get=False)
+        self.add_parameter(
+            name="range",
+            label="Range",
+            unit="V/A",
+            parameter_class=Range,
+            snapshot_get=False,
+        )
 
-        self.add_parameter(name='resolution',
-                           label='Resolution',
-                           get_cmd='DCRES?',
-                           set_cmd='DCRES {}',
-                           vals=qc.utils.validators.Enum('HIGH','LOW'),
-                           snapshot_get=False)
+        self.add_parameter(
+            name="mode",
+            label="Mode",
+            parameter_class=Mode,
+            vals=vals.Enum("DCI", "DCV", "dci", "dcv"),
+            snapshot_get=False,
+        )
 
-        self.add_parameter(name='range',
-                           label='Range',
-                           unit='V/A',
-                           parameter_class=Range,
-                           snapshot_get=False)
+        self.add_parameter(
+            name="autorange",
+            label="Autorange",
+            get_cmd="ARANGE?",
+            set_cmd="ARANGE {}",
+            vals=vals.Enum("ON", "OFF"),
+            snapshot_get=False,
+        )
 
+        self.add_parameter(
+            name="output_terminal",
+            label="Output terminal",
+            set_cmd="TERM {}",
+            vals=vals.Enum("FRONT", "REAR"),
+            snapshot_get=False,
+        )
 
-        self.add_parameter(name='mode',
-                           label='Mode',
-                           parameter_class=Mode,
-                           vals=qc.utils.validators.Enum('DCI','DCV','dci','dcv'),
-                           snapshot_get=False)
-
-
-        self.add_parameter(name='autorange',
-                           label='Autorange',
-                           get_cmd='ARANGE?',
-                           set_cmd='ARANGE {}',
-                           vals=qc.utils.validators.Enum('ON','OFF'),
-                           snapshot_get=False)
-
-
-        self.add_parameter(name='output_terminal',
-                           label='Output terminal',
-                           set_cmd='TERM {}',
-                           vals=qc.utils.validators.Enum('FRONT','REAR'),
-                           snapshot_get=False)
-
-        self.add_parameter(name='channel',
-        				   label = 'Channel',
-                           parameter_class=ChannelStatus,
-                           vals=qc.utils.validators.Enum('A','B','a','b'),
-                           snapshot_get=False)
+        self.add_parameter(
+            name="channel",
+            label="Channel",
+            parameter_class=ChannelStatus,
+            vals=vals.Enum("A", "B", "a", "b"),
+            snapshot_get=False,
+        )
 
         self.connect_message()
-        #self.reset()
+        # self.reset()
 
     def get_idn(self) -> Dict[str, Optional[str]]:
         """
@@ -348,13 +326,13 @@ class HP3245A(VisaInstrument):
         Returns:
             A dict containing vendor, model, serial, and firmware.
         """
-        idstr = ''  # in case self.ask fails
+        idstr = ""  # in case self.ask fails
         try:
-            idstr = self.ask('IDN?')
+            idstr = self.ask("IDN?")
             # form is supposed to be comma-separated, but we've seen
             # other separators occasionally
             idparts: List[Optional[str]]
-            for separator in ',;:':
+            for separator in ",;:":
                 # split into no more than 4 parts, so we don't lose info
                 idparts = [p.strip() for p in idstr.split(separator, 3)]
                 if len(idparts) > 1:
@@ -363,20 +341,17 @@ class HP3245A(VisaInstrument):
             if len(idparts) < 4:
                 idparts += [None] * (4 - len(idparts))
         except:
-            self.log.debug('Error getting or interpreting IDN?: '
-                           + repr(idstr))
+            self.log.debug("Error getting or interpreting IDN?: " + repr(idstr))
             idparts = [None, self.name, None, None]
 
         # some strings include the word 'model' at the front of model
-        if str(idparts[1]).lower().startswith('model'):
+        if str(idparts[1]).lower().startswith("model"):
             idparts[1] = str(idparts[1])[5:].strip()
 
-        return dict(zip(('vendor', 'model', 'serial', 'firmware'), idparts))
-
-
+        return dict(zip(("vendor", "model", "serial", "firmware"), idparts))
 
     def reset(self):
-        '''
+        """
         Reset the instrument
 
         Input:
@@ -384,22 +359,22 @@ class HP3245A(VisaInstrument):
 
         Output:
             None
-        '''
-        self.write('RST')
+        """
+        self.write("RST")
 
     def clear_mem(self):
-        '''
+        """
         Clear HP3245A memory
 
         Input:
             None
         Output:
             None
-        '''
-        self.write('SCRATCH')
+        """
+        self.write("SCRATCH")
 
     def get_all(self):
-        '''
+        """
         Get all parameters of the instrument
 
         Input:
@@ -407,15 +382,14 @@ class HP3245A(VisaInstrument):
 
         Output:
             None
-        '''
+        """
         self.mode.get()
         self.channel.get()
         self.resolution.get()
         self.range.get()
         self.autorange.get()
 
-        if   self.mode.get() == 'dci':
-
+        if self.mode.get() == "dci":
             self.current.get()
         else:
             self.voltage.get()

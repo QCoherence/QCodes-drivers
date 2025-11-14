@@ -4,10 +4,10 @@ Created on Wed Jul  7 16:44:03 2021
 
 @author: nicolas.roch
 """
+
 import time
-import numpy as np
+
 import ADwin
-import matplotlib.pyplot as plt
 
 n_ramp = 10
 # ADC_scale = 0b111111111111111100000000
@@ -24,9 +24,9 @@ ad.Load_Process("./nanoqt/ressources/acquisition-gold2.TB1")
 ad.Start_Process(1)
 
 
-p0 = [0,0,1,500,1,2**15]
-p1 = [0,1,1,500,1,2**16]
-p2 = [0,1,1,500,1,0]
+p0 = [0, 0, 1, 500, 1, 2**15]
+p1 = [0, 1, 1, 500, 1, 2**16]
+p2 = [0, 1, 1, 500, 1, 0]
 ad.SetFifo_Long(1, p0, len(p0))
 
 for i in range(n_ramp):
@@ -39,10 +39,8 @@ time.sleep(2)
 ad.Stop_Process(1)
 
 
-
 # measure = np.array(ad.GetFifo_Long(2, int(2*500/1.*n_ramp)))
 # measure = (measure-ADC_offset)/ADC_offset*10
 
 # plt.plot(measure, '.')
 # plt.show()
-

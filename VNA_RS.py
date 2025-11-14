@@ -1,26 +1,18 @@
 import logging
 from functools import partial
 from typing import Any, Optional, Tuple
+from warnings import deprecated
 
 import numpy as np
 from qcodes import ChannelList, Instrument, InstrumentChannel, VisaInstrument
-from qcodes.instrument.parameter import (
+from qcodes import validators as vals
+from qcodes.parameters import (
     ArrayParameter,
     ManualParameter,
     MultiParameter,
     ParamRawDataType,
+    create_on_off_val_mapping,
 )
-from qcodes.utils import validators as vals
-from qcodes.utils.helpers import create_on_off_val_mapping
-
-try:
-    from warnings import deprecated
-except ImportError:
-    try:
-        from typing_extensions import deprecated
-    except ImportError:
-        from qcodes.utils.deprecate import deprecate as deprecated
-
 
 log = logging.getLogger(__name__)
 
