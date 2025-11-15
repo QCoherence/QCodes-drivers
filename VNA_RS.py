@@ -1,7 +1,6 @@
 import logging
 from functools import partial
 from typing import Any, Optional, Tuple
-from warnings import deprecated
 
 import numpy as np
 from qcodes import ChannelList, Instrument, InstrumentChannel, VisaInstrument
@@ -13,6 +12,11 @@ from qcodes.parameters import (
     ParamRawDataType,
     create_on_off_val_mapping,
 )
+
+try:
+    from warnings import deprecated
+except ImportError:
+    from typing_extensions import deprecated
 
 log = logging.getLogger(__name__)
 
