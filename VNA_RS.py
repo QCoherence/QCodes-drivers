@@ -769,7 +769,7 @@ class VNAChannel(InstrumentChannel):
         )
         self.add_function(
             "autoscale",
-            call_cmd=f"DISPlay:TRACe1:Y:SCALe:AUTO ONCE, {self._tracename}",
+            call_cmd=f"DISP:TRAC:Y:SCAL:AUTO ONCE, '{self._tracename}'",
         )
 
         self.add_function(
