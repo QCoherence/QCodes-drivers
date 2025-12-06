@@ -1,11 +1,10 @@
 import time
 
+import ADwin
 import numpy as np
 import tqdm.notebook as tqdm
 from qcodes import Instrument, MultiParameter
 from qcodes import validators as vals
-
-import ADwin
 
 FIFO_SZ = 1000000
 
@@ -424,7 +423,6 @@ class ADwin_Gold2(Instrument):
             name="adwin_mode",
             label="Adwin mode",
             vals=vals.Numbers(0x0, 0x20000),
-            unit="",
             set_cmd=self.set_mode,
             get_cmd=self.get_mode,
         )
@@ -450,7 +448,6 @@ class ADwin_Gold2(Instrument):
             name="subsampling",
             label="Subsampling factor for the ADwin",
             vals=vals.Numbers(0, 2**16),
-            unit="",
             set_cmd=self.set_subsampling,
             get_cmd=self.get_subsampling,
         )
@@ -458,16 +455,20 @@ class ADwin_Gold2(Instrument):
         self.add_parameter(
             name="output_mask",
             label="Output mask in the FIFO",
-            vals=vals.Numbers(0b1, 0b11111111),
-            unit="",
+            vals=vals.MultiTypeOr(
+                vals.Ints(0b1, 0b11111111),
+                vals.Arrays(0b1, 0b11111111, valid_types=[int]),
+            ),
             set_cmd=self.set_output_mask,
             get_cmd=self.get_output_mask,
         )
         self.add_parameter(
             name="input_mask",
             label="Input mask in the FIFO",
-            vals=vals.Numbers(0b1, 0b11111111111111),
-            unit="",
+            vals=vals.MultiTypeOr(
+                vals.Ints(0b1, 0b11111111111111),
+                vals.Arrays(0b1, 0b11111111111111, valid_types=[int]),
+            ),
             set_cmd=self.set_input_mask,
             get_cmd=self.get_input_mask,
         )
@@ -552,7 +553,7 @@ class ADwin_Gold2(Instrument):
         """Convert back the binary of the ADC to a voltage between -10V and +10V"""
         return (B - 2**23) / 2**23 * 10
 
-    def set_outputs(self, targets: np.array):
+    def set_outputs(self, targets: np.typing.NDArray):
         """Creating the FIFO to send to the ADWIN,
         The ADwin will ramp to the point in phase space R^(max number of outputs=8) specified by the argument "targets"
         it will start from its current position in this space (it will not reset the outputs to 0V)
@@ -629,17 +630,17 @@ class ADwin_Gold2(Instrument):
     def get_input_number(self):
         raw_string = bin(self.input_mask())[2:][::-1]
         names = []
-        for i_number, l in enumerate(raw_string):
-            if int(l) == 1:
-                names.append(i_number)
+        for idx, s in enumerate(raw_string):
+            if int(s) == 1:
+                names.append(idx)
         return names
 
     def get_output_number(self):
         raw_string = bin(self.output_mask())[2:][::-1]
         names = []
-        for i_number, l in enumerate(raw_string):
-            if int(l) == 1:
-                names.append(i_number)
+        for idx, s in enumerate(raw_string):
+            if int(s) == 1:
+                names.append(idx)
         return names
 
     def get_input(self):
@@ -660,17 +661,49 @@ class ADwin_Gold2(Instrument):
         """Get internal ramp time in numbers of points"""
         return self.rs
 
-    def set_output_mask(self, mask):
-        """Set the ouput mask in binary form"""
-        self._output_mask = mask
+    @staticmethod
+    def _is_it_binary(n: int) -> bool:
+        if type(n) is not int:
+            raise ValueError(f"This is not an integer: {n}.")
+        return "b" in str(n)
+
+    def set_output_mask(self, indexes: int | list[int]):
+        """Set the ouput mask in binary form.
+        You should provide the index of the channels
+        that you would like to use (typ. from 1 to 8)
+        or directly the mask in binary format.
+        """
+        if type(indexes) is int:
+            indexes = [indexes]
+        self._output_mask = bin(
+            sum(
+                [
+                    2 ** (i - 1) if not ADwin_Gold2._is_it_binary(i) else i
+                    for i in indexes
+                ]
+            )
+        )
 
     def get_output_mask(self):
         """Get the ouput mask in binary form"""
         return self._output_mask
 
-    def set_input_mask(self, mask):
-        """Set the input mask in binary form"""
-        self._input_mask = mask
+    def set_input_mask(self, indexes: int | list[int]):
+        """Set the input mask in binary form.
+        You should provide the index of the channels
+        that you would like to use (typ. from 1 to 14)
+        or directly the mask in binary format.
+        """
+        if type(indexes) is int:
+            indexes = [indexes]
+        self._input_mask = bin(
+            sum(
+                [
+                    2 ** (i - 1) if not ADwin_Gold2._is_it_binary(i) else i
+                    for i in indexes
+                ]
+            )
+        )
 
     def get_input_mask(self):
         """Get the input mask in binary form"""
