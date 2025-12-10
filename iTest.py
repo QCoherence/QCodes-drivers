@@ -257,6 +257,10 @@ class iTestChannel(InstrumentChannel):
             set_cmd=partial(self._parent._set_voltage_step_width, module, ch),
         )
 
+        self.apply_voltage = partial(self._parent._apply_channel_voltage, module, ch)
+
+        self.trigger = partial(self._parent._trigger_channel, module, ch)
+
 
 class iTestBilt(VisaInstrument):
     """
@@ -339,7 +343,22 @@ class iTestBilt(VisaInstrument):
             value: The set value of voltage in V
         """
         chan_id = self.chan_to_id(module, ch)
+        self.write(f"{chan_id}VOLT {value:.8f}")
+
+    def _apply_channel_voltage(self, module: int, ch: int, value: float) -> None:
+        """
+        Output voltage on the desired channel of the desired module
+        Args:
+            value: The set value of voltage in V
+        """
+        chan_id = self.chan_to_id(module, ch)
         board_model = self.get_instrument_model(module)
+
+        max_v = self.inst_dictionnary[f"BE{board_model}"]["V_max_V"]
+        if abs(value) > max_v:
+            raise ValueError(
+                f"{value} is invalid: must be between -{max_v} and {max_v} inclusive"
+            )
 
         if board_model == "5845":
             self.write(f"{chan_id}VOLT {value:.8f}")
@@ -349,10 +368,8 @@ class iTestBilt(VisaInstrument):
 
             if value > range_val:
                 raise ValueError(
-                    "The asked voltage is too much for the selected voltage range"
+                    f"The asked voltage {value} is too much for the selected voltage range {range_val}"
                 )
-
-            board_model = self.get_instrument_model(module)
 
             self._set_ramp_mode(module, ch, mode="RAMP")
             # self._set_ramp_rate(module, ch, rate = 0.001) # V/ms
@@ -361,7 +378,7 @@ class iTestBilt(VisaInstrument):
             self.write(f"{chan_id}TRIG:INput:INIT")
 
             while self.ask(f"{chan_id}VOLT:STAT?") != "1":
-                sleep(1)
+                sleep(0.1)
 
     def _get_channel_status(self, module: int, ch: int) -> int:
         """
@@ -989,7 +1006,10 @@ class iTestBilt(VisaInstrument):
         return self.inst_dictionnary, total_channel_number
 
     def chan_to_id(self, module: int, ch: int) -> str:
-        # Returns the string to be put at the beginning of each VISA instruction to adress specifically a board (module) and a channel
+        """
+        Returns the string to be put at the beginning of each VISA instruction
+        to address specifically a board (module) and a channel
+        """
 
         i, c = module, ch
 
@@ -1010,3 +1030,16 @@ class iTestBilt(VisaInstrument):
         self.chan_id = f"i{i};c{c};"
 
         return f"i{i};c{c};"
+
+    def _trigger_channel(self, module: int, ch: int) -> None:
+        """
+        Send trigger signal to a channel
+        """
+
+        chan_id = self.chan_to_id(module, ch)
+        self.write(f"{chan_id}TRIG:INput:INIT")
+
+    def trigger(self) -> None:
+        """Trigger all the channels"""
+
+        self.write("TRIG:INput:INIT:ALL")
