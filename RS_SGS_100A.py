@@ -1,12 +1,13 @@
-# Last update Jan 2023
-#                     -- Arpit
+# Last update Apr 2026
+#                     -- J-S
 
 
 import logging
+from math import pi
 
-from numpy import pi
 from qcodes import VisaInstrument
 from qcodes import validators as vals
+from qcodes.parameters import create_on_off_val_mapping
 
 log = logging.getLogger(__name__)
 
@@ -59,35 +60,27 @@ class SGS100A(VisaInstrument):
         self.add_parameter(
             name="status",
             label="Output on/off",
-            vals=vals.Enum("on", "off"),
-            unit="NA",
             set_cmd="output " + "{}",
             get_cmd="output?",
-            set_parser=self.easy_read_status,
-            get_parser=self.easy_read_status_read,
+            val_mapping=create_on_off_val_mapping(on_val=1, off_val=0),
             snapshot_get=False,
         )
 
         self.add_parameter(
             name="IQmode",
             label="IQmode on/off",
-            vals=vals.Enum("on", "off"),
-            unit="NA",
             set_cmd="IQ:state " + "{}",
             get_cmd="IQ:state?",
-            set_parser=self.easy_read_IQmode,
-            get_parser=self.easy_read_IQmode_read,
+            val_mapping=create_on_off_val_mapping(on_val=1, off_val=0),
         )
 
         self.add_parameter(
             name="IQmode_wideband",
             label="IQmode wideband option on/off",
             vals=vals.Enum("on", "off"),
-            unit="NA",
             set_cmd="IQ:WBSTate " + "{}",
             get_cmd="IQ:WBSTate?",
-            set_parser=self.easy_read_IQmode,
-            get_parser=self.easy_read_IQmode_read,
+            val_mapping=create_on_off_val_mapping(on_val=1, off_val=0),
         )
 
         # good idea to call connect_message at the end of your constructor.
@@ -102,34 +95,6 @@ class SGS100A(VisaInstrument):
 
     def deg_to_rad(self, theta):
         return float(theta) * pi / 180.0
-
-    def easy_read_status(self, status):
-        if status == "on":
-            ret = 1
-        elif status == "off":
-            ret = 0
-        return ret
-
-    def easy_read_status_read(self, status):
-        if status == "1":
-            ret = "on"
-        elif status == "0":
-            ret = "off"
-        return ret
-
-    def easy_read_IQmode(self, IQmode):
-        if IQmode == "on":
-            ret = 1
-        elif IQmode == "off":
-            ret = 0
-        return ret
-
-    def easy_read_IQmode_read(self, IQmode):
-        if IQmode == "1":
-            ret = "on"
-        elif IQmode == "0":
-            ret = "off"
-        return ret
 
     def warn_over_range(self, power):
         if power * 1000 % 10 != 0:
