@@ -1,11 +1,12 @@
-# Last updated on 30 Oct 2020
-#                     -- Arpit
+# Last updated on 08 Apr 2026
+#                     -- J-S
 
 
 import logging
 
 from qcodes import VisaInstrument
 from qcodes import validators as vals
+from qcodes.parameters import create_on_off_val_mapping
 
 log = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class Yokogawa_7651(VisaInstrument):
             vals=vals.Numbers(1000, 30_000),
             unit="mV",
             set_parser=self._div_1000_int,
-            set_cmd="LV" + "{}",
+            set_cmd="LV{}",
         )
 
         self.add_parameter(
@@ -56,7 +57,7 @@ class Yokogawa_7651(VisaInstrument):
             vals=vals.Numbers(5, 120),
             unit="mA",
             set_parser=int,
-            set_cmd="LA" + "{}",
+            set_cmd="LA{}",
         )
 
         self.add_parameter(
@@ -64,7 +65,7 @@ class Yokogawa_7651(VisaInstrument):
             label="Set output voltage in mV",
             vals=vals.Numbers(-30_000, 30_000),
             unit="mV",
-            set_cmd=self._set_V,
+            set_cmd=self._set_value,
         )
 
         self.add_parameter(
@@ -72,48 +73,33 @@ class Yokogawa_7651(VisaInstrument):
             label="Set output current in mA",
             vals=vals.Numbers(-120, 120),
             unit="mA",
-            set_cmd=self._set_A,
+            set_cmd=self._set_value,
         )
 
         self.add_parameter(
             name="status",
             label="Output on/off",
-            vals=vals.Enum("on", "off"),
-            set_cmd="O" + "{}" + "E",
-            set_parser=self._easy_read_status,
+            set_cmd="O{}E",
+            val_mapping=create_on_off_val_mapping(on_val=1, off_val=0),
         )
 
     def _set_V_mode(self, range):
         range_options = {10: "R2", 100: "R3", 1000: "R4", 10000: "R5", 30000: "R6"}
-        self.write("F1" + range_options[int(range)] + "E")
+        self.write(f"F1{range_options[int(range)]}E")
 
     def _set_A_mode(self, range):
         range_options = {1: "R4", 10: "R5", 100: "R6"}
-        self.write("F5" + range_options[int(range)] + "E")
+        self.write(f"F5{range_options[int(range)]}E")
 
     def _div_1000_int(self, val):
         return int(val / 1000)
 
-    def _set_V(self, voltage):
-        if voltage > 0:
+    def _set_value(self, value):
+        if value > 0:
             polarity = "+"
         else:
             polarity = "-"
-        self.write("S" + polarity + str(round(abs(voltage) / 1000.0, 6)) + "E")
-
-    def _set_A(self, current):
-        if current > 0:
-            polarity = "+"
-        else:
-            polarity = "-"
-        self.write("S" + polarity + str(round(abs(current) / 1000.0, 6)) + "E")
-
-    def _easy_read_status(self, state):
-        if state == "on":
-            ret = "1"
-        else:
-            ret = "0"
-        return ret
+        self.write(f"S{polarity}{round(abs(value) / 1000.0, 6)}E")
 
     def init(self):
         self.write("RC")
