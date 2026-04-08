@@ -1,8 +1,10 @@
 # QCoDeS-drivers
 
-In this folder, we have all the drivers for instruments to be used with QCoDeS.
+The official drivers are presented in the [documentation](https://microsoft.github.io/Qcodes/drivers_api/index.html). When no officiel driver is existing, we have to use a custom one.
 
-Examples are available in this [repo](https://github.com/QCoDeS/Qcodes_contrib_drivers), and the official documentation [here](https://microsoft.github.io/Qcodes/examples/writing_drivers/Creating-Instrument-Drivers.html).
+In this folder, we have all our custom drivers for instruments to be used with QCoDeS.
+
+Examples of other custom drivers are available in this [repo](https://github.com/QCoDeS/Qcodes_contrib_drivers), and the documentation on how to write such a driver [here](https://microsoft.github.io/Qcodes/examples/writing_drivers/Creating-Instrument-Drivers.html).
 
 [QCoDeS 0.54.0](https://microsoft.github.io/Qcodes/changes/0.54.0.html) introduces some breaking changes. If you want to use the code that is compatible with prior version, use the [release 0.1.0](https://github.com/QCoherence/QCodes-drivers/releases/tag/v0.1.0).
 
