@@ -122,7 +122,6 @@ class E8257D(VisaInstrument):
             vals=vals.Enum("CW", "sweep"),
             set_cmd="SOURce:FREQuency:MODE " + "{}",
             get_cmd="SOURce:FREQuency:MODE?",
-            set_parser=self.set_freqsweep,
         )
 
         self.add_parameter(
@@ -159,43 +158,6 @@ class E8257D(VisaInstrument):
 
     def deg_to_rad(self, theta):
         return float(theta) * pi / 180.0
-
-    def set_freqsweep(self, freqsweep="off"):
-        """
-        Set the frequency sweep mode to 'on' or 'off'
-
-        Input:
-        status (string): 'on' or 'off'
-        Output:
-        None
-        """
-
-        if freqsweep.upper() in ("SWEEP"):
-            self.write("SOURCE:FREQUENCY:MODE SWEEP")
-        elif freqsweep.upper() in ("CW"):
-            self.write("SOURCE:FREQUENCY:MODE CW")
-        else:
-            raise ValueError("set_freqsweep(): can only set on or off")
-
-    def get_freqsweep(self):
-        """
-        Get the status of the frequency sweep mode from the instrument
-
-        Input:
-        None
-        Output:
-        status (string) : 'on' or 'off'
-        """
-        # Output can be '0', '1' or '0\n', '1\n' which are different strings.
-        # By using int() we can only get 1 or 0 independently of the OS.
-        stat = self.query("SWE:RUNN?")
-
-        if stat == 1:
-            return "on"
-        elif stat == 0:
-            return "off"
-        else:
-            raise ValueError("Output status not specified : %s" % stat)
 
     def get_sweepmode(self):
         """
