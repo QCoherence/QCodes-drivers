@@ -97,10 +97,11 @@ class E8257D(VisaInstrument):
         self.add_parameter(
             name="alc",
             label="ALC on/off",
-            description="This command enables or disables the automatic leveling control (ALC) circuit. "
+            docstring="This command enables or disables the automatic leveling control (ALC) circuit. "
             "The purpose of the ALC circuit is to hold output power at a desired level by adjusting the signal "
             "generator power circuits for power drift. Power will drift over time and with changes in temperature. "
-            "Refer to the E8257D/67D, E8663D PSG Signal Generators User’s Guide for more information on the ALC.",
+            "Power Search is a cal routine which improves output power accuracy when ALC is off. "
+            "A power search is recommended for pulse-modulated signals with pulse widths less than one microsecond.",
             vals=vals.Bool(),
             val_mapping=create_on_off_val_mapping(on_val=1, off_val=0),
             set_cmd="POWer:ALC {}",
@@ -180,29 +181,31 @@ class E8257D(VisaInstrument):
         self.add_parameter(
             name="pulse_period",
             label="Period of the full square pulse",
-            description="Total length of the pulse, high and low positions included.",
+            docstring="Total length of the pulse, high and low positions included.",
             vals=vals.Numbers(70e-9, 42),
             unit="s",
             set_cmd="PULM:INTernal:PERiod {}S",
             get_cmd="PULM:INTernal:PERiod?",
+            get_parser=float,
         )
 
         self.add_parameter(
             name="pulse_width",
             label="Width of the square pulse",
-            description="Length of the high position of the pulse. Must be set after pulse period! "
+            docstring="Length of the high position of the pulse. Must be set after pulse period! "
             "The maximum value is pulse width - 20ns",
             vals=vals.Numbers(10e-9, 42 - 20e-9),
             unit="s",
             set_cmd="PULM:INTernal:PWIDth {}S",
             get_cmd="PULM:INTernal:PWIDth?",
             set_parser=self.set_pulse_width,
+            get_parser=float,
         )
 
         self.add_parameter(
             name="pulse_source",
             label="Type of pulse",
-            description="There is 5 kind of pulses. "
+            docstring="There is 5 kind of pulses. "
             "The internal one are shapped by the device but some can be triggered externaly; "
             "the external one is outputing a signal while receiving a high state on the triggering port.",
             vals=vals.Enum(
@@ -210,18 +213,6 @@ class E8257D(VisaInstrument):
             ),
             set_cmd=self.set_pulse_source,
             get_cmd=self.get_pulse_source,
-        )
-
-        self.add_parameter(
-            name="alc_search",
-            label="ALC search",
-            description="Power Search is a cal routine which improves output power accuracy when ALC is off. "
-            "This command enables or disables the internal power search calibration. "
-            "A power search is recommended for pulse–modulated signals with pulse widths less than one microsecond. "
-            "Refer to the E8257D/67D, E8663D PSG Signal Generators User’s Guide for more information on ALC and the power search function.",
-            vals=vals.Enum("Manual", "Auto", "Span"),
-            set_cmd=":POWer:ALC:SEARch {}",
-            get_cmd=":POWer:ALC:SEARch?",
         )
 
         # good idea to call connect_message at the end of your constructor.
@@ -324,16 +315,27 @@ class E8257D(VisaInstrument):
                 self.write(f"PULM:SOUR:INT {ps}")
 
     def setup_pulse_mode(self):
+        """
+        The command setup the machine to run in pulsed mode.
+        """
+
         self.modulation("ON")
         self.pulse_modulation("ON")
-        if self.alc():
-            self.alc("OFF")
-            print(
-                "You can press the softkey `Do power search` to perform an automatic optimisation of the output power."
-            )
-        self.alc_search("Span")
+        self.alc("OFF")
+        self.pulse_width(10e-9)
         self.pulse_period(200e-9)
         self.pulse_width(100e-9)
+        self.write(":POWer:ALC:SEAR:SPAN ON")
+        self.write(":POWer:ALC:SEARch ONCE")
+
+    def setup_continuous_mode(self):
+        """
+        The command setup the machine to run in CW or sweep modes.
+        """
+
+        self.modulation("OFF")
+        self.pulse_modulation("OFF")
+        self.alc("ON")
 
     def set_gui_update(self, update="ON"):
         """
