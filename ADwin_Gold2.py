@@ -1,10 +1,11 @@
 import time
 
-import ADwin
 import numpy as np
 import tqdm.notebook as tqdm
 from qcodes import Instrument, MultiParameter
 from qcodes import validators as vals
+
+import ADwin
 
 FIFO_SZ = 1000000
 
@@ -462,12 +463,13 @@ class ADwin_Gold2(Instrument):
             set_cmd=self.set_output_mask,
             get_cmd=self.get_output_mask,
         )
+
         self.add_parameter(
             name="input_mask",
             label="Input mask in the FIFO",
             vals=vals.MultiTypeOr(
-                vals.Ints(0b1, 0b11111111111111),
-                vals.Arrays(0b1, 0b11111111111111, valid_types=[int]),
+                vals.Ints(0b0, 0b11111111111111),
+                vals.Arrays(0b0, 0b11111111111111, valid_types=[int]),
             ),
             set_cmd=self.set_input_mask,
             get_cmd=self.get_input_mask,
@@ -500,7 +502,7 @@ class ADwin_Gold2(Instrument):
             unit="Hz",
             set_cmd=lambda x: self.device.Set_FPar(1, x),
             get_cmd=lambda: self.device.Get_FPar(1),
-            set_parser=lambda x: (x * 2 * np.pi * self.process_duration),
+            set_parser=lambda x: x * 2 * np.pi * self.process_duration,
             get_parser=lambda x: np.round(x / 2 / np.pi / self.process_duration, 4),
         )
 
@@ -510,8 +512,29 @@ class ADwin_Gold2(Instrument):
             unit="V",
             set_cmd=lambda x: self.device.Set_FPar(2, x),
             get_cmd=lambda: self.device.Get_FPar(2),
-            set_parser=self.volt_to_binary,
+            set_parser=self.volt_to_binary_lockin,
             get_parser=self.binary_to_volt_lockin,
+        )
+
+        self.add_parameter(
+            name="lockin_bandwidth",
+            label="Lock in bandwidth in Hz",
+            unit="Hz",
+            set_cmd=lambda x: self.device.Set_FPar(3, x),
+            get_cmd=lambda: self.device.Get_FPar(3),
+            set_parser=lambda x: (
+                1
+                - np.exp(
+                    -2 * np.pi * x / np.sqrt(2 ** (1 / 4) - 1) * self.process_duration
+                )
+            ),
+            get_parser=lambda x: (
+                lambda y: (
+                    -np.log(1 - y)
+                    * np.sqrt(2 ** (1 / 4) - 1)
+                    / (2 * np.pi * self.process_duration)
+                )
+            ),
         )
 
         self.device = ADwin.ADwin(adwin_no)
@@ -541,6 +564,10 @@ class ADwin_Gold2(Instrument):
         self.process_duration = 10e-9 / 3.0 * 3000  # The process duration is thus 10 us
         self.device.Start_Process(1)
 
+    def volt_to_binary_lockin(self, V):
+        """Convert lockin voltage amplitude to DAC binary amplitude."""
+        return int(V / 10 * 2**15)
+
     def volt_to_binary(self, V):
         """Convert the voltage given to the binary representation for the DAC"""
         return int(V / 10 * 2**15 + 2**15)
@@ -551,9 +578,9 @@ class ADwin_Gold2(Instrument):
 
     def binary_to_volt(self, B):
         """Convert back the binary of the ADC to a voltage between -10V and +10V"""
-        return (B - 2**23) / 2**23 * 10
+        return float((B - 2**23) / 2**23 * 10)
 
-    def set_outputs(self, targets: np.typing.NDArray):
+    def set_outputs(self, targets: np.ndarray):
         """Creating the FIFO to send to the ADWIN,
         The ADwin will ramp to the point in phase space R^(max number of outputs=8) specified by the argument "targets"
         it will start from its current position in this space (it will not reset the outputs to 0V)
@@ -652,6 +679,17 @@ class ADwin_Gold2(Instrument):
 
     def get_mode(self):
         return self._adwin_mode
+
+    def turn_lockin_on(self):
+        self.device.Set_Par(36, 1)  # Lock-in input
+        self.device.Set_Par(37, 1)  # Lock-in output
+
+    def filter_time_constant(self):
+        """Time constant associated to the filtering"""
+        cascade_order = 4
+        cascade_factor = np.sqrt(2 ** (1 / cascade_order) - 1)
+        single_stage_bandwidth_Hz = self.bandwidth() / cascade_factor
+        return 1 / (2 * np.pi * single_stage_bandwidth_Hz)
 
     def set_ramp_size(self, rs):
         """Set internal ramp time in numbers of points"""
