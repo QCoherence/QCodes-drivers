@@ -13,7 +13,7 @@ from qcodes import (
     VisaInstrument,
 )
 from qcodes import validators as vals
-from qcodes.parameters import Parameter, ParameterWithSetpoints
+from qcodes.parameters import Parameter, ParameterWithSetpoints, create_on_off_val_mapping
 from qcodes.validators import Arrays
 
 log = logging.getLogger(__name__)
@@ -408,6 +408,27 @@ class AnritsuChannel(InstrumentChannel):
         )
 
         self.add_parameter(
+            name="sweep_type",
+            get_cmd=f"SENS{n}:SWE:TYPE?",
+            set_cmd=self._set_sweep_type,
+            val_mapping={
+                "Linear": "LIN",
+                "Logarithmic": "LOG",
+                "Power": "POW",
+                "CW_Time": "CW",
+                "CW_Point": "POIN",
+                "Segmented": "SEGM",
+            },
+            docstring="The sweep_type parameter is used to set "
+            "the type of measurement sweeps. It "
+            "allows switching the default linear "
+            "VNA sweep type to other types. Note that "
+            "at the moment only the linear and "
+            "CW_Point modes have supporting "
+            "measurement parameters.",
+        )
+
+        self.add_parameter(
             name="avgcount",
             label="Average counter",
             get_cmd=":SENS{}:AVER:SWE?".format(n_fixed),
@@ -433,7 +454,25 @@ class AnritsuChannel(InstrumentChannel):
             vals=vals.Numbers(100e3, 20e9),
         )
 
+        self.add_parameter(
+            name="averaging_enabled",
+            initial_value=False,
+            get_cmd=None,
+            set_cmd=self._enable_averaging,
+            vals=vals.Bool(),
+            val_mapping=create_on_off_val_mapping(on_val="ON", off_val="OFF"),
+        )
+
+        self.add_function(
+            "set_electrical_delay_auto", call_cmd=f"SENS{n}:CORR:EDEL:AUTO ONCE"
+        )
+
         self.add_function("autoscale_all", call_cmd=":DISP:WIND:Y:AUTO")
+
+        self.add_function(
+            "average_clear",
+            call_cmd=f"SENS{n}:AVER:CLE",
+        )
 
         self.add_parameter(
             name="cw_mode",
@@ -584,6 +623,10 @@ class AnritsuChannel(InstrumentChannel):
         self.write("SENS{}:FREQ:CENT {:.7f}".format(channel, val))
         self.update_traces()
 
+    def _set_sweep_type(self, val: str) -> None:
+        channel = self._instrument_channel
+        self.write(f"SENS{channel}:SWE:TYPE {val}")
+
     def _set_cw_freq(self, val):
         channel = self._instrument_channel
         self.write("SENS{}:FREQ:CW {:.7f}".format(channel, val))
@@ -593,6 +636,10 @@ class AnritsuChannel(InstrumentChannel):
             log.warning(
                 "Could not set cw frequency to {} setting it to {}".format(val, cwfreq)
             )
+
+    def _enable_averaging(self, val: str) -> None:
+        channel = self._instrument_channel
+        self.write(f"SENS{channel}:AVER:STAT {val}")
 
     def _set_mode(self, mode):
         self._VNA_mode = mode
@@ -754,6 +801,15 @@ class AnritsuChannel(InstrumentChannel):
             pass
 
         return data
+
+    def setup_lin_sweep(self) -> None:
+        """
+        Setup the instrument into linear sweep mode.
+        """
+        self.sweep_type("Linear")
+        self.averaging_enabled(True)
+        self.format("dB")
+        self.root_instrument.cont_meas_on()
 
 
 class MS46522B(VisaInstrument):
