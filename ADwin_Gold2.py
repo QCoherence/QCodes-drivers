@@ -458,7 +458,7 @@ class ADwin_Gold2(Instrument):
             label="Output mask in the FIFO",
             vals=vals.MultiTypeOr(
                 vals.Ints(0b1, 0b11111111),
-                vals.Arrays(0b1, 0b11111111, valid_types=[int]),
+                vals.Lists(vals.Ints(1, 8)),
             ),
             set_cmd=self.set_output_mask,
             get_cmd=self.get_output_mask,
@@ -469,7 +469,7 @@ class ADwin_Gold2(Instrument):
             label="Input mask in the FIFO",
             vals=vals.MultiTypeOr(
                 vals.Ints(0b0, 0b11111111111111),
-                vals.Arrays(0b0, 0b11111111111111, valid_types=[int]),
+                vals.Lists(vals.Ints(1, 14)),
             ),
             set_cmd=self.set_input_mask,
             get_cmd=self.get_input_mask,
@@ -528,12 +528,10 @@ class ADwin_Gold2(Instrument):
                     -2 * np.pi * x / np.sqrt(2 ** (1 / 4) - 1) * self.process_duration
                 )
             ),
-            get_parser=lambda x: (
-                lambda y: (
-                    -np.log(1 - y)
-                    * np.sqrt(2 ** (1 / 4) - 1)
-                    / (2 * np.pi * self.process_duration)
-                )
+            get_parser=lambda y: (
+                -np.log(1 - y)
+                * np.sqrt(2 ** (1 / 4) - 1)
+                / (2 * np.pi * self.process_duration)
             ),
         )
 
@@ -574,11 +572,11 @@ class ADwin_Gold2(Instrument):
 
     def binary_to_volt_lockin(self, B):
         """Convert back the binary value of the lockin amplitude"""
-        return float((B - 2**15) / 2**15 * 10)
+        return (B - 2**15) / 2**15 * 10
 
     def binary_to_volt(self, B):
         """Convert back the binary of the ADC to a voltage between -10V and +10V"""
-        return float((B - 2**23) / 2**23 * 10)
+        return (B - 2**23) / 2**23 * 10
 
     def set_outputs(self, targets: np.ndarray):
         """Creating the FIFO to send to the ADWIN,
@@ -688,7 +686,7 @@ class ADwin_Gold2(Instrument):
         """Time constant associated to the filtering"""
         cascade_order = 4
         cascade_factor = np.sqrt(2 ** (1 / cascade_order) - 1)
-        single_stage_bandwidth_Hz = self.bandwidth() / cascade_factor
+        single_stage_bandwidth_Hz = self.lockin_bandwidth() / cascade_factor
         return 1 / (2 * np.pi * single_stage_bandwidth_Hz)
 
     def set_ramp_size(self, rs):
@@ -699,28 +697,21 @@ class ADwin_Gold2(Instrument):
         """Get internal ramp time in numbers of points"""
         return self.rs
 
-    @staticmethod
-    def _is_it_binary(n: int) -> bool:
-        if type(n) is not int:
-            raise ValueError(f"This is not an integer: {n}.")
-        return "b" in str(n)
-
     def set_output_mask(self, indexes: int | list[int]):
         """Set the ouput mask in binary form.
         You should provide the index of the channels
         that you would like to use (typ. from 1 to 8)
+        AS A LIST
         or directly the mask in binary format.
         """
+
+        # not a list, so assume it is a binary integer
         if type(indexes) is int:
-            indexes = [indexes]
-        self._output_mask = bin(
-            sum(
-                [
-                    2 ** (i - 1) if not ADwin_Gold2._is_it_binary(i) else i
-                    for i in indexes
-                ]
-            )
-        )
+            self._output_mask = indexes
+
+        # list so base10
+        else:
+            self._output_mask = sum([2 ** (i - 1) for i in indexes])
 
     def get_output_mask(self):
         """Get the ouput mask in binary form"""
@@ -730,18 +721,17 @@ class ADwin_Gold2(Instrument):
         """Set the input mask in binary form.
         You should provide the index of the channels
         that you would like to use (typ. from 1 to 14)
+        AS A LIST
         or directly the mask in binary format.
         """
+
+        # not a list, so assume it is a binary integer
         if type(indexes) is int:
-            indexes = [indexes]
-        self._input_mask = bin(
-            sum(
-                [
-                    2 ** (i - 1) if not ADwin_Gold2._is_it_binary(i) else i
-                    for i in indexes
-                ]
-            )
-        )
+            self._input_mask = indexes
+
+        # list so base10
+        else:
+            self._input_mask = sum([2 ** (i - 1) for i in indexes])
 
     def get_input_mask(self):
         """Get the input mask in binary form"""
