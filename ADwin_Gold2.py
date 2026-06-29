@@ -535,6 +535,22 @@ class ADwin_Gold2(Instrument):
             ),
         )
 
+        self.add_parameter(
+            name="lockin_input_port",
+            label="Input port for the lock-in",
+            vals=vals.Ints(1, 14),
+            set_cmd=lambda x: self.device.Set_Par(36, x),
+            get_cmd=lambda: self.device.Get_Par(36),
+        )
+
+        self.add_parameter(
+            name="lockin_output_port",
+            label="Output port for the lock-in",
+            vals=vals.Ints(1, 8),
+            set_cmd=lambda x: self.device.Set_Par(37, x),
+            get_cmd=lambda: self.device.Get_Par(37),
+        )
+
         self.device = ADwin.ADwin(adwin_no)
         self.boot_load()
         self.process_load()
@@ -677,10 +693,6 @@ class ADwin_Gold2(Instrument):
 
     def get_mode(self):
         return self._adwin_mode
-
-    def turn_lockin_on(self):
-        self.device.Set_Par(36, 1)  # Lock-in input
-        self.device.Set_Par(37, 1)  # Lock-in output
 
     def filter_time_constant(self):
         """Time constant associated to the filtering"""
