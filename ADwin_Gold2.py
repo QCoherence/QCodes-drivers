@@ -4,10 +4,11 @@ import numpy as np
 import tqdm.notebook as tqdm
 from qcodes import Instrument, MultiParameter
 from qcodes import validators as vals
-
+from typing import Literal
 import ADwin
 
 FIFO_SZ = 1000000
+LOCKIN_MODE = 0b10000
 
 
 class ADwin_ramp(MultiParameter):
@@ -47,16 +48,14 @@ class ADwin_ramp(MultiParameter):
 
     def generate_outs_targets(self):
         output_number = len(self.instrument.get_output_number())
-        # max_adwin_ramp_time = 2**16*self.instrument.process_duration # What ? Change this
         max_adwin_ramp_time = FIFO_SZ * self.instrument.process_duration
         outs_array = []
         for i in range(output_number):
             out = []
-            for n in range(self.N_ramp):
+            for _ in range(self.N_ramp):
                 if self.half_period < max_adwin_ramp_time:
-                    # self.instrument.ramp_size(self.n_pts//2)
                     self.instrument.ramp_size(
-                        int(self.period / self.instrument.process_duration)
+                        round(self.period / self.instrument.process_duration)
                     )
                     self.instrument.subsampling(
                         2 * int(self.instrument.ramp_size() / self.n_pts)
@@ -119,9 +118,9 @@ class ADwin_ramp(MultiParameter):
             )
             inputs = np.concatenate([inputs, meas], axis=1)
 
-        self.shapes = tuple((inputs.shape[1],) for e in range(input_number))
+        self.shapes = tuple((inputs.shape[1],) for _ in range(input_number))
         self.setpoints = tuple(
-            (np.array(range(inputs.shape[1])),) for e in range(input_number)
+            (np.array(range(inputs.shape[1])),) for _ in range(input_number)
         )
         self.instrument.go_to_zero()
         return inputs
@@ -151,10 +150,9 @@ class ADwin_averagedRamp(MultiParameter):
                 f"Input_{e + 1}_{'down' if i % 2 else 'up'}"
                 for i, e in enumerate(doubled_input_number_list)
             ),
-            units=tuple("V" for e in doubled_input_number_list),
-            shapes=tuple((n_pts,) for e in doubled_input_number_list),
-            setpoint_units=tuple(("pts",) for e in doubled_input_number_list),
-            # setpoints = tuple((np.array(range(N_ramp*n_pts)), ) for e in input_number),
+            units=tuple("V" for _ in doubled_input_number_list),
+            shapes=tuple((n_pts,) for _ in doubled_input_number_list),
+            setpoint_units=tuple(("pts",) for _ in doubled_input_number_list),
             setpoint_labels=tuple(
                 (f"Input {e + 1} {'down' if i % 2 else 'up'} ramp points",)
                 for i, e in enumerate(doubled_input_number_list)
@@ -174,18 +172,14 @@ class ADwin_averagedRamp(MultiParameter):
 
     def generate_outs_targets(self):
         output_number = len(self.instrument.get_output_number())
-        # max_adwin_ramp_time = 2**16*self.instrument.process_duration #
-        # max_adwin_ramp_time = FIFO_SZ * self.instrument.process_duration ## This is not the good metric, TODO: change that to use the number of pts < FIFO_SZ
         max_adwin_nb_pts = (
             FIFO_SZ  # Since FIFO_SZ is smaller than the long format (32 bits)
         )
         outs_array = []
         for i in range(output_number):
             out = []
-            for n in range(self.N_ramp):
-                # if self.half_period < max_adwin_ramp_time:
+            for _ in range(self.N_ramp):
                 if self.n_pts <= max_adwin_nb_pts:
-                    # self.instrument.ramp_size(self.n_pts//2)
                     self.instrument.ramp_size(
                         int(round(self.period / self.instrument.process_duration))
                     )
@@ -210,7 +204,7 @@ class ADwin_averagedRamp(MultiParameter):
                     )
 
                     self.instrument.ramp_size(
-                        int(self.period / self.instrument.process_duration)
+                        round(self.period / self.instrument.process_duration)
                     )
                     self.instrument.subsampling(
                         2
@@ -237,9 +231,8 @@ class ADwin_averagedRamp(MultiParameter):
         # Go to the lower value before starting
         self.instrument.outputs(np.array(self.Vs_low))
         self.instrument.set_outputs_one_cycle()
-        # _ = self.instrument.inputs.get()
         self.instrument.clear_fifos()
-        # #Wait for 0.1 sec before starting the loops
+        # Wait for 0.1 sec before starting the loops
         # time.sleep(0.1)
         expected_size = self.instrument.ramp_size() // self.instrument.subsampling()
         for i in loop_range:
@@ -261,7 +254,60 @@ class ADwin_averagedRamp(MultiParameter):
         )
         inputs = np.mean(inputs, axis=1)
         split_inputs = np.array_split(inputs, 2, axis=1)
-        # split_inputs = np.concatenate(split_inputs)
+        split_inputs = list(split_inputs[0]) + list(split_inputs[1])
+
+        rearranged = []
+        for e in range(inputs.shape[0]):
+            rearranged.append(e)
+            rearranged.append(e + inputs.shape[0])
+        split_inputs = [split_inputs[i] for i in rearranged]
+
+        self.shapes = tuple((len(split_inputs[e]),) for e in range(len(split_inputs)))
+        self.setpoints = tuple(
+            (np.array(range(len(split_inputs[e]))),) for e in range(len(split_inputs))
+        )
+        self.instrument.go_to_zero()
+
+        return split_inputs
+
+    def get_raw_lockin(self):
+        outs_array = self.generate_outs_targets()
+
+        # +2 automatically for I and Q quadratures at the end
+        input_number = len(self.instrument.get_input_number()) + 2
+        inputs = np.zeros(shape=(input_number, 0))
+        loop_range = (
+            range(outs_array.shape[1])
+            if not self.progress
+            else tqdm.tqdm(range(outs_array.shape[1]))
+        )
+
+        # Go to the lower value before starting
+        self.instrument.outputs(np.array(self.Vs_low))
+        self.instrument.set_outputs_one_cycle()
+        self.instrument.clear_fifos()
+        # Wait for 0.1 sec before starting the loops
+        # time.sleep(0.1)
+        expected_size = self.instrument.ramp_size() // self.instrument.subsampling()
+        for i in loop_range:
+            self.instrument.outputs(outs_array[:, i])
+            self.instrument.launch_measurement()
+
+            while self.instrument.device.Fifo_Full(2) < expected_size:
+                time.sleep(10 * self.instrument.process_duration)
+
+            meas = self.instrument.inputs.get()
+
+            meas = np.transpose(
+                np.reshape(meas, (meas.shape[0] // input_number, input_number))
+            )
+            inputs = np.concatenate([inputs, meas], axis=1)
+
+        inputs = np.reshape(
+            inputs, (inputs.shape[0], self.N_ramp, inputs.shape[1] // self.N_ramp)
+        )
+        inputs = np.mean(inputs, axis=1)
+        split_inputs = np.array_split(inputs, 2, axis=1)
         split_inputs = list(split_inputs[0]) + list(split_inputs[1])
 
         rearranged = []
@@ -309,7 +355,7 @@ class ADwin_IV(MultiParameter):
             # setpoints = tuple((np.array(range(N_ramp*n_pts)), ) for e in input_number),
             setpoint_labels=(
                 (f"ADwin input {voltage_input} up ramp",),
-                (f"ADwin input {voltage_input} up ramp",),
+                (f"ADwin input {voltage_input} down ramp",),
             ),
             setpoint_names=(
                 (f"input_{voltage_input}_voltage_up",),
@@ -370,7 +416,7 @@ class ADwin_VI(MultiParameter):
             # setpoints = tuple((np.array(range(N_ramp*n_pts)), ) for e in input_number),
             setpoint_labels=(
                 (f"ADwin input {voltage_input} up ramp",),
-                (f"ADwin input {voltage_input} up ramp",),
+                (f"ADwin input {voltage_input} down ramp",),
             ),
             setpoint_names=(
                 (f"input_{voltage_input}_voltage_up",),
@@ -400,6 +446,97 @@ class ADwin_VI(MultiParameter):
         return [ad_inputs[x1] / self.VC, ad_inputs[x1 + 1] / self.VC]
 
 
+class ADwin_dIdV(MultiParameter):
+    # Measuring the conductance and biasing in voltage
+    def __init__(
+        self,
+        name: str,
+        avgRamp: ADwin_averagedRamp,
+        voltage_input: int,
+        current_input: int,
+        voltage_divider_value: float,
+        current_coefficient: float,
+        lockin_amp: float,
+    ):
+        if not isinstance(avgRamp, ADwin_averagedRamp):
+            raise Exception(
+                "The parameter avgRamp should be a ADwin_averagedRamp parameter"
+            )
+
+        if len(avgRamp.instrument.get_input_number()) != 2:
+            raise Exception(
+                f"The Adwin should be measuring exactly two inputs for the dIdV (found {len(avgRamp.instrument.get_input_number())} inputs)"
+            )
+
+        super().__init__(
+            name,
+            instrument=avgRamp.instrument,
+            names=(
+                "current_up_ramp",
+                "current_down_ramp",
+                "I_up_ramp",
+                "I_down_ramp",
+                "Q_up_ramp",
+                "Q_down_ramp",
+                "abs_up_ramp",
+                "abs_down_ramp",
+                "R_up_ramp",
+                "R_down_ramp",
+                "phase_up_ramp",
+                "phase_down_ramp",
+            ),
+            units=("A", "A", "S", "S", "S", "S", "S", "S", "Ω", "Ω", "rad", "rad"),
+            shapes=[(avgRamp.n_pts,)] * 12,
+            setpoint_units=[("V",)] * 12,
+            setpoint_labels=[
+                (f"ADwin input {voltage_input} up ramp",),
+                (f"ADwin input {voltage_input} down ramp",),
+            ]
+            * 6,
+            setpoint_names=[
+                (f"input_{voltage_input}_voltage_up",),
+                (f"input_{voltage_input}_voltage_down",),
+            ]
+            * 6,
+            metadata={
+                "Voltage divider value": f"{voltage_divider_value:.2e}",
+                "Current coefficient": f"{current_coefficient:.2e}",
+            },
+        )
+
+        self.avgRamp = avgRamp
+
+        self.voltage_input = voltage_input
+        self.current_input = current_input
+        self.VD = voltage_divider_value
+        self.IC = current_coefficient
+        self.gain = voltage_divider_value / current_coefficient / lockin_amp
+
+    def get_raw(self):
+        ad_inputs = self.avgRamp.get_raw_lockin()
+        x1 = 0 if self.voltage_input > self.current_input else 2
+        x2 = 2 if self.voltage_input > self.current_input else 0
+
+        self.shapes = [
+            (len(ad_inputs[i]),) for i in [x1, x1 + 1, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5]
+        ]
+        self.setpoints = [
+            (ad_inputs[x2] / self.VD,),
+            (ad_inputs[x2 + 1] / self.VD,),
+        ] * 6
+
+        data = [ad_inputs[x1] / self.IC, ad_inputs[x1 + 1] / self.IC]
+        I_up, I_down = ad_inputs[4] * self.gain, ad_inputs[5] * self.gain
+        Q_up, Q_down = ad_inputs[6] * self.gain, ad_inputs[7] * self.gain
+        G_up, G_down = I_up + 1j * Q_up, I_down + 1j * Q_down
+        data += [I_up, I_down]
+        data += [Q_up, Q_down]
+        data += [np.abs(G_up), np.abs(G_down)]
+        data += [np.real(1 / G_up), np.real(1 / G_down)]
+        data += [np.angle(G_up), np.angle(G_down)]
+        return data
+
+
 class ADwin_Gold2(Instrument):
     """
     QCoDeS driver for the ADwin Gold II
@@ -423,7 +560,9 @@ class ADwin_Gold2(Instrument):
         self.add_parameter(
             name="adwin_mode",
             label="Adwin mode",
-            vals=vals.Numbers(0x0, 0x20000),
+            vals=vals.MultiTypeOr(
+                vals.Numbers(0x0, 0x20000), vals.Enum("normal", "lockin")
+            ),
             set_cmd=self.set_mode,
             get_cmd=self.get_mode,
         )
@@ -688,8 +827,17 @@ class ADwin_Gold2(Instrument):
         """Get one value from the measure FIFO on the ADwin"""
         return list(self.device.GetFifo_Long(2, 1))[0]
 
-    def set_mode(self, mode):
-        self._adwin_mode = mode
+    def set_mode(self, mode: int | Literal["normal", "lockin"]):
+        if type(mode) is int:
+            self._adwin_mode = mode
+        else:
+            match mode:
+                case "normal":
+                    self._adwin_mode = 0b0
+                case "lockin":
+                    self._adwin_mode = LOCKIN_MODE
+                case _:
+                    raise ValueError(f"Invalid mode {mode}")
 
     def get_mode(self):
         return self._adwin_mode
