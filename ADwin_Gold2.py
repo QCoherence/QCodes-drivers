@@ -514,7 +514,7 @@ class ADwin_dIdV(MultiParameter):
 
     def get_raw(self):
         ad_inputs = self.avgRamp.get_raw_lockin()
-        xi, xv = 0, 2 if self.voltage_input > self.current_input else 2, 0
+        xi, xv = (0, 2) if self.voltage_input > self.current_input else (2, 0)
 
         self.shapes = [
             (len(ad_inputs[i]),) for i in [xi, xi + 1, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5]
