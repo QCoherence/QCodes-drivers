@@ -181,10 +181,10 @@ class ADwin_averagedRamp(MultiParameter):
             for _ in range(self.N_ramp):
                 if self.n_pts <= max_adwin_nb_pts:
                     self.instrument.ramp_size(
-                        int(round(self.period / self.instrument.process_duration))
+                        round(self.period / self.instrument.process_duration)
                     )
                     self.instrument.subsampling(
-                        2 * int(round(self.instrument.ramp_size() / self.n_pts))
+                        2 * round(self.instrument.ramp_size() / self.n_pts)
                     )
                     out.append(np.array([self.Vs_high[i]]))
                     out.append(np.array([self.Vs_low[i]]))
@@ -514,18 +514,17 @@ class ADwin_dIdV(MultiParameter):
 
     def get_raw(self):
         ad_inputs = self.avgRamp.get_raw_lockin()
-        x1 = 0 if self.voltage_input > self.current_input else 2
-        x2 = 2 if self.voltage_input > self.current_input else 0
+        xi, xv = 0, 2 if self.voltage_input > self.current_input else 2, 0
 
         self.shapes = [
-            (len(ad_inputs[i]),) for i in [x1, x1 + 1, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5]
+            (len(ad_inputs[i]),) for i in [xi, xi + 1, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5]
         ]
         self.setpoints = [
-            (ad_inputs[x2] / self.VD,),
-            (ad_inputs[x2 + 1] / self.VD,),
+            (ad_inputs[xv] / self.VD,),
+            (ad_inputs[xv + 1] / self.VD,),
         ] * 6
 
-        data = [ad_inputs[x1] / self.IC, ad_inputs[x1 + 1] / self.IC]
+        data = [ad_inputs[xi] / self.IC, ad_inputs[xi + 1] / self.IC]
         I_up, I_down = ad_inputs[4] * self.gain, ad_inputs[5] * self.gain
         Q_up, Q_down = ad_inputs[6] * self.gain, ad_inputs[7] * self.gain
         G_up, G_down = I_up + 1j * Q_up, I_down + 1j * Q_down
