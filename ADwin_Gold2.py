@@ -233,7 +233,7 @@ class ADwin_averagedRamp(MultiParameter):
         self.instrument.set_outputs_one_cycle()
         self.instrument.clear_fifos()
         # Wait for 0.1 sec before starting the loops
-        # time.sleep(0.1)
+        time.sleep(0.1)
         expected_size = self.instrument.ramp_size() // self.instrument.subsampling()
         for i in loop_range:
             self.instrument.outputs(outs_array[:, i])
@@ -287,7 +287,7 @@ class ADwin_averagedRamp(MultiParameter):
         self.instrument.set_outputs_one_cycle()
         self.instrument.clear_fifos()
         # Wait for 0.1 sec before starting the loops
-        # time.sleep(0.1)
+        time.sleep(0.1)
         expected_size = self.instrument.ramp_size() // self.instrument.subsampling()
         for i in loop_range:
             self.instrument.outputs(outs_array[:, i])
