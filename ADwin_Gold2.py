@@ -1,11 +1,11 @@
 import time
+from typing import Literal
 
+import ADwin
 import numpy as np
 import tqdm.notebook as tqdm
 from qcodes import Instrument, MultiParameter
 from qcodes import validators as vals
-from typing import Literal
-import ADwin
 
 FIFO_SZ = 1000000
 LOCKIN_MODE = 0b10000
@@ -512,6 +512,9 @@ class ADwin_dIdV(MultiParameter):
         self.IC = current_coefficient
         self.gain = voltage_divider_value / current_coefficient / lockin_amp
 
+        self.V_up = None
+        self.V_down = None
+
     def get_raw(self):
         ad_inputs = self.avgRamp.get_raw_lockin()
         xi, xv = (0, 2) if self.voltage_input > self.current_input else (2, 0)
@@ -523,6 +526,9 @@ class ADwin_dIdV(MultiParameter):
             (ad_inputs[xv] / self.VD,),
             (ad_inputs[xv + 1] / self.VD,),
         ] * 6
+
+        self.V_up = ad_inputs[xv] / self.VD
+        self.V_down = ad_inputs[xv + 1] / self.VD
 
         data = [ad_inputs[xi] / self.IC, ad_inputs[xi + 1] / self.IC]
         I_up, I_down = ad_inputs[4] * self.gain, ad_inputs[5] * self.gain
