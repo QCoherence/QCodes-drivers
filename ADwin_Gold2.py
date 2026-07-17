@@ -53,7 +53,7 @@ class ADwin_ramp(MultiParameter):
         for i in range(output_number):
             out = []
             for _ in range(self.N_ramp):
-                if self.half_period < max_adwin_ramp_time:
+                if self.period < max_adwin_ramp_time:
                     self.instrument.ramp_size(
                         round(self.period / self.instrument.process_duration)
                     )
@@ -64,7 +64,7 @@ class ADwin_ramp(MultiParameter):
                     out.append(np.array([self.Vs_low[i]]))
 
                 else:
-                    subdivision = self.half_period // max_adwin_ramp_time
+                    subdivision = self.period // max_adwin_ramp_time
                     out.append(
                         np.linspace(
                             self.Vs_low[i], self.Vs_high[i], num=int(subdivision) + 2
@@ -75,9 +75,8 @@ class ADwin_ramp(MultiParameter):
                             self.Vs_high[i], self.Vs_low[i], num=int(subdivision) + 2
                         )[1:]
                     )
-
                     self.instrument.ramp_size(
-                        int(self.half_period / (subdivision + 1) / 5e-6)
+                        round(self.period / self.instrument.process_duration / (subdivision + 1))
                     )
                     self.instrument.subsampling(
                         2
@@ -172,14 +171,12 @@ class ADwin_averagedRamp(MultiParameter):
 
     def generate_outs_targets(self):
         output_number = len(self.instrument.get_output_number())
-        max_adwin_nb_pts = (
-            FIFO_SZ  # Since FIFO_SZ is smaller than the long format (32 bits)
-        )
+        max_adwin_ramp_time = FIFO_SZ * self.instrument.process_duration
         outs_array = []
         for i in range(output_number):
             out = []
             for _ in range(self.N_ramp):
-                if self.n_pts <= max_adwin_nb_pts:
+                if self.period <= max_adwin_ramp_time:
                     self.instrument.ramp_size(
                         round(self.period / self.instrument.process_duration)
                     )
@@ -190,8 +187,7 @@ class ADwin_averagedRamp(MultiParameter):
                     out.append(np.array([self.Vs_low[i]]))
 
                 else:
-                    ## This is sketchy it needs to be clarified TODO: double check the splitting of the ramps
-                    subdivision = self.n_pts // max_adwin_nb_pts
+                    subdivision = self.period // max_adwin_ramp_time
                     out.append(
                         np.linspace(
                             self.Vs_low[i], self.Vs_high[i], num=int(subdivision) + 2
@@ -202,9 +198,8 @@ class ADwin_averagedRamp(MultiParameter):
                             self.Vs_high[i], self.Vs_low[i], num=int(subdivision) + 2
                         )[1:]
                     )
-
                     self.instrument.ramp_size(
-                        round(self.period / self.instrument.process_duration)
+                        round(self.period / self.instrument.process_duration / (subdivision + 1))
                     )
                     self.instrument.subsampling(
                         2
