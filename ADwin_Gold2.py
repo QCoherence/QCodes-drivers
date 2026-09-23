@@ -475,24 +475,22 @@ class ADwin_dIdV(MultiParameter):
                 "Q_down_ramp",
                 "abs_up_ramp",
                 "abs_down_ramp",
-                "R_up_ramp",
-                "R_down_ramp",
                 "phase_up_ramp",
                 "phase_down_ramp",
             ),
-            units=("A", "A", "S", "S", "S", "S", "S", "S", "Ω", "Ω", "rad", "rad"),
-            shapes=[(avgRamp.n_pts,)] * 12,
-            setpoint_units=[("V",)] * 12,
+            units=("A", "A", "S", "S", "S", "S", "S", "S", "rad", "rad"),
+            shapes=[(avgRamp.n_pts,)] * 10,
+            setpoint_units=[("V",)] * 10,
             setpoint_labels=[
                 (f"ADwin input {voltage_input} up ramp",),
                 (f"ADwin input {voltage_input} down ramp",),
             ]
-            * 6,
+            * 5,
             setpoint_names=[
                 (f"input_{voltage_input}_voltage_up",),
                 (f"input_{voltage_input}_voltage_down",),
             ]
-            * 6,
+            * 5,
             metadata={
                 "Voltage divider value": f"{voltage_divider_value:.2e}",
                 "Current coefficient": f"{current_coefficient:.2e}",
@@ -532,7 +530,6 @@ class ADwin_dIdV(MultiParameter):
         data += [I_up, I_down]
         data += [Q_up, Q_down]
         data += [np.abs(G_up), np.abs(G_down)]
-        data += [np.real(1 / G_up), np.real(1 / G_down)]
         data += [np.angle(G_up), np.angle(G_down)]
         return data
 
