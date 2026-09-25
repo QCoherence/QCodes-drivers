@@ -513,12 +513,12 @@ class ADwin_dIdV(MultiParameter):
         xi, xv = (0, 2) if self.voltage_input > self.current_input else (2, 0)
 
         self.shapes = [
-            (len(ad_inputs[i]),) for i in [xi, xi + 1, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5]
+            (len(ad_inputs[i]),) for i in [xi, xi + 1, 4, 5, 4, 5, 4, 5, 4, 5]
         ]
         self.setpoints = [
             (ad_inputs[xv] / self.VD,),
             (ad_inputs[xv + 1] / self.VD,),
-        ] * 6
+        ] * 5
 
         self.V_up = ad_inputs[xv] / self.VD
         self.V_down = ad_inputs[xv + 1] / self.VD
