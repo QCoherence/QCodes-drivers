@@ -9,8 +9,9 @@ from typing import (
     Optional,
 )
 
-from qcodes import Parameter, VisaInstrument
 from qcodes import validators as vals
+from qcodes.instrument import VisaInstrument
+from qcodes.parameters import Parameter
 
 log = logging.getLogger(__name__)
 

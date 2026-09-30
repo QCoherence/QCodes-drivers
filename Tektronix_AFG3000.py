@@ -1,7 +1,7 @@
 from typing import Any, Tuple
 
 import qcodes.validators as vals
-from qcodes import VisaInstrument
+from qcodes.instrument import VisaInstrument
 
 
 class AFG3000(VisaInstrument):

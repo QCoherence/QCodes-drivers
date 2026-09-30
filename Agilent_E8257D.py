@@ -3,12 +3,12 @@
 
 
 import logging
+from math import pi
 
 import numpy as np
-from numpy import pi
-from qcodes import Parameter, VisaInstrument
 from qcodes import validators as vals
-from qcodes.parameters import create_on_off_val_mapping
+from qcodes.instrument import VisaInstrument
+from qcodes.parameters import Parameter, create_on_off_val_mapping
 
 log = logging.getLogger(__name__)
 

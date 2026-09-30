@@ -3,8 +3,8 @@ import logging
 from time import sleep, time
 
 import numpy as np
-from qcodes import Instrument
 from qcodes import validators as vals
+from qcodes.instrument import Instrument
 
 
 class SignalHound_USB_SA124B(Instrument):

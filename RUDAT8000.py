@@ -6,8 +6,8 @@ Modified and QCodes-compatible version the RUDAT's QTLab driver
 import logging
 import urllib.request
 
-from qcodes import Instrument
 from qcodes import validators as vals
+from qcodes.instrument import Instrument
 
 log = logging.getLogger(__name__)
 

@@ -3,8 +3,9 @@ from functools import partial
 from typing import Any, Optional, Tuple
 
 import numpy as np
-from qcodes import ChannelList, Instrument, InstrumentChannel, VisaInstrument
 from qcodes import validators as vals
+from qcodes.instrument import Instrument, InstrumentChannel, VisaInstrument
+from qcodes.instrument.channel import ChannelList
 from qcodes.parameters import (
     ArrayParameter,
     ManualParameter,

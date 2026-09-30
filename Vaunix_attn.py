@@ -2,8 +2,8 @@
 
 from ctypes import c_int, cdll
 
-from qcodes import Instrument
 from qcodes import validators as vals
+from qcodes.instrument import Instrument
 
 
 class Vaunix_attn(Instrument):

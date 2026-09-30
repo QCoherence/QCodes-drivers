@@ -2,8 +2,8 @@
 
 import socket
 
-from qcodes import Instrument
 from qcodes import validators as vals
+from qcodes.instrument import Instrument
 
 
 class iMACRT_MGC3(Instrument):

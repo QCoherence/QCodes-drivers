@@ -1,11 +1,13 @@
 import time
 from typing import Literal
 
-import ADwin
 import numpy as np
 import tqdm.notebook as tqdm
-from qcodes import Instrument, MultiParameter
 from qcodes import validators as vals
+from qcodes.instrument import Instrument
+from qcodes.parameters import MultiParameter
+
+import ADwin
 
 FIFO_SZ = 1000000
 LOCKIN_MODE = 0b10000
@@ -76,7 +78,11 @@ class ADwin_ramp(MultiParameter):
                         )[1:]
                     )
                     self.instrument.ramp_size(
-                        round(self.period / self.instrument.process_duration / (subdivision + 1))
+                        round(
+                            self.period
+                            / self.instrument.process_duration
+                            / (subdivision + 1)
+                        )
                     )
                     self.instrument.subsampling(
                         2
@@ -199,7 +205,11 @@ class ADwin_averagedRamp(MultiParameter):
                         )[1:]
                     )
                     self.instrument.ramp_size(
-                        round(self.period / self.instrument.process_duration / (subdivision + 1))
+                        round(
+                            self.period
+                            / self.instrument.process_duration
+                            / (subdivision + 1)
+                        )
                     )
                     self.instrument.subsampling(
                         2

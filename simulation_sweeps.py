@@ -2,7 +2,8 @@
 #                  				   -- Arpit
 
 
-from qcodes import Instrument, ManualParameter
+from qcodes.instrument import Instrument
+from qcodes.parameters import ManualParameter
 from qcodes.validators import Arrays
 
 

@@ -6,8 +6,8 @@ Modified version of the QCodes B2962A driver: qcodes.instrument_drivers.Keysight
 import logging
 from typing import Any, Dict, Optional
 
-from qcodes import Instrument, VisaInstrument
 from qcodes import validators as vals
+from qcodes.instrument import Instrument, VisaInstrument
 from qcodes.instrument.channel import InstrumentChannel
 
 log = logging.getLogger(__name__)

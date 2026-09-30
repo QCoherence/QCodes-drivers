@@ -3,11 +3,11 @@
 
 
 import logging
+from math import pi
 
 import numpy as np
-from numpy import pi
-from qcodes import Parameter, VisaInstrument
 from qcodes import validators as vals
+from qcodes.instrument import Parameter, VisaInstrument
 
 log = logging.getLogger(__name__)
 

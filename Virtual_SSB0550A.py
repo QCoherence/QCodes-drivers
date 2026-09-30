@@ -5,8 +5,9 @@ Modified and QCodes-compatible version of Remy Dassonneville's driver
 
 import logging
 
-from qcodes import Instrument, ManualParameter
 from qcodes import validators as vals
+from qcodes.instrument import Instrument
+from qcodes.parameters import ManualParameter
 
 log = logging.getLogger(__name__)
 

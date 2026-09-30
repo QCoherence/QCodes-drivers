@@ -8,11 +8,8 @@ sys.path.append("C:/QCodes drivers and scripts/Drivers")
 # qcodes.config.subscription.default_subscribers = ["Plottr"]
 import sys
 
-import numpy as np
-
 sys.path.append("C:/QCodes drivers and scripts/Scripts/Arpit/Modules")
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from general_functions import find_nearest
 from progress_barV2 import bar

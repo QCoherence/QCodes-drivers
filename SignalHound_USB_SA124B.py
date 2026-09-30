@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 import qcodes.validators as vals
-from qcodes import Instrument
+from qcodes.instrument import Instrument
 from qcodes.parameters import (
     ArrayParameter,
     Parameter,

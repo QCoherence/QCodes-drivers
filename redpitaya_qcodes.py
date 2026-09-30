@@ -6,11 +6,11 @@
 import time
 
 import numpy as np
+from qcodes import validators as vals
 
 # import qt
 # import ctypes  # only for DLL-based instrument
-from qcodes import VisaInstrument
-from qcodes import validators as vals
+from qcodes.instrument import VisaInstrument
 from qcodes.parameters import Parameter, ParameterWithSetpoints
 from qcodes.validators import Arrays
 

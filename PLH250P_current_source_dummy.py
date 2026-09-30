@@ -3,8 +3,8 @@
 #                                        -- Arpit
 
 
-from qcodes import Instrument
 from qcodes import validators as vals
+from qcodes.instrument import Instrument
 
 
 class TTi(Instrument):

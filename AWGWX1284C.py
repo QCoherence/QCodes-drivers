@@ -1,8 +1,8 @@
 import logging
 
 from pyvisa.errors import VisaIOError
-from qcodes import VisaInstrument
 from qcodes import validators as vals
+from qcodes.instrument import VisaInstrument
 
 # import types
 # import pyvisa.constants as vc

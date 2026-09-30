@@ -4,16 +4,17 @@ from functools import partial
 from typing import Any, Optional
 
 import numpy as np
-from qcodes import (
+from qcodes import validators as vals
+from qcodes.instrument import InstrumentChannel, VisaInstrument
+from qcodes.instrument.channel import ChannelList
+from qcodes.parameters import (
     ArrayParameter,
-    ChannelList,
-    InstrumentChannel,
     ManualParameter,
     MultiParameter,
-    VisaInstrument,
+    Parameter,
+    ParameterWithSetpoints,
+    create_on_off_val_mapping,
 )
-from qcodes import validators as vals
-from qcodes.parameters import Parameter, ParameterWithSetpoints, create_on_off_val_mapping
 from qcodes.validators import Arrays
 
 log = logging.getLogger(__name__)

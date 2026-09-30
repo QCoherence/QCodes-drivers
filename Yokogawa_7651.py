@@ -4,8 +4,8 @@
 
 import logging
 
-from qcodes import VisaInstrument
 from qcodes import validators as vals
+from qcodes.instrument import VisaInstrument
 from qcodes.parameters import create_on_off_val_mapping
 
 log = logging.getLogger(__name__)

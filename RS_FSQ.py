@@ -8,8 +8,8 @@
 from time import sleep
 
 import numpy as np
-from qcodes import VisaInstrument
 from qcodes import validators as vals
+from qcodes.instrument import VisaInstrument
 from qcodes.parameters import Parameter, ParameterWithSetpoints
 from qcodes.validators import Arrays
 

@@ -3,8 +3,8 @@
 #                                        -- Arpit
 
 
-from qcodes import VisaInstrument
 from qcodes import validators as vals
+from qcodes.instrument import VisaInstrument
 
 # from Arduino import serial_write
 from Serial_TCP_client_functions import TCP_pi_write
