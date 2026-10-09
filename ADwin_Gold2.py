@@ -10,7 +10,9 @@ from qcodes.parameters import MultiParameter
 import ADwin
 
 FIFO_SZ = 1000000
-LOCKIN_MODE = 0b10000
+LOCKIN_MODE = 0x10
+LOCKIN_2_MODE = 0x40000
+LOCKIN_2_INV_MODE = 0x80000
 
 
 class ADwin_ramp(MultiParameter):
@@ -568,7 +570,8 @@ class ADwin_Gold2(Instrument):
             name="adwin_mode",
             label="Adwin mode",
             vals=vals.MultiTypeOr(
-                vals.Numbers(0x0, 0x20000), vals.Enum("normal", "lockin")
+                vals.Numbers(0x0, 0x80010),
+                vals.Enum("normal", "lockin", "lockin2", "lockin2_inv"),
             ),
             set_cmd=self.set_mode,
             get_cmd=self.get_mode,
@@ -695,6 +698,14 @@ class ADwin_Gold2(Instrument):
             vals=vals.Ints(1, 8),
             set_cmd=lambda x: self.device.Set_Par(37, x),
             get_cmd=lambda: self.device.Get_Par(37),
+        )
+
+        self.add_parameter(
+            name="lockin_output2_port",
+            label="Output2 port for the lock-in",
+            vals=vals.Ints(1, 8),
+            set_cmd=lambda x: self.device.Set_Par(40, x),
+            get_cmd=lambda: self.device.Get_Par(40),
         )
 
         self.device = ADwin.ADwin(adwin_no)
@@ -834,7 +845,9 @@ class ADwin_Gold2(Instrument):
         """Get one value from the measure FIFO on the ADwin"""
         return list(self.device.GetFifo_Long(2, 1))[0]
 
-    def set_mode(self, mode: int | Literal["normal", "lockin"]):
+    def set_mode(
+        self, mode: int | Literal["normal", "lockin", "lockin2", "lockin2_inv"]
+    ):
         if type(mode) is int:
             self._adwin_mode = mode
         else:
@@ -843,6 +856,10 @@ class ADwin_Gold2(Instrument):
                     self._adwin_mode = 0b0
                 case "lockin":
                     self._adwin_mode = LOCKIN_MODE
+                case "lockin2":
+                    self._adwin_mode = LOCKIN_2_MODE + LOCKIN_MODE
+                case "lockin2_inv":
+                    self._adwin_mode = LOCKIN_2_INV_MODE + LOCKIN_MODE
                 case _:
                     raise ValueError(f"Invalid mode {mode}")
 
