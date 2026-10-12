@@ -795,12 +795,13 @@ class ADwin_Gold2(Instrument):
 
     def go_to_zero(self):
         old_om = self.output_mask()
+        old_mode = self.adwin_mode()
         self.output_mask(0b11111111)
-        # targets = np.array(list(map(self.volt_to_binary, [0.0]*8)))
-        # self.set_outputs(targets)
+        self.adwin_mode("normal")
         self.outputs(np.array([0.0] * 8))
         self.set_outputs_one_cycle()
         self.output_mask(old_om)
+        self.adwin_mode(old_mode)
         self.clear_fifos()
 
     def read_inputs(self):
