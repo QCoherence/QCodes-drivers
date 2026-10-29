@@ -7,7 +7,8 @@ from math import pi
 
 import numpy as np
 from qcodes import validators as vals
-from qcodes.instrument import Parameter, VisaInstrument
+from qcodes.parameters import Parameter
+from qcodes.instrument import VisaInstrument
 
 log = logging.getLogger(__name__)
 
