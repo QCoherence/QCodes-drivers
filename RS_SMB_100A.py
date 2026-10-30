@@ -7,8 +7,8 @@ from math import pi
 
 import numpy as np
 from qcodes import validators as vals
-from qcodes.parameters import Parameter
 from qcodes.instrument import VisaInstrument
+from qcodes.parameters import Parameter
 
 log = logging.getLogger(__name__)
 
@@ -277,4 +277,4 @@ class SMB100A(VisaInstrument):
             None
         """
 
-        self.write("SYST:DISP:UPD %s" % update)
+        self.write(f"SYST:DISP:UPD {update}")
