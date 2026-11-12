@@ -55,13 +55,17 @@ class RS_FSV(VisaInstrument):
         name: instrument name
         address: VISA ressource name of instrument in format
             'TCPIP0::192.168.15.100::inst0::INSTR'
+        max_frequency: highest frequency of the model (Hz): 13.6e9 for an FSV13,
+            30e9 for an FSV30 or FSV3030
         **kwargs: passed to base class
     """
 
     # all instrument constructors should accept **kwargs and pass them on to
     # super().__init__
 
-    def __init__(self, name: str, address: str, **kwargs) -> None:
+    def __init__(
+        self, name: str, address: str, max_frequency: float = 13.6e9, **kwargs
+    ) -> None:
         # supplying the terminator means you don't need to remove it from every response
         super().__init__(name=name, address=address, terminator="\n", **kwargs)
 
@@ -162,7 +166,7 @@ class RS_FSV(VisaInstrument):
         self.add_parameter(
             name="span",
             label="Span",
-            vals=vals.Numbers(0, 13.6e9),
+            vals=vals.Numbers(0, max_frequency),
             unit="Hz",
             set_cmd="SENSe:FREQuency:SPAN " + "{:.12f}",
             get_cmd="SENSe:FREQuency:SPAN?",
@@ -185,7 +189,7 @@ class RS_FSV(VisaInstrument):
         self.add_parameter(
             name="f_start",
             label="Start frequency",
-            vals=vals.Numbers(0, 13.6e9),
+            vals=vals.Numbers(0, max_frequency),
             unit="Hz",
             set_cmd="SENSe:FREQuency:STARt " + "{:.12f}",
             get_cmd="SENSe:FREQuency:STARt?",
@@ -197,7 +201,7 @@ class RS_FSV(VisaInstrument):
         self.add_parameter(
             name="f_stop",
             label="Stop frequency",
-            vals=vals.Numbers(10, 13.6e9),
+            vals=vals.Numbers(10, max_frequency),
             unit="Hz",
             set_cmd="SENSe:FREQuency:STOP " + "{:.12f}",
             get_cmd="SENSe:FREQuency:STOP?",
