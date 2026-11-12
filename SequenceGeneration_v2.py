@@ -198,11 +198,11 @@ class Pulse:
                         N_adc_duration = N_temp
 
                     # data is 2 octet per point in raw mode
-                    if acq_mode is "RAW":
+                    if acq_mode == "RAW":
                         t_data_transfer = 2.0 * N_acq / 100.0e6
                         N_data_transfer += int(round(t_data_transfer / (4.0e-9)))
 
-                    if acq_mode is "SUM":
+                    if acq_mode == "SUM":
                         # in sum mode 64 bits for I and 64 bits for Q
                         # ie 4*2 bytes I 4*2 bytes Q
                         t_data_transfer = 16.0 / (100.0e6)
@@ -631,10 +631,10 @@ if __name__ == "__main__":
 
     chunck_duration = 1.0e-6  # length of acquisition pulse
 
-    if rfsoc.ADC2.decfact.get() is 8:
+    if rfsoc.ADC2.decfact.get() == 8:
         chunck_duration_ADC = chunck_duration / 8
 
-    elif rfsoc.ADC2.decfact.get() is not 1:
+    elif rfsoc.ADC2.decfact.get() != 1:
         raise ValueError("Invalid decimation factor")
     else:
         chunck_duration_ADC = chunck_duration
