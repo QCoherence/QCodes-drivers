@@ -1,0 +1,58 @@
+# Makes the drivers installable with pip, without moving or changing any driver:
+#   pip install "git+https://github.com/QCoherence/QCodes-drivers@v0.3.0"
+# Each file stays a top-level module, so `from RS_FSV import RS_FSV` keeps working.
+# Not listed, because they start a server when imported: PLH250P_TCP_server.py, Serial_TCP_server.py
+# (they stay in the repository and are run as scripts, as today).
+# `version` is the release: change it with each new tag.
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qcoherence-qcodes-drivers"
+version = "0.3.0"
+description = "QCoDeS drivers of the SQC group, Institut Neel (CNRS), Grenoble"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["qcodes>=0.59", "numpy", "tqdm"]
+
+[project.optional-dependencies]
+adwin = ["ADwin"]
+
+[tool.setuptools]
+py-modules = [
+    "ADwin_Gold2",
+    "AWGWX1284C",
+    "Agilent_E8257D",
+    "Anapico",
+    "B2902A",
+    "HP3245A",
+    "MW_switch_controller",
+    "PLH250P_current_source_TCP",
+    "PLH250P_current_source_backend",
+    "PLH250P_current_source_dummy",
+    "PLH250P_current_source_front",
+    "RS_FSQ",
+    "RS_FSV",
+    "RS_SGS_100A",
+    "RS_SMB_100A",
+    "RUDAT8000",
+    "SR830",
+    "SequenceGeneration_v2",
+    "Serial_TCP_client_functions",
+    "SignalHound_USB_SA124B",
+    "Tektronix_AFG3000",
+    "Tenma",
+    "USB_SA124B",
+    "VNA_Anritsu",
+    "VNA_RS",
+    "Vaunix_attn",
+    "Vaunix_phase_shifter",
+    "Virtual_SSB0550A",
+    "Yokogawa_7651",
+    "iMACRT_MGC3",
+    "iTest",
+    "qcodes_database_manager",
+    "redpitaya_qcodes",
+    "simulation_sweeps",
+]
